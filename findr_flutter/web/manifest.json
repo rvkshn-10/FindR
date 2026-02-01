@@ -1,0 +1,9 @@
+{
+  "name": "FindR Supply Map",
+  "short_name": "FindR",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#fefdfb",
+  "theme_color": "#534a3f",
+  "description": "Find items nearby – stores, products, and the best option."
+}

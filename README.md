@@ -2,7 +2,12 @@
 
 Find items nearby – stores, products, and the best option for you. Supply Map feature: search by item + location, see nearby stores on a map, get AI-ranked best option and directions.
 
-## Setup
+This repo has two implementations:
+
+- **Next.js (TypeScript)** – Web app in the repo root. Run `npm install` and `npm run dev`.
+- **Flutter (Dart)** – Cross-platform app in `findr_flutter/`. Run `cd findr_flutter && flutter pub get && flutter run -d chrome` (or android/ios). See [findr_flutter/README.md](findr_flutter/README.md).
+
+## Setup (Next.js web app)
 
 ```bash
 npm install
