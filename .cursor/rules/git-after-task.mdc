@@ -1,0 +1,14 @@
+---
+description: After completing a task, commit and push changes yourself
+alwaysApply: true
+---
+
+# Git after task
+
+When you finish a task that modified or added files in the workspace:
+
+1. **Stage** the relevant changed files: `git add` (e.g. `git add -A` or specific paths). Do not add ignored or environment-specific files (e.g. `.env`, `.firebaserc` if the user keeps it local) unless the user asked to.
+2. **Commit** with a short, descriptive message: `git commit -m "Brief description of changes"`.
+3. **Push** is automatic: the repo’s post-commit hook runs `git push` after every commit.
+
+Run these commands yourself as part of completing the task. Do not tell the user to “run git add/commit/push” unless commit or push fails (e.g. auth); then report the error and suggest they run the failing step once.
