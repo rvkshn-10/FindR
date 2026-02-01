@@ -20,6 +20,22 @@ Open [http://localhost:3000](http://localhost:3000); the app redirects to `/supp
 
 Without Google keys, road distances use OSRM (free) and the map uses OpenStreetMap/Leaflet.
 
+## Firebase (Analytics + Hosting)
+
+Firebase is wired for **Analytics** (client-side) and **Hosting** (optional deploy).
+
+- Config lives in `lib/firebase.ts`; analytics is initialized in the browser via `components/FirebaseAnalytics.tsx`.
+- The app uses **Next.js API routes** (geocode, search, etc.), so it cannot be fully static-exported. Firebase Hosting deploys a minimal placeholder page; the full app is best deployed on **Vercel** or **Firebase App Hosting**.
+
+To deploy the placeholder to Firebase Hosting:
+
+```bash
+npm run build:hosting   # creates out/index.html
+firebase deploy
+```
+
+Or in one step: `npm run deploy:firebase`
+
 ## Docs
 
 - [Supply Map build plan](./docs/SUPPLY_MAP_PLAN.md)

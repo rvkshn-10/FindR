@@ -6,10 +6,13 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "build:hosting": "node scripts/prepare-firebase-host.js",
+    "deploy:firebase": "npm run build:hosting && firebase deploy"
   },
   "dependencies": {
     "@react-google-maps/api": "^2.20.8",
+    "firebase": "^12.8.0",
     "leaflet": "^1.9.4",
     "next": "^14.0.0",
     "openai": "^6.17.0",
