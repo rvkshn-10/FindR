@@ -20,17 +20,22 @@ class SettingsScreen extends StatelessWidget {
             style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 8),
-          RadioListTile<DistanceUnit>(
-            title: const Text('Miles (mi)'),
-            value: DistanceUnit.mi,
+          RadioGroup<DistanceUnit>(
             groupValue: settings.distanceUnit,
             onChanged: (v) => settings.setDistanceUnit(v!),
-          ),
-          RadioListTile<DistanceUnit>(
-            title: const Text('Kilometers (km)'),
-            value: DistanceUnit.km,
-            groupValue: settings.distanceUnit,
-            onChanged: (v) => settings.setDistanceUnit(v!),
+            child: const Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                RadioListTile<DistanceUnit>(
+                  title: Text('Miles (mi)'),
+                  value: DistanceUnit.mi,
+                ),
+                RadioListTile<DistanceUnit>(
+                  title: Text('Kilometers (km)'),
+                  value: DistanceUnit.km,
+                ),
+              ],
+            ),
           ),
           const SizedBox(height: 24),
           const Text(

@@ -19,7 +19,7 @@ Future<SearchResult> search({
   try {
     overpassStores = await fetchNearbyStores(lat, lng, radiusM: radiusM.toInt());
   } catch (e) {
-    return SearchResult(
+    return const SearchResult(
       stores: [],
       bestOptionId: '',
       summary: 'Stores service is temporarily unavailable.',
@@ -40,7 +40,7 @@ Future<SearchResult> search({
     ..sort((a, b) => a.distanceKm.compareTo(b.distanceKm));
 
   if (candidates.isEmpty) {
-    return SearchResult(
+    return const SearchResult(
       stores: [],
       bestOptionId: '',
       summary: 'No nearby stores found.',
@@ -84,7 +84,7 @@ Future<SearchResult> search({
 
   final stores = candidates.take(_maxStores).toList();
   if (stores.isEmpty) {
-    return SearchResult(
+    return const SearchResult(
       stores: [],
       bestOptionId: '',
       summary: 'No nearby stores found.',
