@@ -159,8 +159,8 @@ class _SearchScreenState extends State<SearchScreen> {
                     _useMyLocation = v ?? true;
                     _error = null;
                   }),
-                  const Text('Use my location', style: TextStyle(fontSize: 14)),
-                ],
+                ),
+                const Text('Use my location', style: TextStyle(fontSize: 14)),
               ],
             ),
             if (!_useMyLocation) ...[
