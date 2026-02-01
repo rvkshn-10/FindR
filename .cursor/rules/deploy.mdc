@@ -1,0 +1,12 @@
+---
+description: Always run deploy when relevant; do not ask the user to deploy
+alwaysApply: true
+---
+
+# Deployment
+
+When the task involves deployment or results in deployable changes (e.g. static build, Firebase Hosting):
+
+- **Run the deploy command** (`npm run deploy:firebase` or `next build && firebase deploy`) from the project root.
+- **Do not** tell the user to "run deploy yourself" or "run this from your terminal"—execute deploy as part of completing the task.
+- If deploy fails due to auth (e.g. firebase login), then inform the user and suggest they run the auth step once; after that, continue to run deploy when relevant.

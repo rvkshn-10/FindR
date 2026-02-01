@@ -20,21 +20,31 @@ Open [http://localhost:3000](http://localhost:3000); the app redirects to `/supp
 
 Without Google keys, road distances use OSRM (free) and the map uses OpenStreetMap/Leaflet.
 
+## Static export (Firebase Hosting)
+
+The app is built as a **static export** so you can deploy to **Firebase Hosting** (free) with the full Supply Map UI:
+
+- **Geocode** – client-side via Nominatim (OpenStreetMap).
+- **Search** – client-side: Overpass (nearby stores) + OSRM (road distances). No Google Maps API or OpenAI on the server.
+- **Feedback/prices** – stored in the browser (localStorage).
+- **Map** – Leaflet/OpenStreetMap by default; set `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` at build time to use Google Maps.
+
+Deploy:
+
+```bash
+npm run build        # produces out/
+firebase deploy
+```
+
+Or: `npm run deploy:firebase`
+
+The previous API routes are kept in **`api.backup/`** for reference (not used in the static build).
+
 ## Firebase (Analytics + Hosting)
 
 Firebase is wired for **Analytics** (client-side) and **Hosting** (optional deploy).
 
 - Config lives in `lib/firebase.ts`; analytics is initialized in the browser via `components/FirebaseAnalytics.tsx`.
-- The app uses **Next.js API routes** (geocode, search, etc.), so it cannot be fully static-exported. Firebase Hosting deploys a minimal placeholder page; the full app is best deployed on **Vercel** or **Firebase App Hosting**.
-
-To deploy the placeholder to Firebase Hosting:
-
-```bash
-npm run build:hosting   # creates out/index.html
-firebase deploy
-```
-
-Or in one step: `npm run deploy:firebase`
 
 ## Docs
 

@@ -8,8 +8,13 @@ import StoreList from '@/components/supply-map/StoreList'
 import BestOptionCard from '@/components/supply-map/BestOptionCard'
 import { useSupplyMapSettings } from '@/components/supply-map/SupplyMapSettingsProvider'
 import { milesToKm, formatDistanceFromMiles } from '@/lib/supply-map/distance'
+import { clientSearch } from '@/lib/supply-map/client-search'
 
 const MapView = dynamic(() => import('@/components/supply-map/MapView'), { ssr: false })
+
+const GOOGLE_MAPS_API_KEY = typeof process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY === 'string'
+  ? process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY
+  : ''
 
 interface Store {
   id: string
@@ -47,14 +52,7 @@ function ResultsContent() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [selectedId, setSelectedId] = useState<string | null>(null)
-  const [googleMapsApiKey, setGoogleMapsApiKey] = useState<string | null>(null)
-
-  useEffect(() => {
-    fetch('/api/supply-map/map-key')
-      .then((r) => r.json())
-      .then((body: { googleMapsApiKey?: string }) => setGoogleMapsApiKey(body.googleMapsApiKey ?? ''))
-      .catch(() => setGoogleMapsApiKey(''))
-  }, [])
+  const googleMapsApiKey = GOOGLE_MAPS_API_KEY || null
 
   const lat = latParam ? parseFloat(latParam) : NaN
   const lng = lngParam ? parseFloat(lngParam) : NaN
@@ -68,22 +66,10 @@ function ResultsContent() {
     setLoading(true)
     setError(null)
     try {
-      const res = await fetch('/api/supply-map/search', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          item,
-          lat,
-          lng,
-          filters: Number.isFinite(maxDistanceKm) ? { maxDistanceKm } : undefined,
-        }),
+      const result = await clientSearch(item, lat, lng, {
+        maxDistanceKm: Number.isFinite(maxDistanceKm) ? maxDistanceKm : undefined,
       })
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}))
-        throw new Error(err.message ?? 'Search failed')
-      }
-      const result: SearchResult = await res.json()
-      setData(result)
+      setData(result as SearchResult)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong.')
     } finally {
@@ -193,11 +179,8 @@ function ResultsContent() {
 
       <div className="grid lg:grid-cols-2 gap-4 lg:gap-6">
         <div className="h-[320px] sm:h-[400px] lg:h-[500px] rounded-xl overflow-hidden border border-primary-200 bg-primary-50 order-2 lg:order-1">
-          {googleMapsApiKey === null ? (
-            <div className="h-full w-full flex items-center justify-center text-primary-600">Loading map…</div>
-          ) : (
-            <MapView
-              googleMapsApiKey={googleMapsApiKey}
+          <MapView
+              googleMapsApiKey={googleMapsApiKey ?? undefined}
               userLat={lat}
               userLng={lng}
               stores={stores}
@@ -206,7 +189,6 @@ function ResultsContent() {
               onSelectStore={setSelectedId}
               bestSummary={summary}
             />
-          )}
         </div>
         <div className="border border-primary-200 rounded-xl overflow-hidden bg-white max-h-[400px] lg:max-h-[500px] flex flex-col order-1 lg:order-2">
           <div className="p-3 sm:p-4 border-b border-primary-200 font-semibold text-primary-900 shrink-0">

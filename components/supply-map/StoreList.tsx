@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useSupplyMapSettings } from '@/components/supply-map/SupplyMapSettingsProvider'
 import { formatDistance } from '@/lib/supply-map/distance'
 import { formatPrice } from '@/lib/supply-map/currency'
+import { setFeedback, setPrice } from '@/lib/supply-map/feedback-client'
 
 export interface StoreListItem {
   id: string
@@ -38,31 +39,23 @@ export default function StoreList({
   const [priceInput, setPriceInput] = useState<Record<string, string>>({})
   const [priceSubmitting, setPriceSubmitting] = useState<Record<string, boolean>>({})
 
-  async function submitFeedback(storeId: string, inStock: boolean) {
+  function submitFeedback(storeId: string, inStock: boolean) {
     if (!item.trim()) return
     try {
-      await fetch('/api/supply-map/feedback', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ storeId, item: item.trim(), inStock }),
-      })
+      setFeedback(storeId, item.trim(), inStock)
       setFeedbackSent((prev) => ({ ...prev, [storeId]: inStock ? 'in' : 'out' }))
     } catch {
       // silent fail for MVP
     }
   }
 
-  async function submitPrice(storeId: string) {
+  function submitPrice(storeId: string) {
     const raw = priceInput[storeId]?.trim().replace(/^\$/, '')
     const value = parseFloat(raw)
     if (!item.trim() || !Number.isFinite(value) || value < 0) return
     setPriceSubmitting((prev) => ({ ...prev, [storeId]: true }))
     try {
-      await fetch('/api/supply-map/feedback', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ storeId, item: item.trim(), price: value }),
-      })
+      setPrice(storeId, item.trim(), value)
       onPriceReported?.(storeId, value)
       setPriceInput((prev) => ({ ...prev, [storeId]: '' }))
     } catch {

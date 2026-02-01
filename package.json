@@ -8,7 +8,7 @@
     "start": "next start",
     "lint": "next lint",
     "build:hosting": "node scripts/prepare-firebase-host.js",
-    "deploy:firebase": "npm run build:hosting && firebase deploy"
+    "deploy:firebase": "next build && firebase deploy"
   },
   "dependencies": {
     "@react-google-maps/api": "^2.20.8",

@@ -4,6 +4,7 @@ import { useState, FormEvent } from 'react'
 import { useRouter } from 'next/navigation'
 import { useSupplyMapSettings } from '@/components/supply-map/SupplyMapSettingsProvider'
 import { formatDistanceFromMiles } from '@/lib/supply-map/distance'
+import { geocode } from '@/lib/supply-map/geocode'
 
 const MAX_DISTANCE_MILES = [5, 10, 15] as const
 
@@ -49,16 +50,12 @@ export default function SearchBar() {
           setLoading(false)
           return
         }
-        const res = await fetch(
-          `/api/supply-map/geocode?q=${encodeURIComponent(locationTrimmed)}`
-        )
-        if (!res.ok) {
-          const err = await res.json().catch(() => ({}))
-          throw new Error(err.message ?? 'Could not find that location.')
+        const result = await geocode(locationTrimmed)
+        if (!result) {
+          throw new Error('Could not find that location.')
         }
-        const data = await res.json()
-        lat = data.lat
-        lng = data.lng
+        lat = result.lat
+        lng = result.lng
       }
 
       const params = new URLSearchParams({
