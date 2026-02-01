@@ -15,7 +15,17 @@ Future<SearchResult> search({
   double maxDistanceKm = 8.0,
 }) async {
   final radiusM = (maxDistanceKm * 1000).clamp(1000.0, 25000.0);
-  final overpassStores = await fetchNearbyStores(lat, lng, radiusM: radiusM.toInt());
+  List<OverpassStore> overpassStores;
+  try {
+    overpassStores = await fetchNearbyStores(lat, lng, radiusM: radiusM.toInt());
+  } catch (e) {
+    return SearchResult(
+      stores: [],
+      bestOptionId: '',
+      summary: 'Stores service is temporarily unavailable.',
+      alternatives: ['Try again in a moment or try a different location.'],
+    );
+  }
   var candidates = overpassStores
       .where((s) => s.distanceKm <= maxDistanceKm)
       .map((s) => Store(

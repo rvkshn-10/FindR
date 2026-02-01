@@ -2,9 +2,13 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'distance_util.dart';
 
-const _overpassBase = 'https://overpass-api.de/api/interpreter';
+/// Primary and fallback Overpass API endpoints (public instances).
+const _overpassEndpoints = [
+  'https://overpass-api.de/api/interpreter',
+  'https://overpass.kumi.systems/api/interpreter',
+];
 const _defaultRadiusM = 5000;
-const _timeout = Duration(seconds: 20);
+const _timeout = Duration(seconds: 25);
 
 class OverpassStore {
   final String id;
@@ -41,28 +45,38 @@ String _getAddress(Map<String, dynamic>? tags) {
   return parts.whereType<String>().join(', ');
 }
 
-Future<List<OverpassStore>> fetchNearbyStores(
+/// Returns true if the Overpass JSON response indicates an error (e.g. remark with "runtime error").
+bool _isErrorResponse(Map<String, dynamic> data) {
+  final remark = data['remark']?.toString() ?? '';
+  if (remark.toLowerCase().contains('runtime error') ||
+      remark.toLowerCase().contains('rate limit') ||
+      remark.toLowerCase().contains('timeout')) {
+    return true;
+  }
+  return false;
+}
+
+Future<List<OverpassStore>> _fetchFromEndpoint(
+  String baseUrl,
+  String query,
   double lat,
-  double lng, {
-  int radiusM = _defaultRadiusM,
-}) async {
-  final query = '''
-[out:json][timeout:12];
-(
-  nwr["shop"](around:$radiusM,$lat,$lng);
-  nwr["amenity"~"marketplace|pharmacy|fuel"](around:$radiusM,$lat,$lng);
-);
-out center;
-''';
+  double lng,
+) async {
   final res = await http
       .post(
-        Uri.parse(_overpassBase),
+        Uri.parse(baseUrl),
         body: query,
         headers: {'Content-Type': 'text/plain'},
       )
       .timeout(_timeout);
-  if (res.statusCode != 200) throw Exception('Overpass failed: ${res.statusCode}');
+  if (res.statusCode != 200) {
+    throw Exception('Overpass failed: ${res.statusCode}');
+  }
   final data = jsonDecode(res.body) as Map<String, dynamic>;
+  if (_isErrorResponse(data)) {
+    final remark = data['remark']?.toString() ?? 'Unknown error';
+    throw Exception('Overpass error: $remark');
+  }
   final elements = data['elements'] as List<dynamic>? ?? [];
   final stores = <OverpassStore>[];
   final seen = <String>{};
@@ -95,4 +109,29 @@ out center;
   }
   stores.sort((a, b) => a.distanceKm.compareTo(b.distanceKm));
   return stores;
+}
+
+Future<List<OverpassStore>> fetchNearbyStores(
+  double lat,
+  double lng, {
+  int radiusM = _defaultRadiusM,
+}) async {
+  final query = '''
+[out:json][timeout:15];
+(
+  nwr["shop"](around:$radiusM,$lat,$lng);
+  nwr["amenity"~"marketplace|pharmacy|fuel"](around:$radiusM,$lat,$lng);
+);
+out center;
+''';
+  Object? lastError;
+  for (final baseUrl in _overpassEndpoints) {
+    try {
+      return await _fetchFromEndpoint(baseUrl, query, lat, lng);
+    } catch (e) {
+      lastError = e;
+      // Try next endpoint
+    }
+  }
+  throw lastError ?? Exception('Overpass failed');
 }

@@ -1,5 +1,22 @@
 # Deploy FindR to GitHub and Firebase
 
+## Automatic deployment (recommended)
+
+- **GitHub:** Your existing post-commit hook pushes to GitHub after every commit.
+- **Firebase:** Every push to `main` triggers a GitHub Action that builds the Flutter web app and deploys it to Firebase Hosting.
+
+**One-time setup for automatic Firebase deploy:** Add a GitHub secret named `FIREBASE_TOKEN`:
+
+1. On your machine, run:  
+   `firebase login:ci`  
+   (Log in in the browser if prompted, then copy the token it prints.)
+2. In GitHub: repo → **Settings** → **Secrets and variables** → **Actions** → **New repository secret**.
+3. Name: `FIREBASE_TOKEN`, Value: paste the token from step 1.
+
+After that, every push to `main` will deploy the Flutter web app to Firebase Hosting automatically.
+
+---
+
 ## 1. Push to GitHub
 
 From the **FindR** repo root:
@@ -59,7 +76,8 @@ firebase deploy
 
 ## Summary
 
-| Goal           | Where to run        | Commands |
-|----------------|---------------------|----------|
-| Push to GitHub | FindR repo root     | `git add -A && git commit -m "..." && git push origin main` |
-| Deploy to Firebase | `findr_flutter/` | `firebase use --add` (once), then `flutter build web && firebase deploy` |
+| Goal           | How |
+|----------------|-----|
+| Push to GitHub | Post-commit hook pushes automatically after each commit. |
+| Deploy to Firebase | GitHub Action runs on every push to `main` (set `FIREBASE_TOKEN` secret once). |
+| Manual Firebase deploy | From `findr_flutter/`: `flutter build web && firebase deploy` |
