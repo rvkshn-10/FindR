@@ -122,34 +122,35 @@ class _SearchScreenState extends State<SearchScreen> {
         ],
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const SizedBox(height: 16),
             const Text(
               'What do you need?',
-              style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
               textAlign: TextAlign.center,
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 4),
             const Text(
-              "Find items nearby – we'll show you stores and the best option.",
-              style: TextStyle(color: Colors.grey),
+              'Find stores nearby.',
+              style: TextStyle(fontSize: 13, color: Colors.grey),
               textAlign: TextAlign.center,
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 12),
             TextField(
               controller: _itemController,
               decoration: const InputDecoration(
-                hintText: 'e.g. AA batteries, milk, bandages',
+                hintText: 'e.g. batteries, milk',
                 border: OutlineInputBorder(),
                 filled: true,
+                isDense: true,
+                contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
               ),
               textInputAction: TextInputAction.next,
               enabled: !_loading,
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 8),
             Row(
               children: [
                 Checkbox(
@@ -158,8 +159,8 @@ class _SearchScreenState extends State<SearchScreen> {
                     _useMyLocation = v ?? true;
                     _error = null;
                   }),
-                ),
-                const Text('Use my location'),
+                  const Text('Use my location', style: TextStyle(fontSize: 14)),
+                ],
               ],
             ),
             if (!_useMyLocation) ...[
@@ -169,36 +170,33 @@ class _SearchScreenState extends State<SearchScreen> {
                   hintText: 'City or address',
                   border: OutlineInputBorder(),
                   filled: true,
+                  isDense: true,
+                  contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                 ),
                 enabled: !_loading,
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 8),
             ],
             DropdownButton<double>(
               value: _maxDistanceMiles,
               isExpanded: true,
+              isDense: true,
               items: _kMaxDistanceMiles.map((m) {
                 return DropdownMenuItem(
                   value: m,
-                  child: Text('Within ${formatMaxDistance(m, useKm: settings.useKm)}'),
+                  child: Text('Within ${formatMaxDistance(m, useKm: settings.useKm)}', style: const TextStyle(fontSize: 14)),
                 );
               }).toList(),
               onChanged: _loading ? null : (v) => setState(() => _maxDistanceMiles = v ?? 5),
             ),
             if (_error != null) ...[
-              const SizedBox(height: 8),
-              Text(_error!, style: const TextStyle(color: Colors.red)),
+              const SizedBox(height: 4),
+              Text(_error!, style: const TextStyle(color: Colors.red, fontSize: 13)),
             ],
-            const SizedBox(height: 24),
+            const SizedBox(height: 12),
             FilledButton(
               onPressed: _loading ? null : _submit,
               child: Text(_loading ? 'Finding…' : 'Find nearby'),
-            ),
-            const SizedBox(height: 16),
-            const Text(
-              'We show stores that typically carry this kind of item. Availability is estimated.',
-              style: TextStyle(fontSize: 12, color: Colors.grey),
-              textAlign: TextAlign.center,
             ),
           ],
         ),

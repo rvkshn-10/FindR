@@ -82,8 +82,8 @@ class _ResultsScreenState extends State<ResultsScreen> {
             mainAxisSize: MainAxisSize.min,
             children: [
               CircularProgressIndicator(),
-              SizedBox(height: 16),
-              Text('Finding nearby stores…'),
+              SizedBox(height: 12),
+              Text('Finding nearby stores…', style: TextStyle(fontSize: 14)),
             ],
           ),
         ),
@@ -94,12 +94,12 @@ class _ResultsScreenState extends State<ResultsScreen> {
         appBar: AppBar(title: const Text('Results')),
         body: Center(
           child: Padding(
-            padding: const EdgeInsets.all(24),
+            padding: const EdgeInsets.all(16),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(_error!, style: const TextStyle(color: Colors.red), textAlign: TextAlign.center),
-                const SizedBox(height: 16),
+                Text(_error!, style: const TextStyle(color: Colors.red, fontSize: 13), textAlign: TextAlign.center),
+                const SizedBox(height: 12),
                 FilledButton(
                   onPressed: () => Navigator.of(context).pop(),
                   child: const Text('Back to search'),
@@ -126,19 +126,21 @@ class _ResultsScreenState extends State<ResultsScreen> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Padding(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
             child: Card(
+              margin: EdgeInsets.zero,
               child: Padding(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
-                      'You searched: "${widget.item}" · Within ${formatMaxDistance(widget.maxDistanceMiles, useKm: settings.useKm)}',
-                      style: Theme.of(context).textTheme.titleSmall,
+                      '"${widget.item}" · ${formatMaxDistance(widget.maxDistanceMiles, useKm: settings.useKm)}',
+                      style: Theme.of(context).textTheme.titleSmall?.copyWith(fontSize: 12),
                     ),
-                    const SizedBox(height: 8),
-                    Text(result.summary, style: const TextStyle(fontWeight: FontWeight.w500)),
+                    const SizedBox(height: 2),
+                    Text(result.summary, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
                   ],
                 ),
               ),
@@ -151,7 +153,7 @@ class _ResultsScreenState extends State<ResultsScreen> {
                 Expanded(
                   flex: 1,
                   child: Card(
-                    margin: const EdgeInsets.only(left: 16, right: 8, bottom: 16),
+                    margin: const EdgeInsets.only(left: 12, right: 6, bottom: 12),
                     clipBehavior: Clip.antiAlias,
                     child: stores.isEmpty
                         ? const Center(child: Text('No nearby stores found.'))
@@ -195,18 +197,20 @@ class _ResultsScreenState extends State<ResultsScreen> {
                 Expanded(
                   flex: 1,
                   child: Card(
-                    margin: const EdgeInsets.only(left: 8, right: 16, bottom: 16),
+                    margin: const EdgeInsets.only(left: 6, right: 12, bottom: 12),
                     child: stores.isEmpty
                         ? const Center(child: Text('No nearby stores found.'))
                         : ListView.builder(
                             itemCount: stores.length,
+                            padding: EdgeInsets.zero,
                             itemBuilder: (context, i) {
                               final s = stores[i];
                               final isBest = s.id == result.bestOptionId;
                               return ListTile(
+                                dense: true,
                                 title: Row(
                                   children: [
-                                    Expanded(child: Text(s.name)),
+                                    Expanded(child: Text(s.name, style: const TextStyle(fontSize: 14))),
                                     if (isBest)
                                       const Chip(
                                         label: Text('Best', style: TextStyle(fontSize: 10)),
@@ -217,11 +221,17 @@ class _ResultsScreenState extends State<ResultsScreen> {
                                 ),
                                 subtitle: Text(
                                   '${formatDistance(s.distanceKm, useKm: settings.useKm)} away'
-                                  '${s.durationMinutes != null ? ' · ~${s.durationMinutes} min drive' : ''}',
+                                  '${s.durationMinutes != null ? ' · ~${s.durationMinutes} min' : ''}',
+                                  style: const TextStyle(fontSize: 12),
                                 ),
                                 trailing: TextButton(
                                   onPressed: () => _openDirections(s),
-                                  child: const Text('Directions'),
+                                  style: TextButton.styleFrom(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                                    minimumSize: Size.zero,
+                                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                  ),
+                                  child: const Text('Go', style: TextStyle(fontSize: 13)),
                                 ),
                               );
                             },
