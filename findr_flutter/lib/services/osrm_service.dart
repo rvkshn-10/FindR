@@ -27,13 +27,22 @@ Future<List<RoadDistanceResult>?> getRoadDistancesOsrm(
       ...chunk.map((e) => '${e.value},${e.key}'),
     ].join(';');
     final destIndices = List.generate(chunk.length, (j) => j + 1).join(';');
-    final uri = Uri.parse('$_osrmBase/$coords').replace(
+    // Request duration and distance; some OSRM servers only support duration.
+    Uri uri = Uri.parse('$_osrmBase/$coords').replace(
       queryParameters: {'sources': '0', 'destinations': destIndices, 'annotations': 'duration,distance'},
     );
-    final res = await http.get(uri).timeout(_timeout);
-    if (res.statusCode != 200) return null;
-    final data = jsonDecode(res.body) as Map<String, dynamic>;
-    if (data['code'] != 'Ok') return null;
+    var res = await http.get(uri).timeout(_timeout);
+    var data = res.statusCode == 200 ? jsonDecode(res.body) as Map<String, dynamic>? : null;
+    // If server rejects annotations (e.g. "annotations has an error"), retry without it.
+    if (data == null || data['code'] != 'Ok' || data['annotations'] == 'error') {
+      uri = Uri.parse('$_osrmBase/$coords').replace(
+        queryParameters: {'sources': '0', 'destinations': destIndices},
+      );
+      res = await http.get(uri).timeout(_timeout);
+      if (res.statusCode != 200) return null;
+      data = jsonDecode(res.body) as Map<String, dynamic>;
+      if (data['code'] != 'Ok') return null;
+    }
     final durations = data['durations'] as List<dynamic>?;
     final distances = data['distances'] as List<dynamic>?;
     if (durations == null || distances == null) return null;
