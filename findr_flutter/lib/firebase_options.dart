@@ -1,6 +1,5 @@
-// Replace with your real config: create a Firebase project, then run:
-//   dart run flutterfire_cli:flutterfire configure
-// That overwrites this file. Until then, the app runs; Firebase features won't work.
+// Firebase config for project: supplymapper (linked from web app).
+// To regenerate with FlutterFire CLI: flutterfire configure --project=supplymapper
 
 import 'package:firebase_core/firebase_core.dart' show FirebaseOptions;
 import 'package:flutter/foundation.dart' show defaultTargetPlatform, kIsWeb, TargetPlatform;
@@ -21,28 +20,28 @@ class DefaultFirebaseOptions {
   }
 
   static const FirebaseOptions web = FirebaseOptions(
-    apiKey: 'YOUR_WEB_API_KEY',
-    appId: 'YOUR_WEB_APP_ID',
-    messagingSenderId: 'YOUR_SENDER_ID',
-    projectId: 'YOUR_PROJECT_ID',
-    authDomain: 'YOUR_PROJECT_ID.firebaseapp.com',
-    storageBucket: 'YOUR_PROJECT_ID.appspot.com',
+    apiKey: 'AIzaSyCshZiCFX7djYdP5GZ6g0P7qaz4Lt7OvVE',
+    appId: '1:1053711084660:web:62622b2b429cb76658b521',
+    messagingSenderId: '1053711084660',
+    projectId: 'supplymapper',
+    authDomain: 'supplymapper.firebaseapp.com',
+    storageBucket: 'supplymapper.firebasestorage.app',
   );
 
   static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'YOUR_ANDROID_API_KEY',
-    appId: 'YOUR_ANDROID_APP_ID',
-    messagingSenderId: 'YOUR_SENDER_ID',
-    projectId: 'YOUR_PROJECT_ID',
-    storageBucket: 'YOUR_PROJECT_ID.appspot.com',
+    apiKey: 'AIzaSyCshZiCFX7djYdP5GZ6g0P7qaz4Lt7OvVE',
+    appId: '1:1053711084660:android:placeholder',
+    messagingSenderId: '1053711084660',
+    projectId: 'supplymapper',
+    storageBucket: 'supplymapper.firebasestorage.app',
   );
 
   static const FirebaseOptions ios = FirebaseOptions(
-    apiKey: 'YOUR_IOS_API_KEY',
-    appId: 'YOUR_IOS_APP_ID',
-    messagingSenderId: 'YOUR_SENDER_ID',
-    projectId: 'YOUR_PROJECT_ID',
-    storageBucket: 'YOUR_PROJECT_ID.appspot.com',
+    apiKey: 'AIzaSyCshZiCFX7djYdP5GZ6g0P7qaz4Lt7OvVE',
+    appId: '1:1053711084660:ios:placeholder',
+    messagingSenderId: '1053711084660',
+    projectId: 'supplymapper',
+    storageBucket: 'supplymapper.firebasestorage.app',
     iosBundleId: 'com.findr.findrFlutter',
   );
 

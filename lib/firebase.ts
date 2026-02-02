@@ -8,8 +8,8 @@ const firebaseConfig = {
   projectId: "supplymapper",
   storageBucket: "supplymapper.firebasestorage.app",
   messagingSenderId: "1053711084660",
-  appId: "1:1053711084660:web:5c1c1ae7cf48c91558b521",
-  measurementId: "G-1BL9XQ11RF",
+  appId: "1:1053711084660:web:62622b2b429cb76658b521",
+  measurementId: "G-4NLTRCF3JF",
 };
 
 // Initialize Firebase
