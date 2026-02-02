@@ -126,21 +126,32 @@ class _ResultsScreenState extends State<ResultsScreen> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
             child: Card(
-              margin: EdgeInsets.zero,
+              color: Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.4),
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                child: Column(
+                padding: const EdgeInsets.all(16),
+                child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text(
-                      '"${widget.item}" · ${formatMaxDistance(widget.maxDistanceMiles, useKm: settings.useKm)}',
-                      style: Theme.of(context).textTheme.titleSmall?.copyWith(fontSize: 12),
+                    Icon(Icons.check_circle_outline, color: Theme.of(context).colorScheme.primary, size: 28),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            '"${widget.item}" · ${formatMaxDistance(widget.maxDistanceMiles, useKm: settings.useKm)}',
+                            style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                              color: Theme.of(context).colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(result.summary, style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600)),
+                        ],
+                      ),
                     ),
-                    const SizedBox(height: 2),
-                    Text(result.summary, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
                   ],
                 ),
               ),
@@ -155,6 +166,7 @@ class _ResultsScreenState extends State<ResultsScreen> {
                   child: Card(
                     margin: const EdgeInsets.only(left: 12, right: 6, bottom: 12),
                     clipBehavior: Clip.antiAlias,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     child: stores.isEmpty
                         ? const Center(child: Text('No nearby stores found.'))
                         : FlutterMap(
@@ -200,38 +212,59 @@ class _ResultsScreenState extends State<ResultsScreen> {
                     margin: const EdgeInsets.only(left: 6, right: 12, bottom: 12),
                     child: stores.isEmpty
                         ? const Center(child: Text('No nearby stores found.'))
-                        : ListView.builder(
+                        : ListView.separated(
                             itemCount: stores.length,
                             padding: EdgeInsets.zero,
+                            separatorBuilder: (_, __) => const Divider(height: 1),
                             itemBuilder: (context, i) {
                               final s = stores[i];
                               final isBest = s.id == result.bestOptionId;
-                              return ListTile(
-                                dense: true,
-                                title: Row(
-                                  children: [
-                                    Expanded(child: Text(s.name, style: const TextStyle(fontSize: 14))),
-                                    if (isBest)
-                                      const Chip(
-                                        label: Text('Best', style: TextStyle(fontSize: 10)),
-                                        padding: EdgeInsets.zero,
-                                        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                                      ),
-                                  ],
-                                ),
-                                subtitle: Text(
-                                  '${formatDistance(s.distanceKm, useKm: settings.useKm)} away'
-                                  '${s.durationMinutes != null ? ' · ~${s.durationMinutes} min' : ''}',
-                                  style: const TextStyle(fontSize: 12),
-                                ),
-                                trailing: TextButton(
-                                  onPressed: () => _openDirections(s),
-                                  style: TextButton.styleFrom(
-                                    padding: const EdgeInsets.symmetric(horizontal: 8),
-                                    minimumSize: Size.zero,
-                                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              return Container(
+                                decoration: isBest
+                                    ? BoxDecoration(
+                                        color: Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.3),
+                                        border: Border(
+                                          left: BorderSide(
+                                            color: Theme.of(context).colorScheme.primary,
+                                            width: 4,
+                                          ),
+                                        ),
+                                      )
+                                    : null,
+                                child: ListTile(
+                                  dense: true,
+                                  leading: Icon(
+                                    isBest ? Icons.star : Icons.store_outlined,
+                                    color: isBest ? Theme.of(context).colorScheme.primary : null,
+                                    size: 22,
                                   ),
-                                  child: const Text('Go', style: TextStyle(fontSize: 13)),
+                                  title: Row(
+                                    children: [
+                                      Expanded(child: Text(s.name, style: const TextStyle(fontSize: 14))),
+                                      if (isBest)
+                                        Chip(
+                                          label: const Text('Best', style: TextStyle(fontSize: 11)),
+                                          padding: EdgeInsets.zero,
+                                          materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                          backgroundColor: Theme.of(context).colorScheme.primaryContainer,
+                                        ),
+                                    ],
+                                  ),
+                                  subtitle: Text(
+                                    '${formatDistance(s.distanceKm, useKm: settings.useKm)} away'
+                                    '${s.durationMinutes != null ? ' · ~${s.durationMinutes} min' : ''}',
+                                    style: const TextStyle(fontSize: 12),
+                                  ),
+                                  trailing: FilledButton.icon(
+                                    onPressed: () => _openDirections(s),
+                                    icon: const Icon(Icons.directions, size: 18),
+                                    label: const Text('Go'),
+                                    style: FilledButton.styleFrom(
+                                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                                      minimumSize: Size.zero,
+                                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                    ),
+                                  ),
                                 ),
                               );
                             },

@@ -13,13 +13,12 @@ class SettingsScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(title: const Text('Settings')),
       body: ListView(
-        padding: const EdgeInsets.all(24),
+        padding: const EdgeInsets.all(20),
         children: [
-          const Text(
-            'Distance unit',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          ListTile(
+            leading: Icon(Icons.straighten, color: Theme.of(context).colorScheme.primary),
+            title: const Text('Distance unit', style: TextStyle(fontWeight: FontWeight.w600)),
           ),
-          const SizedBox(height: 8),
           RadioGroup<DistanceUnit>(
             groupValue: settings.distanceUnit,
             onChanged: (v) => settings.setDistanceUnit(v!),
@@ -37,17 +36,19 @@ class SettingsScreen extends StatelessWidget {
               ],
             ),
           ),
-          const SizedBox(height: 24),
-          const Text(
-            'Currency',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          const Divider(),
+          ListTile(
+            leading: Icon(Icons.attach_money, color: Theme.of(context).colorScheme.primary),
+            title: const Text('Currency', style: TextStyle(fontWeight: FontWeight.w600)),
           ),
-          const SizedBox(height: 8),
-          DropdownButton<String>(
-            value: settings.currency,
-            isExpanded: true,
-            items: _currencies.map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
-            onChanged: (v) => settings.setCurrency(v ?? 'USD'),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: DropdownButton<String>(
+              value: settings.currency,
+              isExpanded: true,
+              items: _currencies.map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
+              onChanged: (v) => settings.setCurrency(v ?? 'USD'),
+            ),
           ),
         ],
       ),
