@@ -34,6 +34,8 @@ jobs:
       - name: Set Firebase project
         run: firebase use FindR
         working-directory: findr_flutter
+        env:
+          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
 
       - name: Deploy to Firebase Hosting
         run: firebase deploy --only hosting --non-interactive
