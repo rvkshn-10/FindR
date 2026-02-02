@@ -1,0 +1,21 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Flutter (Web - localhost:8080)",
+      "request": "launch",
+      "type": "dart",
+      "program": "lib/main.dart",
+      "cwd": "${workspaceFolder}/findr_flutter",
+      "args": ["-d", "web-server", "--web-port=8080"]
+    },
+    {
+      "name": "Flutter (Web Server - alt)",
+      "request": "launch",
+      "type": "dart",
+      "program": "lib/main.dart",
+      "cwd": "${workspaceFolder}/findr_flutter",
+      "args": ["-d", "web-server", "--web-port=8080"]
+    }
+  ]
+}
