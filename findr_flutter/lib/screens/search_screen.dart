@@ -1,13 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:provider/provider.dart';
+import '../models/store.dart';
 import '../providers/settings_provider.dart';
+import '../services/filter_constants.dart';
 import '../services/geocode_service.dart';
 import '../services/distance_util.dart';
 import 'results_screen.dart';
 import 'settings_screen.dart';
 
 const _kMaxDistanceMiles = [5.0, 10.0, 15.0];
+const _kQualityTiers = ['All', 'Premium', 'Standard', 'Budget'];
 
 class SearchScreen extends StatefulWidget {
   const SearchScreen({super.key});
@@ -22,6 +25,10 @@ class _SearchScreenState extends State<SearchScreen> {
   bool _useMyLocation = true;
   double _maxDistanceMiles = 5;
   bool _loading = false;
+  String _qualityTier = 'All';
+  bool _membershipsOnly = false;
+  final Set<String> _selectedStoreNames = {};
+  bool _filtersExpanded = false;
 
   @override
   void dispose() {
@@ -89,6 +96,11 @@ class _SearchScreenState extends State<SearchScreen> {
         lat = result.lat;
         lng = result.lng;
       }
+      final filters = SearchFilters(
+        qualityTier: _qualityTier == 'All' ? null : _qualityTier,
+        membershipsOnly: _membershipsOnly,
+        storeNames: _selectedStoreNames.toList(),
+      );
       if (!mounted) return;
       Navigator.of(context).push(
         MaterialPageRoute(
@@ -97,6 +109,7 @@ class _SearchScreenState extends State<SearchScreen> {
             lat: lat,
             lng: lng,
             maxDistanceMiles: _maxDistanceMiles,
+            filters: filters,
           ),
         ),
       );
@@ -196,32 +209,129 @@ class _SearchScreenState extends State<SearchScreen> {
                               const SizedBox(height: 16),
                             ],
                             const Divider(height: 24),
-                            Row(
-                              children: [
-                                Text(
-                                  'Max distance',
-                                  style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                                  ),
+                            InkWell(
+                              onTap: _loading ? null : () => setState(() => _filtersExpanded = !_filtersExpanded),
+                              borderRadius: BorderRadius.circular(8),
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(vertical: 8),
+                                child: Row(
+                                  children: [
+                                    Icon(
+                                      _filtersExpanded ? Icons.expand_less : Icons.expand_more,
+                                      size: 20,
+                                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      'Filters',
+                                      style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                      ),
+                                    ),
+                                    if (_maxDistanceMiles != _kMaxDistanceMiles.first ||
+                                        _qualityTier != 'All' ||
+                                        _membershipsOnly ||
+                                        _selectedStoreNames.isNotEmpty)
+                                      Padding(
+                                        padding: const EdgeInsets.only(left: 8),
+                                        child: Chip(
+                                          label: Text(
+                                            '${(_maxDistanceMiles != _kMaxDistanceMiles.first ? 1 : 0) + (_qualityTier != 'All' ? 1 : 0) + (_membershipsOnly ? 1 : 0) + _selectedStoreNames.length} active',
+                                            style: const TextStyle(fontSize: 11),
+                                          ),
+                                          padding: EdgeInsets.zero,
+                                          materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                          visualDensity: VisualDensity.compact,
+                                        ),
+                                      ),
+                                  ],
                                 ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: DropdownButtonHideUnderline(
-                                    child: DropdownButton<double>(
-                                      value: _maxDistanceMiles,
-                                      isExpanded: true,
-                                      items: _kMaxDistanceMiles.map((m) {
-                                        return DropdownMenuItem(
-                                          value: m,
-                                          child: Text('Within ${formatMaxDistance(m, useKm: settings.useKm)}'),
-                                        );
-                                      }).toList(),
-                                      onChanged: _loading ? null : (v) => setState(() => _maxDistanceMiles = v ?? 5),
+                              ),
+                            ),
+                            if (_filtersExpanded) ...[
+                              const SizedBox(height: 12),
+                              Text(
+                                'Max distance',
+                                style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              DropdownButtonFormField<double>(
+                                value: _maxDistanceMiles,
+                                decoration: const InputDecoration(
+                                  isDense: true,
+                                  contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                ),
+                                isExpanded: true,
+                                items: _kMaxDistanceMiles.map((m) {
+                                  return DropdownMenuItem(
+                                    value: m,
+                                    child: Text('Within ${formatMaxDistance(m, useKm: settings.useKm)}'),
+                                  );
+                                }).toList(),
+                                onChanged: _loading ? null : (v) => setState(() => _maxDistanceMiles = v ?? 5),
+                              ),
+                              const SizedBox(height: 12),
+                              Text(
+                                'Quality',
+                                style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              DropdownButtonFormField<String>(
+                                value: _qualityTier,
+                                decoration: const InputDecoration(
+                                  isDense: true,
+                                  contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                ),
+                                isExpanded: true,
+                                items: _kQualityTiers.map((t) => DropdownMenuItem(value: t, child: Text(t))).toList(),
+                                onChanged: _loading ? null : (v) => setState(() => _qualityTier = v ?? 'All'),
+                              ),
+                              const SizedBox(height: 12),
+                              Row(
+                                children: [
+                                  Checkbox(
+                                    value: _membershipsOnly,
+                                    onChanged: _loading ? null : (v) => setState(() => _membershipsOnly = v ?? false),
+                                  ),
+                                  const Expanded(
+                                    child: Text(
+                                      'Only membership warehouses (e.g. Costco, Sam\'s Club)',
+                                      style: TextStyle(fontSize: 13),
                                     ),
                                   ),
+                                ],
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                'Specific stores',
+                                style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                                  color: Theme.of(context).colorScheme.onSurfaceVariant,
                                 ),
-                              ],
-                            ),
+                              ),
+                              const SizedBox(height: 6),
+                              Wrap(
+                                spacing: 6,
+                                runSpacing: 6,
+                                children: commonStoresForFilter.map((name) {
+                                  final selected = _selectedStoreNames.contains(name);
+                                  return FilterChip(
+                                    label: Text(name, style: const TextStyle(fontSize: 12)),
+                                    selected: selected,
+                                    onSelected: _loading ? null : (v) {
+                                      setState(() {
+                                        if (v) _selectedStoreNames.add(name);
+                                        else _selectedStoreNames.remove(name);
+                                      });
+                                    },
+                                  );
+                                }).toList(),
+                              ),
+                              const SizedBox(height: 12),
+                            ],
                             const SizedBox(height: 20),
                             FilledButton.icon(
                               onPressed: _loading ? null : _submit,

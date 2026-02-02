@@ -5,8 +5,8 @@ alwaysApply: true
 
 # Deployment
 
-When the task involves deployment or results in deployable changes (e.g. static build, Firebase Hosting):
+When the task involves deployment or results in deployable changes (e.g. Flutter web app, Firebase Hosting):
 
-- **Run the deploy command** (`npm run deploy:firebase` or `next build && firebase deploy`) from the project root.
+- **Run the deploy command** from the project root. For the **FindR Flutter app** (findr_flutter/), use: **`npm run deploy:firebase:flutter`** (builds Flutter web and deploys to Firebase Hosting).
 - **Do not** tell the user to "run deploy yourself" or "run this from your terminal"—execute deploy as part of completing the task.
-- If deploy fails due to auth (e.g. firebase login), then inform the user and suggest they run the auth step once; after that, continue to run deploy when relevant.
+- If deploy fails due to auth (e.g. firebase login), inform the user to run `firebase login` once from `findr_flutter/`; after that, continue to run deploy when relevant.

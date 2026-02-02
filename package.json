@@ -8,7 +8,9 @@
     "start": "next start",
     "lint": "next lint",
     "build:hosting": "node scripts/prepare-firebase-host.js",
-    "deploy:firebase": "next build && firebase deploy"
+    "deploy:firebase": "next build && firebase deploy",
+    "deploy:firebase:flutter": "cd findr_flutter && flutter build web && firebase deploy",
+    "watch:deploy": "chokidar \"findr_flutter/lib/**\" \"findr_flutter/web/**\" \"findr_flutter/pubspec.yaml\" -c \"npm run deploy:firebase:flutter\""
   },
   "dependencies": {
     "@react-google-maps/api": "^2.20.8",
@@ -21,6 +23,7 @@
     "react-leaflet": "^4.2.1"
   },
   "devDependencies": {
+    "chokidar-cli": "^3.0.0",
     "@types/leaflet": "^1.9.21",
     "@types/node": "^20.0.0",
     "@types/react": "^18.2.0",

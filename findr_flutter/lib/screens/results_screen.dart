@@ -13,6 +13,7 @@ class ResultsScreen extends StatefulWidget {
   final double lat;
   final double lng;
   final double maxDistanceMiles;
+  final SearchFilters? filters;
 
   const ResultsScreen({
     super.key,
@@ -20,6 +21,7 @@ class ResultsScreen extends StatefulWidget {
     required this.lat,
     required this.lng,
     required this.maxDistanceMiles,
+    this.filters,
   });
 
   @override
@@ -30,11 +32,19 @@ class _ResultsScreenState extends State<ResultsScreen> {
   SearchResult? _result;
   bool _loading = true;
   String? _error;
+  final MapController _mapController = MapController();
+  String? _selectedStoreId;
 
   @override
   void initState() {
     super.initState();
     _load();
+  }
+
+  @override
+  void dispose() {
+    _mapController.dispose();
+    super.dispose();
   }
 
   Future<void> _load() async {
@@ -49,6 +59,7 @@ class _ResultsScreenState extends State<ResultsScreen> {
         lat: widget.lat,
         lng: widget.lng,
         maxDistanceKm: maxKm,
+        filters: widget.filters,
       );
       if (!mounted) return;
       setState(() {
@@ -198,39 +209,123 @@ class _ResultsScreenState extends State<ResultsScreen> {
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     child: stores.isEmpty
                         ? const Center(child: Text('No nearby stores found.'))
-                        : FlutterMap(
-                            options: MapOptions(
-                              initialCenter: LatLng(widget.lat, widget.lng),
-                              initialZoom: 14,
-                            ),
+                        : Stack(
+                            clipBehavior: Clip.none,
                             children: [
-                              TileLayer(
-                                urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                                userAgentPackageName: 'com.findr.findr_flutter',
-                              ),
-                              MarkerLayer(
-                                markers: [
-                                  Marker(
-                                    point: LatLng(widget.lat, widget.lng),
-                                    width: 24,
-                                    height: 24,
-                                    child: const Icon(Icons.person_pin_circle, color: Colors.blue, size: 24),
+                              FlutterMap(
+                                mapController: _mapController,
+                                options: MapOptions(
+                                  initialCenter: LatLng(widget.lat, widget.lng),
+                                  initialZoom: 14,
+                                ),
+                                children: [
+                                  TileLayer(
+                                    urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                                    userAgentPackageName: 'com.findr.findr_flutter',
                                   ),
-                                  ...stores.map((s) {
-                                    final isBest = s.id == result.bestOptionId;
-                                    return Marker(
-                                      point: LatLng(s.lat, s.lng),
-                                      width: 24,
-                                      height: 24,
-                                      child: Icon(
-                                        Icons.store,
-                                        color: isBest ? Colors.green : Colors.orange,
-                                        size: 24,
+                                  MarkerLayer(
+                                    markers: [
+                                      Marker(
+                                        point: LatLng(widget.lat, widget.lng),
+                                        width: 24,
+                                        height: 24,
+                                        child: const Icon(Icons.person_pin_circle, color: Colors.blue, size: 24),
                                       ),
-                                    );
-                                  }),
+                                      ...stores.map((s) {
+                                        final isBest = s.id == result.bestOptionId;
+                                        final isSelected = s.id == _selectedStoreId;
+                                        return Marker(
+                                          point: LatLng(s.lat, s.lng),
+                                          width: 24,
+                                          height: 24,
+                                          child: Icon(
+                                            Icons.store,
+                                            color: isSelected
+                                                ? Theme.of(context).colorScheme.primary
+                                                : (isBest ? Colors.green : Colors.orange),
+                                            size: isSelected ? 28 : 24,
+                                          ),
+                                        );
+                                      }),
+                                    ],
+                                  ),
                                 ],
                               ),
+                              if (_selectedStoreId != null) ...[
+                                Builder(
+                                  builder: (context) {
+                                    final store = stores.firstWhere(
+                                      (s) => s.id == _selectedStoreId!,
+                                    );
+                                    return Positioned(
+                                      left: 12,
+                                      right: 12,
+                                      bottom: 12,
+                                      child: Material(
+                                        elevation: 8,
+                                        borderRadius: BorderRadius.circular(12),
+                                        child: Container(
+                                          padding: const EdgeInsets.all(16),
+                                          decoration: BoxDecoration(
+                                            color: Theme.of(context).colorScheme.surface,
+                                            borderRadius: BorderRadius.circular(12),
+                                            border: Border.all(
+                                              color: Theme.of(context).colorScheme.outlineVariant,
+                                            ),
+                                          ),
+                                          child: Column(
+                                            mainAxisSize: MainAxisSize.min,
+                                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                                            children: [
+                                              Row(
+                                                children: [
+                                                  Expanded(
+                                                    child: Text(
+                                                      store.name,
+                                                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                                        fontWeight: FontWeight.w600,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                  IconButton(
+                                                    onPressed: () => setState(() => _selectedStoreId = null),
+                                                    icon: const Icon(Icons.close),
+                                                    style: IconButton.styleFrom(
+                                                      padding: const EdgeInsets.all(4),
+                                                      minimumSize: const Size(32, 32),
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                              if (store.address.isNotEmpty) ...[
+                                                const SizedBox(height: 4),
+                                                Text(
+                                                  store.address,
+                                                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                                  ),
+                                                ),
+                                              ],
+                                              const SizedBox(height: 8),
+                                              Text(
+                                                '${formatDistance(store.distanceKm, useKm: settings.useKm)} away'
+                                                '${store.durationMinutes != null ? ' · ~${store.durationMinutes} min' : ''}',
+                                                style: Theme.of(context).textTheme.bodySmall,
+                                              ),
+                                              const SizedBox(height: 12),
+                                              FilledButton.icon(
+                                                onPressed: () => _openDirections(store),
+                                                icon: const Icon(Icons.directions, size: 20),
+                                                label: const Text('Directions'),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                ),
+                              ],
                             ],
                           ),
                   ),
@@ -279,6 +374,10 @@ class _ResultsScreenState extends State<ResultsScreen> {
                                     : null,
                                 child: ListTile(
                                   dense: true,
+                                  onTap: () {
+                                    setState(() => _selectedStoreId = s.id);
+                                    _mapController.move(LatLng(s.lat, s.lng), 16);
+                                  },
                                   leading: Icon(
                                     isBest ? Icons.star : Icons.store_outlined,
                                     color: isBest ? Theme.of(context).colorScheme.primary : null,

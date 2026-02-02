@@ -3,5 +3,16 @@
   "dart.flutterHotReloadOnSave": "always",
   "terminal.integrated.env.osx": {
     "PATH": "/Users/ravikrishnap/flutter/bin:${env:PATH}"
+  },
+  "emeraldwalk.runonsave": {
+    "commands": [
+      {
+        "match": ".*/findr_flutter/(lib/.*|web/.*|pubspec\\.yaml)$",
+        "cmd": "npm run deploy:firebase:flutter",
+        "isAsync": true,
+        "message": "Deploying Flutter app to Firebase…",
+        "showElapsed": true
+      }
+    ]
   }
 }

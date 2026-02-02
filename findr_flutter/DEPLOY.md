@@ -74,10 +74,18 @@ firebase deploy
 
 ---
 
+## Auto-deploy on save (optional)
+
+- **Option A – Run on Save (Cursor/VS Code):** Install the [Run on Save](https://marketplace.visualstudio.com/items?itemName=emeraldwalk.RunOnSave) extension. The repo’s `.vscode/settings.json` is already set so that saving any file under `findr_flutter/lib/`, `findr_flutter/web/`, or `findr_flutter/pubspec.yaml` runs `npm run deploy:firebase:flutter` and deploys to Firebase.
+- **Option B – Watch script:** From the repo root, run `npm run watch:deploy` and leave the terminal open. Any change under `findr_flutter/lib`, `findr_flutter/web`, or `findr_flutter/pubspec.yaml` will trigger a build and deploy.
+
+---
+
 ## Summary
 
 | Goal           | How |
 |----------------|-----|
 | Push to GitHub | Post-commit hook pushes automatically after each commit. |
 | Deploy to Firebase | GitHub Action runs on every push to `main` (set `FIREBASE_TOKEN` secret once). |
-| Manual Firebase deploy | From `findr_flutter/`: `flutter build web && firebase deploy` |
+| Manual Firebase deploy | From repo root: `npm run deploy:firebase:flutter` |
+| Deploy on every save | Install Run on Save extension (see above) or run `npm run watch:deploy`. |

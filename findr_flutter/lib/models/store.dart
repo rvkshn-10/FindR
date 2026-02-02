@@ -53,3 +53,21 @@ class SearchResult {
     this.alternatives,
   });
 }
+
+/// Filters applied to search: quality tier, membership-only, specific store names.
+class SearchFilters {
+  final String? qualityTier; // null or '' = All; 'Premium' | 'Standard' | 'Budget'
+  final bool membershipsOnly;
+  final List<String> storeNames; // empty = any; non-empty = only stores matching any
+
+  const SearchFilters({
+    this.qualityTier,
+    this.membershipsOnly = false,
+    this.storeNames = const [],
+  });
+
+  bool get hasFilters =>
+      (qualityTier != null && qualityTier!.isNotEmpty) ||
+      membershipsOnly ||
+      storeNames.isNotEmpty;
+}

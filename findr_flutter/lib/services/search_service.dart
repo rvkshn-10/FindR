@@ -1,4 +1,5 @@
 import 'distance_util.dart';
+import 'filter_constants.dart';
 import 'overpass_service.dart';
 import 'osrm_service.dart';
 import '../models/store.dart';
@@ -7,12 +8,24 @@ const _maxStores = 10;
 const _maxStoresForRoad = 25;
 const _avgSpeedKmh = 50.0;
 
-/// Runs search: Overpass → filter by distance → OSRM road distances → build Store list.
+bool _passesFilters(OverpassStore s, SearchFilters? filters) {
+  if (filters == null || !filters.hasFilters) return true;
+  if (filters.qualityTier != null && filters.qualityTier!.isNotEmpty) {
+    if (!storeMatchesQualityTier(s.name, filters.qualityTier!)) return false;
+  }
+  if (filters.membershipsOnly && !storeIsMembership(s.name)) return false;
+  if (filters.storeNames.isNotEmpty &&
+      !storeMatchesSpecificStores(s.name, filters.storeNames)) return false;
+  return true;
+}
+
+/// Runs search: Overpass → filters → distance → OSRM road distances → build Store list.
 Future<SearchResult> search({
   required String item,
   required double lat,
   required double lng,
   double maxDistanceKm = 8.0,
+  SearchFilters? filters,
 }) async {
   final radiusM = (maxDistanceKm * 1000).clamp(1000.0, 25000.0);
   List<OverpassStore> overpassStores;
@@ -26,7 +39,8 @@ Future<SearchResult> search({
       alternatives: ['Try again in a moment or try a different location.'],
     );
   }
-  var candidates = overpassStores
+  var filtered = overpassStores.where((s) => _passesFilters(s, filters)).toList();
+  var candidates = filtered
       .where((s) => s.distanceKm <= maxDistanceKm)
       .map((s) => Store(
             id: s.id,
@@ -40,11 +54,15 @@ Future<SearchResult> search({
     ..sort((a, b) => a.distanceKm.compareTo(b.distanceKm));
 
   if (candidates.isEmpty) {
-    return const SearchResult(
+    final alternatives = <String>[
+      'Try a different item or increase max distance',
+      if (filters?.hasFilters == true) 'Try loosening or clearing filters',
+    ];
+    return SearchResult(
       stores: [],
       bestOptionId: '',
       summary: 'No nearby stores found.',
-      alternatives: ['Try a different item or increase max distance'],
+      alternatives: alternatives,
     );
   }
 
