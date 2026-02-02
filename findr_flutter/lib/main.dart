@@ -30,6 +30,7 @@ class FindRApp extends StatelessWidget {
         theme: ThemeData(
           colorScheme: ColorScheme.fromSeed(seedColor: Colors.brown),
           useMaterial3: true,
+          scaffoldBackgroundColor: Colors.lightBlue.shade50,
         ),
         home: const SearchScreen(),
       ),
