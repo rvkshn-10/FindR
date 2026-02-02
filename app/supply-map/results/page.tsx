@@ -65,10 +65,17 @@ function ResultsContent() {
     }
     setLoading(true)
     setError(null)
+    const SEARCH_TIMEOUT_MS = 25000 // 25s max so we never load forever
+    const timeoutPromise = new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error('Search timed out. Map services may be slow or blocked. Try again.')), SEARCH_TIMEOUT_MS)
+    )
     try {
-      const result = await clientSearch(item, lat, lng, {
-        maxDistanceKm: Number.isFinite(maxDistanceKm) ? maxDistanceKm : undefined,
-      })
+      const result = await Promise.race([
+        clientSearch(item, lat, lng, {
+          maxDistanceKm: Number.isFinite(maxDistanceKm) ? maxDistanceKm : undefined,
+        }),
+        timeoutPromise,
+      ])
       setData(result as SearchResult)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong.')

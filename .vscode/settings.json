@@ -1,4 +1,7 @@
 {
   "flutter.hotReloadOnSave": "always",
-  "dart.flutterHotReloadOnSave": "always"
+  "dart.flutterHotReloadOnSave": "always",
+  "terminal.integrated.env.osx": {
+    "PATH": "/Users/ravikrishnap/flutter/bin:${env:PATH}"
+  }
 }

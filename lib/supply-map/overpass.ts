@@ -8,7 +8,7 @@ import { haversineKm } from './distance'
 
 const OVERPASS_BASE = 'https://overpass-api.de/api/interpreter'
 const DEFAULT_RADIUS_M = 5000 // 5 km
-const FETCH_TIMEOUT_MS = 20000 // 20s
+const FETCH_TIMEOUT_MS = 12000 // 12s – fail sooner so UI doesn’t feel stuck
 
 export interface OverpassStore {
   id: string
