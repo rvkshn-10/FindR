@@ -7,6 +7,8 @@ import '../models/store.dart';
 import '../services/search_service.dart';
 import '../services/distance_util.dart';
 import '../providers/settings_provider.dart';
+import '../widgets/liquid_glass_background.dart';
+import 'settings_screen.dart';
 
 class ResultsScreen extends StatefulWidget {
   final String item;
@@ -14,6 +16,8 @@ class ResultsScreen extends StatefulWidget {
   final double lng;
   final double maxDistanceMiles;
   final SearchFilters? filters;
+  final bool embedInBackground;
+  final VoidCallback? onNewSearch;
 
   const ResultsScreen({
     super.key,
@@ -22,6 +26,8 @@ class ResultsScreen extends StatefulWidget {
     required this.lng,
     required this.maxDistanceMiles,
     this.filters,
+    this.embedInBackground = true,
+    this.onNewSearch,
   });
 
   @override
@@ -82,40 +88,88 @@ class _ResultsScreenState extends State<ResultsScreen> {
     launchUrl(url, mode: LaunchMode.externalApplication);
   }
 
+  Widget _wrapBody(Widget child) {
+    if (widget.embedInBackground) {
+      return LiquidGlassBackground(child: child);
+    }
+    return child;
+  }
+
   @override
   Widget build(BuildContext context) {
     final settings = context.watch<SettingsProvider>();
+    final topPadding = MediaQuery.paddingOf(context).top + kToolbarHeight + 24;
     if (_loading) {
       return Scaffold(
-        appBar: AppBar(title: Text('Results for "${widget.item}"')),
-        body: const Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              CircularProgressIndicator(),
-              SizedBox(height: 12),
-              Text('Finding nearby stores…', style: TextStyle(fontSize: 14)),
-            ],
+        extendBodyBehindAppBar: true,
+        appBar: AppBar(
+          flexibleSpace: const LiquidGlassAppBarBar(),
+          title: Text('Results for "${widget.item}"'),
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.settings),
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const SettingsScreen()),
+              ),
+            ),
+          ],
+        ),
+        body: _wrapBody(
+          Padding(
+            padding: EdgeInsets.only(top: topPadding),
+            child: const Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  CircularProgressIndicator(),
+                  SizedBox(height: 12),
+                  Text('Finding nearby stores…', style: TextStyle(fontSize: 14, color: LiquidGlassColors.onDarkLabel)),
+                ],
+              ),
+            ),
           ),
         ),
       );
     }
     if (_error != null) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Results')),
-        body: Center(
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(_error!, style: const TextStyle(color: Colors.red, fontSize: 13), textAlign: TextAlign.center),
-                const SizedBox(height: 12),
-                FilledButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  child: const Text('Back'),
+        extendBodyBehindAppBar: true,
+        appBar: AppBar(
+          flexibleSpace: const LiquidGlassAppBarBar(),
+          title: const Text('Results'),
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.settings),
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const SettingsScreen()),
+              ),
+            ),
+          ],
+        ),
+        body: _wrapBody(
+          Padding(
+            padding: EdgeInsets.only(top: topPadding),
+            child: Center(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(_error!, style: const TextStyle(color: Colors.red, fontSize: 13), textAlign: TextAlign.center),
+                    const SizedBox(height: 12),
+                    FilledButton(
+                      onPressed: () {
+                        if (widget.onNewSearch != null) {
+                          widget.onNewSearch!();
+                        } else {
+                          Navigator.of(context).pop();
+                        }
+                      },
+                      child: const Text('Back'),
+                    ),
+                  ],
                 ),
-              ],
+              ),
             ),
           ),
         ),
@@ -124,37 +178,50 @@ class _ResultsScreenState extends State<ResultsScreen> {
     final result = _result!;
     final stores = result.stores;
     return Scaffold(
+      extendBodyBehindAppBar: true,
       appBar: AppBar(
+        flexibleSpace: const LiquidGlassAppBarBar(),
         title: Text('Results for "${widget.item}"'),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.settings),
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const SettingsScreen()),
+            ),
+          ),
           TextButton(
-            onPressed: () => Navigator.of(context).pop(),
+            onPressed: () {
+              if (widget.onNewSearch != null) {
+                widget.onNewSearch!();
+              } else {
+                Navigator.of(context).pop();
+              }
+            },
             child: const Text('New search'),
           ),
         ],
       ),
-      body: LayoutBuilder(
-        builder: (context, constraints) {
-          final w = constraints.maxWidth.clamp(0.0, 1152.0);
-          return SingleChildScrollView(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
-              child: Center(
-                child: SizedBox(
-                  width: w,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
+      body: _wrapBody(
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final w = constraints.maxWidth.clamp(0.0, 1152.0);
+            return SingleChildScrollView(
+              child: Padding(
+                padding: EdgeInsets.fromLTRB(16, topPadding, 16, 24),
+                child: Center(
+                  child: SizedBox(
+                    width: w,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
           Padding(
             padding: const EdgeInsets.only(bottom: 16),
-            child: Card(
-              color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
+            child: LiquidGlassCard(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
                     RichText(
                       text: TextSpan(
                         style: DefaultTextStyle.of(context).style.copyWith(
@@ -188,7 +255,7 @@ class _ResultsScreenState extends State<ResultsScreen> {
                 ),
               ),
             ),
-          ),
+          const SizedBox(height: 8),
           Padding(
             padding: const EdgeInsets.only(bottom: 8),
             child: Text(
@@ -203,11 +270,14 @@ class _ResultsScreenState extends State<ResultsScreen> {
               children: [
                 Expanded(
                   flex: 1,
-                  child: Card(
-                    margin: const EdgeInsets.only(right: 8),
-                    clipBehavior: Clip.antiAlias,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    child: stores.isEmpty
+                  child: Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: LiquidGlassCard(
+                      padding: EdgeInsets.zero,
+                      borderRadius: 20,
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(20),
+                        child: stores.isEmpty
                         ? const Center(child: Text('No nearby stores found.'))
                         : Stack(
                             clipBehavior: Clip.none,
@@ -267,10 +337,10 @@ class _ResultsScreenState extends State<ResultsScreen> {
                                         child: Container(
                                           padding: const EdgeInsets.all(16),
                                           decoration: BoxDecoration(
-                                            color: Theme.of(context).colorScheme.surface,
-                                            borderRadius: BorderRadius.circular(12),
+                                            color: LiquidGlassColors.glassFill,
+                                            borderRadius: BorderRadius.circular(16),
                                             border: Border.all(
-                                              color: Theme.of(context).colorScheme.outlineVariant,
+                                              color: LiquidGlassColors.glassBorder,
                                             ),
                                           ),
                                           child: Column(
@@ -328,13 +398,18 @@ class _ResultsScreenState extends State<ResultsScreen> {
                               ],
                             ],
                           ),
+                      ),
+                    ),
                   ),
                 ),
                 Expanded(
                   flex: 1,
-                  child: Card(
-                    margin: const EdgeInsets.only(left: 8),
-                    child: Column(
+                  child: Padding(
+                    padding: const EdgeInsets.only(left: 8),
+                    child: LiquidGlassCard(
+                      padding: EdgeInsets.zero,
+                      borderRadius: 20,
+                      child: Column(
                       mainAxisSize: MainAxisSize.max,
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
@@ -417,6 +492,7 @@ class _ResultsScreenState extends State<ResultsScreen> {
                     ),
                   ),
                 ),
+                ),
               ],
             ),
           ),
@@ -427,6 +503,7 @@ class _ResultsScreenState extends State<ResultsScreen> {
             ),
           );
         },
+      ),
       ),
     );
   }

@@ -1,19 +1,29 @@
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../models/store.dart';
 import '../providers/settings_provider.dart';
 import '../services/filter_constants.dart';
 import '../services/geocode_service.dart';
 import '../services/distance_util.dart';
+import '../widgets/liquid_glass_background.dart';
 import 'results_screen.dart';
 import 'settings_screen.dart';
+import 'supply_map_shell.dart';
 
 const _kMaxDistanceMiles = [5.0, 10.0, 15.0];
 const _kQualityTiers = ['All', 'Premium', 'Standard', 'Budget'];
 
 class SearchScreen extends StatefulWidget {
-  const SearchScreen({super.key});
+  final bool embedInBackground;
+  final void Function(SearchResultParams)? onSearchResult;
+
+  const SearchScreen({
+    super.key,
+    this.embedInBackground = true,
+    this.onSearchResult,
+  });
 
   @override
   State<SearchScreen> createState() => _SearchScreenState();
@@ -102,17 +112,28 @@ class _SearchScreenState extends State<SearchScreen> {
         storeNames: _selectedStoreNames.toList(),
       );
       if (!mounted) return;
-      Navigator.of(context).push(
-        MaterialPageRoute(
-          builder: (context) => ResultsScreen(
-            item: item,
-            lat: lat,
-            lng: lng,
-            maxDistanceMiles: _maxDistanceMiles,
-            filters: filters,
-          ),
-        ),
+      final params = SearchResultParams(
+        item: item,
+        lat: lat,
+        lng: lng,
+        maxDistanceMiles: _maxDistanceMiles,
+        filters: filters,
       );
+      if (widget.onSearchResult != null) {
+        widget.onSearchResult!(params);
+      } else {
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (context) => ResultsScreen(
+              item: item,
+              lat: lat,
+              lng: lng,
+              maxDistanceMiles: _maxDistanceMiles,
+              filters: filters,
+            ),
+          ),
+        );
+      }
     } catch (e) {
       setState(() => _loading = false);
       if (mounted) {
@@ -128,8 +149,11 @@ class _SearchScreenState extends State<SearchScreen> {
   @override
   Widget build(BuildContext context) {
     final settings = context.watch<SettingsProvider>();
+    final topPadding = MediaQuery.paddingOf(context).top + kToolbarHeight + 16;
     return Scaffold(
+      extendBodyBehindAppBar: true,
       appBar: AppBar(
+        flexibleSpace: const LiquidGlassAppBarBar(),
         title: const Text('Supply Map'),
         actions: [
           IconButton(
@@ -140,41 +164,50 @@ class _SearchScreenState extends State<SearchScreen> {
           ),
         ],
       ),
-      body: LayoutBuilder(
-        builder: (context, constraints) {
-          final w = constraints.maxWidth.clamp(0.0, 672.0);
-          return SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 40),
-            child: Center(
-              child: SizedBox(
-                width: w,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    const SizedBox(height: 8),
-                    const Text(
-                      'What do you need?',
-                      style: TextStyle(
-                        fontSize: 30,
-                        fontWeight: FontWeight.bold,
-                        fontFamily: 'serif',
-                        color: Color(0xFF463f37),
+      body: _buildBody(context, settings, topPadding),
+    );
+  }
+
+  Widget _buildBody(BuildContext context, SettingsProvider settings, double topPadding) {
+    final content = LayoutBuilder(
+      builder: (context, constraints) {
+        final w = constraints.maxWidth.clamp(0.0, 672.0);
+        return SingleChildScrollView(
+              padding: EdgeInsets.fromLTRB(16, topPadding, 16, 40),
+              child: Center(
+                child: SizedBox(
+                  width: w,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      LiquidGlassCard(
+                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            const Text(
+                              'What do you need?',
+                              style: TextStyle(
+                                fontSize: 28,
+                                fontWeight: FontWeight.w600,
+                                color: LiquidGlassColors.onDarkLabel,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              "Find items nearby – we'll show you stores and the best option.",
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                          ],
+                        ),
                       ),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      "Find items nearby – we'll show you stores and the best option.",
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 32),
-                    Card(
-                      child: Padding(
-                        padding: const EdgeInsets.all(24),
+                      const SizedBox(height: 24),
+                      LiquidGlassCard(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
@@ -184,7 +217,12 @@ class _SearchScreenState extends State<SearchScreen> {
                                 hintText: 'e.g. AA batteries, milk, bandages',
                                 prefixIcon: Icon(Icons.search),
                               ),
-                              textInputAction: TextInputAction.next,
+                              textInputAction: _useMyLocation ? TextInputAction.search : TextInputAction.next,
+                              onSubmitted: (_) {
+                                if (_useMyLocation) {
+                                  _submit();
+                                }
+                              },
                               enabled: !_loading,
                             ),
                             const SizedBox(height: 16),
@@ -204,6 +242,8 @@ class _SearchScreenState extends State<SearchScreen> {
                                   hintText: 'City or address',
                                   prefixIcon: Icon(Icons.place_outlined),
                                 ),
+                                textInputAction: TextInputAction.search,
+                                onSubmitted: (_) => _submit(),
                                 enabled: !_loading,
                               ),
                               const SizedBox(height: 16),
@@ -237,7 +277,7 @@ class _SearchScreenState extends State<SearchScreen> {
                                         child: Chip(
                                           label: Text(
                                             '${(_maxDistanceMiles != _kMaxDistanceMiles.first ? 1 : 0) + (_qualityTier != 'All' ? 1 : 0) + (_membershipsOnly ? 1 : 0) + _selectedStoreNames.length} active',
-                                            style: const TextStyle(fontSize: 11),
+                                            style: GoogleFonts.outfit(fontSize: 11),
                                           ),
                                           padding: EdgeInsets.zero,
                                           materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
@@ -297,10 +337,10 @@ class _SearchScreenState extends State<SearchScreen> {
                                     value: _membershipsOnly,
                                     onChanged: _loading ? null : (v) => setState(() => _membershipsOnly = v ?? false),
                                   ),
-                                  const Expanded(
+                                  Expanded(
                                     child: Text(
                                       'Only membership warehouses (e.g. Costco, Sam\'s Club)',
-                                      style: TextStyle(fontSize: 13),
+                                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontSize: 13),
                                     ),
                                   ),
                                 ],
@@ -319,7 +359,7 @@ class _SearchScreenState extends State<SearchScreen> {
                                 children: commonStoresForFilter.map((name) {
                                   final selected = _selectedStoreNames.contains(name);
                                   return FilterChip(
-                                    label: Text(name, style: const TextStyle(fontSize: 12)),
+                                    label: Text(name, style: GoogleFonts.outfit(fontSize: 12)),
                                     selected: selected,
                                     onSelected: _loading ? null : (v) {
                                       setState(() {
@@ -347,11 +387,10 @@ class _SearchScreenState extends State<SearchScreen> {
                           ],
                         ),
                       ),
-                    ),
                     const SizedBox(height: 16),
                     Text(
                       'We show stores that typically carry this kind of item. Availability is estimated.',
-                      style: TextStyle(
+                      style: GoogleFonts.outfit(
                         fontSize: 12,
                         color: Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
@@ -363,7 +402,10 @@ class _SearchScreenState extends State<SearchScreen> {
             ),
           );
         },
-      ),
     );
+    if (widget.embedInBackground) {
+      return LiquidGlassBackground(child: content);
+    }
+    return content;
   }
 }

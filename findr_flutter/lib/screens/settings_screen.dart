@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/settings_provider.dart';
+import '../widgets/liquid_glass_background.dart';
 
 const _currencies = ['USD', 'EUR', 'GBP', 'CAD', 'MXN'];
 
@@ -10,47 +11,65 @@ class SettingsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final settings = context.watch<SettingsProvider>();
+    final topPadding = MediaQuery.paddingOf(context).top + kToolbarHeight + 20;
     return Scaffold(
-      appBar: AppBar(title: const Text('Settings')),
-      body: ListView(
-        padding: const EdgeInsets.all(20),
-        children: [
-          ListTile(
-            leading: Icon(Icons.straighten, color: Theme.of(context).colorScheme.primary),
-            title: const Text('Distance unit', style: TextStyle(fontWeight: FontWeight.w600)),
-          ),
-          RadioGroup<DistanceUnit>(
-            groupValue: settings.distanceUnit,
-            onChanged: (v) => settings.setDistanceUnit(v!),
-            child: const Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                RadioListTile<DistanceUnit>(
-                  title: Text('Miles (mi)'),
-                  value: DistanceUnit.mi,
-                ),
-                RadioListTile<DistanceUnit>(
-                  title: Text('Kilometers (km)'),
-                  value: DistanceUnit.km,
-                ),
-              ],
+      extendBodyBehindAppBar: true,
+      appBar: AppBar(
+        flexibleSpace: const LiquidGlassAppBarBar(),
+        title: const Text('Settings'),
+      ),
+      body: LiquidGlassBackground(
+        child: ListView(
+          padding: EdgeInsets.fromLTRB(20, topPadding, 20, 40),
+          children: [
+            LiquidGlassCard(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: Icon(Icons.straighten, color: Theme.of(context).colorScheme.primary),
+                    title: const Text('Distance unit', style: TextStyle(fontWeight: FontWeight.w600)),
+                  ),
+                  RadioGroup<DistanceUnit>(
+                    groupValue: settings.distanceUnit,
+                    onChanged: (v) => settings.setDistanceUnit(v!),
+                    child: const Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        RadioListTile<DistanceUnit>(
+                          title: Text('Miles (mi)'),
+                          value: DistanceUnit.mi,
+                        ),
+                        RadioListTile<DistanceUnit>(
+                          title: Text('Kilometers (km)'),
+                          value: DistanceUnit.km,
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Divider(),
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: Icon(Icons.attach_money, color: Theme.of(context).colorScheme.primary),
+                    title: const Text('Currency', style: TextStyle(fontWeight: FontWeight.w600)),
+                  ),
+                  DropdownButtonFormField<String>(
+                    value: settings.currency,
+                    decoration: const InputDecoration(
+                      isDense: true,
+                      contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    ),
+                    isExpanded: true,
+                    items: _currencies.map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
+                    onChanged: (v) => settings.setCurrency(v ?? 'USD'),
+                  ),
+                ],
+              ),
             ),
-          ),
-          const Divider(),
-          ListTile(
-            leading: Icon(Icons.attach_money, color: Theme.of(context).colorScheme.primary),
-            title: const Text('Currency', style: TextStyle(fontWeight: FontWeight.w600)),
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: DropdownButton<String>(
-              value: settings.currency,
-              isExpanded: true,
-              items: _currencies.map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
-              onChanged: (v) => settings.setCurrency(v ?? 'USD'),
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

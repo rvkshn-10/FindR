@@ -10,6 +10,7 @@ dependencies:
   flutter:
     sdk: flutter
   firebase_core: ^2.24.0
+  google_fonts: ^6.1.0
   http: ^1.1.0
   geolocator: ^10.1.0
   flutter_map: ^6.0.0
@@ -24,3 +25,5 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  assets:
+    - assets/
