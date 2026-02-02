@@ -117,7 +117,6 @@ class _SearchScreenState extends State<SearchScreen> {
     final settings = context.watch<SettingsProvider>();
     return Scaffold(
       appBar: AppBar(
-        leading: Icon(Icons.map_outlined, color: Theme.of(context).colorScheme.onPrimary),
         title: const Text('Supply Map'),
         actions: [
           IconButton(
@@ -128,101 +127,132 @@ class _SearchScreenState extends State<SearchScreen> {
           ),
         ],
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const SizedBox(height: 8),
-            Icon(Icons.shopping_bag_outlined, size: 48, color: Theme.of(context).colorScheme.primary),
-            const SizedBox(height: 12),
-            const Text(
-              'What do you need?',
-              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 4),
-            Text(
-              'Find stores nearby.',
-              style: TextStyle(fontSize: 14, color: Theme.of(context).colorScheme.onSurfaceVariant),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 24),
-            TextField(
-              controller: _itemController,
-              decoration: const InputDecoration(
-                hintText: 'e.g. batteries, milk',
-                prefixIcon: Icon(Icons.search),
-              ),
-              textInputAction: TextInputAction.next,
-              enabled: !_loading,
-            ),
-            const SizedBox(height: 12),
-            Material(
-              color: Colors.transparent,
-              child: ListTile(
-                leading: Icon(Icons.my_location, color: Theme.of(context).colorScheme.primary),
-                title: const Text('Use my location'),
-                trailing: Switch(
-                  value: _useMyLocation,
-                  onChanged: _loading ? null : (v) => setState(() => _useMyLocation = v),
-                ),
-              ),
-            ),
-            if (!_useMyLocation) ...[
-              TextField(
-                controller: _locationController,
-                decoration: const InputDecoration(
-                  hintText: 'City or address',
-                  prefixIcon: Icon(Icons.place_outlined),
-                ),
-                enabled: !_loading,
-              ),
-              const SizedBox(height: 12),
-            ],
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          final w = constraints.maxWidth.clamp(0.0, 672.0);
+          return SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 40),
+            child: Center(
+              child: SizedBox(
+                width: w,
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
+                    const SizedBox(height: 8),
+                    const Text(
+                      'What do you need?',
+                      style: TextStyle(
+                        fontSize: 30,
+                        fontWeight: FontWeight.bold,
+                        fontFamily: 'serif',
+                        color: Color(0xFF463f37),
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 8),
                     Text(
-                      'Search radius',
-                      style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                      "Find items nearby – we'll show you stores and the best option.",
+                      style: TextStyle(
+                        fontSize: 14,
                         color: Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
+                      textAlign: TextAlign.center,
                     ),
-                    DropdownButton<double>(
-                      value: _maxDistanceMiles,
-                      isExpanded: true,
-                      underline: const SizedBox(),
-                      items: _kMaxDistanceMiles.map((m) {
-                        return DropdownMenuItem(
-                          value: m,
-                          child: Text('Within ${formatMaxDistance(m, useKm: settings.useKm)}'),
-                        );
-                      }).toList(),
-                      onChanged: _loading ? null : (v) => setState(() => _maxDistanceMiles = v ?? 5),
+                    const SizedBox(height: 32),
+                    Card(
+                      child: Padding(
+                        padding: const EdgeInsets.all(24),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            TextField(
+                              controller: _itemController,
+                              decoration: const InputDecoration(
+                                hintText: 'e.g. AA batteries, milk, bandages',
+                                prefixIcon: Icon(Icons.search),
+                              ),
+                              textInputAction: TextInputAction.next,
+                              enabled: !_loading,
+                            ),
+                            const SizedBox(height: 16),
+                            Row(
+                              children: [
+                                Checkbox(
+                                  value: _useMyLocation,
+                                  onChanged: _loading ? null : (v) => setState(() => _useMyLocation = v ?? true),
+                                ),
+                                const Text('Use my location'),
+                              ],
+                            ),
+                            if (!_useMyLocation) ...[
+                              TextField(
+                                controller: _locationController,
+                                decoration: const InputDecoration(
+                                  hintText: 'City or address',
+                                  prefixIcon: Icon(Icons.place_outlined),
+                                ),
+                                enabled: !_loading,
+                              ),
+                              const SizedBox(height: 16),
+                            ],
+                            const Divider(height: 24),
+                            Row(
+                              children: [
+                                Text(
+                                  'Max distance',
+                                  style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: DropdownButtonHideUnderline(
+                                    child: DropdownButton<double>(
+                                      value: _maxDistanceMiles,
+                                      isExpanded: true,
+                                      items: _kMaxDistanceMiles.map((m) {
+                                        return DropdownMenuItem(
+                                          value: m,
+                                          child: Text('Within ${formatMaxDistance(m, useKm: settings.useKm)}'),
+                                        );
+                                      }).toList(),
+                                      onChanged: _loading ? null : (v) => setState(() => _maxDistanceMiles = v ?? 5),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 20),
+                            FilledButton.icon(
+                              onPressed: _loading ? null : _submit,
+                              icon: _loading
+                                  ? const SizedBox(
+                                      width: 20,
+                                      height: 20,
+                                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                                    )
+                                  : const Icon(Icons.search, size: 20),
+                              label: Text(_loading ? 'Finding…' : 'Find nearby'),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      'We show stores that typically carry this kind of item. Availability is estimated.',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                      textAlign: TextAlign.center,
                     ),
                   ],
                 ),
               ),
             ),
-            const SizedBox(height: 24),
-            FilledButton.icon(
-              onPressed: _loading ? null : _submit,
-              icon: _loading
-                  ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                    )
-                  : const Icon(Icons.map_outlined, size: 22),
-              label: Text(_loading ? 'Finding…' : 'Find nearby'),
-              style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(48)),
-            ),
-          ],
-        ),
+          );
+        },
       ),
     );
   }

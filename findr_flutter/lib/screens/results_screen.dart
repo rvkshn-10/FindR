@@ -102,7 +102,7 @@ class _ResultsScreenState extends State<ResultsScreen> {
                 const SizedBox(height: 12),
                 FilledButton(
                   onPressed: () => Navigator.of(context).pop(),
-                  child: const Text('Back to search'),
+                  child: const Text('Back'),
                 ),
               ],
             ),
@@ -122,34 +122,55 @@ class _ResultsScreenState extends State<ResultsScreen> {
           ),
         ],
       ),
-      body: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          final w = constraints.maxWidth.clamp(0.0, 1152.0);
+          return SingleChildScrollView(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+              child: Center(
+                child: SizedBox(
+                  width: w,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+            padding: const EdgeInsets.only(bottom: 16),
             child: Card(
-              color: Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.4),
+              color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
               child: Padding(
                 padding: const EdgeInsets.all(16),
-                child: Row(
+                child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Icon(Icons.check_circle_outline, color: Theme.of(context).colorScheme.primary, size: 28),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisSize: MainAxisSize.min,
+                    RichText(
+                      text: TextSpan(
+                        style: DefaultTextStyle.of(context).style.copyWith(
+                          color: Theme.of(context).colorScheme.onSurface,
+                          fontWeight: FontWeight.w500,
+                        ),
                         children: [
-                          Text(
-                            '"${widget.item}" · ${formatMaxDistance(widget.maxDistanceMiles, useKm: settings.useKm)}',
-                            style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                          const TextSpan(text: 'You searched for: '),
+                          TextSpan(
+                            text: '"${widget.item}"',
+                            style: const TextStyle(fontWeight: FontWeight.w600),
+                          ),
+                          TextSpan(
+                            text: ' · Within ${formatMaxDistance(widget.maxDistanceMiles, useKm: settings.useKm)}',
+                            style: TextStyle(
                               color: Theme.of(context).colorScheme.onSurfaceVariant,
+                              fontWeight: FontWeight.normal,
                             ),
                           ),
-                          const SizedBox(height: 4),
-                          Text(result.summary, style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600)),
                         ],
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Stores that typically carry this kind of item. Availability is estimated.',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
                     ),
                   ],
@@ -157,14 +178,22 @@ class _ResultsScreenState extends State<ResultsScreen> {
               ),
             ),
           ),
-          Expanded(
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Text(
+              result.summary,
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
+            ),
+          ),
+          SizedBox(
+            height: 400,
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Expanded(
                   flex: 1,
                   child: Card(
-                    margin: const EdgeInsets.only(left: 12, right: 6, bottom: 12),
+                    margin: const EdgeInsets.only(right: 8),
                     clipBehavior: Clip.antiAlias,
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     child: stores.isEmpty
@@ -209,10 +238,27 @@ class _ResultsScreenState extends State<ResultsScreen> {
                 Expanded(
                   flex: 1,
                   child: Card(
-                    margin: const EdgeInsets.only(left: 6, right: 12, bottom: 12),
-                    child: stores.isEmpty
-                        ? const Center(child: Text('No nearby stores found.'))
-                        : ListView.separated(
+                    margin: const EdgeInsets.only(left: 8),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.max,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                          child: Text(
+                            'Nearby stores',
+                            style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
+                          ),
+                        ),
+                        const Divider(height: 1),
+                        if (stores.isEmpty)
+                          const Padding(
+                            padding: EdgeInsets.all(24),
+                            child: Center(child: Text('No nearby stores found.')),
+                          )
+                        else
+                          Expanded(
+                            child: ListView.separated(
                             itemCount: stores.length,
                             padding: EdgeInsets.zero,
                             separatorBuilder: (_, __) => const Divider(height: 1),
@@ -255,26 +301,33 @@ class _ResultsScreenState extends State<ResultsScreen> {
                                     '${s.durationMinutes != null ? ' · ~${s.durationMinutes} min' : ''}',
                                     style: const TextStyle(fontSize: 12),
                                   ),
-                                  trailing: FilledButton.icon(
+                                  trailing: IconButton(
                                     onPressed: () => _openDirections(s),
-                                    icon: const Icon(Icons.directions, size: 18),
-                                    label: const Text('Go'),
-                                    style: FilledButton.styleFrom(
-                                      padding: const EdgeInsets.symmetric(horizontal: 12),
-                                      minimumSize: Size.zero,
-                                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                    icon: const Icon(Icons.directions, size: 20),
+                                    style: IconButton.styleFrom(
+                                      padding: const EdgeInsets.all(8),
+                                      minimumSize: const Size(36, 36),
                                     ),
                                   ),
                                 ),
                               );
                             },
+                            ),
                           ),
+                      ],
+                    ),
                   ),
                 ),
               ],
             ),
           ),
-        ],
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          );
+        },
       ),
     );
   }
