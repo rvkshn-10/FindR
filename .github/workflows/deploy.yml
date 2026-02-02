@@ -31,6 +31,10 @@ jobs:
       - name: Install Firebase CLI
         run: npm install -g firebase-tools
 
+      - name: Set Firebase project
+        run: firebase use FindR
+        working-directory: findr_flutter
+
       - name: Deploy to Firebase Hosting
         run: firebase deploy --only hosting --non-interactive
         working-directory: findr_flutter
