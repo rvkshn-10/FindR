@@ -1,4 +1,5 @@
 /// Filter options for store search: quality tier, membership warehouses, specific stores.
+library;
 
 /// Quality tiers: store name substrings (lowercase) that belong to each tier.
 const Map<String, List<String>> qualityTierBrands = {

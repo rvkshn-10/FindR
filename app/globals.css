@@ -57,6 +57,21 @@ body {
   margin-bottom: 0.5em;
 }
 
+/* 3D Pin demo: wave animation */
+@keyframes pin-wave {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+.pin-wave {
+  animation-name: pin-wave;
+  animation-timing-function: ease-in-out;
+  animation-iteration-count: infinite;
+}
+
 /* Supply Map: Leaflet custom markers (no default icon) */
 .leaflet-div-icon.custom-marker {
   background: transparent;

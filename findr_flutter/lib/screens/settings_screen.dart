@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/settings_provider.dart';
 import '../widgets/liquid_glass_background.dart';
+import 'sidebar_demo_screen.dart';
 
 const _currencies = ['USD', 'EUR', 'GBP', 'CAD', 'MXN'];
 
@@ -56,7 +57,7 @@ class SettingsScreen extends StatelessWidget {
                     title: const Text('Currency', style: TextStyle(fontWeight: FontWeight.w600)),
                   ),
                   DropdownButtonFormField<String>(
-                    value: settings.currency,
+                    initialValue: settings.currency,
                     decoration: const InputDecoration(
                       isDense: true,
                       contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -66,6 +67,18 @@ class SettingsScreen extends StatelessWidget {
                     onChanged: (v) => settings.setCurrency(v ?? 'USD'),
                   ),
                 ],
+              ),
+            ),
+            LiquidGlassCard(
+              padding: const EdgeInsets.all(20),
+              child: ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: Icon(Icons.view_sidebar, color: Theme.of(context).colorScheme.primary),
+                title: const Text('Sidebar demo', style: TextStyle(fontWeight: FontWeight.w600)),
+                subtitle: const Text('Collapsible sidebar (desktop + mobile)'),
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const SidebarDemoScreen()),
+                ),
               ),
             ),
           ],

@@ -54,7 +54,7 @@ class LiquidGlassAppBarBar extends StatelessWidget {
       child: BackdropFilter(
         filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
         child: Container(
-          decoration: BoxDecoration(
+          decoration: const BoxDecoration(
             color: LiquidGlassColors.glassFill,
             border: Border(
               bottom: BorderSide(color: LiquidGlassColors.glassBorder, width: 1),

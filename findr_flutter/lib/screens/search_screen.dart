@@ -298,7 +298,7 @@ class _SearchScreenState extends State<SearchScreen> {
                               ),
                               const SizedBox(height: 4),
                               DropdownButtonFormField<double>(
-                                value: _maxDistanceMiles,
+                                initialValue: _maxDistanceMiles,
                                 decoration: const InputDecoration(
                                   isDense: true,
                                   contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -321,7 +321,7 @@ class _SearchScreenState extends State<SearchScreen> {
                               ),
                               const SizedBox(height: 4),
                               DropdownButtonFormField<String>(
-                                value: _qualityTier,
+                                initialValue: _qualityTier,
                                 decoration: const InputDecoration(
                                   isDense: true,
                                   contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -363,8 +363,11 @@ class _SearchScreenState extends State<SearchScreen> {
                                     selected: selected,
                                     onSelected: _loading ? null : (v) {
                                       setState(() {
-                                        if (v) _selectedStoreNames.add(name);
-                                        else _selectedStoreNames.remove(name);
+                                        if (v) {
+                                          _selectedStoreNames.add(name);
+                                        } else {
+                                          _selectedStoreNames.remove(name);
+                                        }
                                       });
                                     },
                                   );

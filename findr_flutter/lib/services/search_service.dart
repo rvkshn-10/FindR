@@ -15,7 +15,9 @@ bool _passesFilters(OverpassStore s, SearchFilters? filters) {
   }
   if (filters.membershipsOnly && !storeIsMembership(s.name)) return false;
   if (filters.storeNames.isNotEmpty &&
-      !storeMatchesSpecificStores(s.name, filters.storeNames)) return false;
+      !storeMatchesSpecificStores(s.name, filters.storeNames)) {
+    return false;
+  }
   return true;
 }
 
