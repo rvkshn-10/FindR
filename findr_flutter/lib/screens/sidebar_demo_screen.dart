@@ -75,13 +75,13 @@ class _SidebarContent extends StatelessWidget {
           ),
         ),
         SidebarLink(
-          link: SidebarLinkData(
+          link: const SidebarLinkData(
             label: 'User',
             href: '#',
             icon: CircleAvatar(
               radius: 14,
               backgroundColor: _colorNeutral700,
-              child: const Icon(Icons.person, size: 16, color: Colors.white),
+              child: Icon(Icons.person, size: 16, color: Colors.white),
             ),
           ),
           onTap: () {},

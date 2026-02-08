@@ -1,11 +1,10 @@
-# Deploy Flutter web app to Firebase Hosting on every push to main.
+# Deploy Flutter web app to Firebase Hosting. Runs only when triggered manually.
 # Requires GitHub secret: FIREBASE_TOKEN (from: firebase login:ci)
 
 name: Deploy to Firebase Hosting
 
 on:
-  push:
-    branches: [main]
+  workflow_dispatch:
 
 jobs:
   deploy:

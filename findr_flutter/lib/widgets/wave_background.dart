@@ -262,9 +262,9 @@ class WaveBackgroundDemo extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Container(width: double.infinity, height: 1, color: Colors.white24),
-            AspectRatio(
+            const AspectRatio(
               aspectRatio: 16 / 9,
-              child: const WaveBackground(
+              child: WaveBackground(
                 strokeColor: Colors.white,
                 backgroundColor: Colors.black,
               ),

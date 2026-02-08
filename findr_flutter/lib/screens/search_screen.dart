@@ -151,9 +151,9 @@ class _SearchScreenState extends State<SearchScreen> {
     final settings = context.watch<SettingsProvider>();
     final topPadding = MediaQuery.paddingOf(context).top + kToolbarHeight + 16;
     return Scaffold(
-      extendBodyBehindAppBar: true,
+      backgroundColor: LiquidGlassColors.surfaceLight,
       appBar: AppBar(
-        flexibleSpace: const LiquidGlassAppBarBar(),
+        backgroundColor: LiquidGlassColors.surfaceLight,
         title: const Text('Supply Map'),
         actions: [
           IconButton(
@@ -180,9 +180,10 @@ class _SearchScreenState extends State<SearchScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      LiquidGlassCard(
-                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
-                        child: Column(
+                      Card(
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+                          child: Column(
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
                             const Text(
@@ -190,7 +191,7 @@ class _SearchScreenState extends State<SearchScreen> {
                               style: TextStyle(
                                 fontSize: 28,
                                 fontWeight: FontWeight.w600,
-                                color: LiquidGlassColors.onDarkLabel,
+                                color: LiquidGlassColors.label,
                               ),
                               textAlign: TextAlign.center,
                             ),
@@ -205,10 +206,13 @@ class _SearchScreenState extends State<SearchScreen> {
                             ),
                           ],
                         ),
+                        ),
                       ),
                       const SizedBox(height: 24),
-                      LiquidGlassCard(
-                        child: Column(
+                      Card(
+                        child: Padding(
+                          padding: const EdgeInsets.all(24),
+                          child: Column(
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
                             TextField(
@@ -389,6 +393,7 @@ class _SearchScreenState extends State<SearchScreen> {
                             ),
                           ],
                         ),
+                        ),
                       ),
                     const SizedBox(height: 16),
                     Text(
@@ -406,9 +411,6 @@ class _SearchScreenState extends State<SearchScreen> {
           );
         },
     );
-    if (widget.embedInBackground) {
-      return LiquidGlassBackground(child: content);
-    }
     return content;
   }
 }

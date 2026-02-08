@@ -14,16 +14,16 @@ class SettingsScreen extends StatelessWidget {
     final settings = context.watch<SettingsProvider>();
     final topPadding = MediaQuery.paddingOf(context).top + kToolbarHeight + 20;
     return Scaffold(
-      extendBodyBehindAppBar: true,
+      backgroundColor: LiquidGlassColors.surfaceLight,
       appBar: AppBar(
-        flexibleSpace: const LiquidGlassAppBarBar(),
+        backgroundColor: LiquidGlassColors.surfaceLight,
         title: const Text('Settings'),
       ),
-      body: LiquidGlassBackground(
-        child: ListView(
-          padding: EdgeInsets.fromLTRB(20, topPadding, 20, 40),
-          children: [
-            LiquidGlassCard(
+      body: ListView(
+        padding: EdgeInsets.fromLTRB(20, topPadding, 20, 40),
+        children: [
+          Card(
+            child: Padding(
               padding: const EdgeInsets.all(20),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -57,7 +57,7 @@ class SettingsScreen extends StatelessWidget {
                     title: const Text('Currency', style: TextStyle(fontWeight: FontWeight.w600)),
                   ),
                   DropdownButtonFormField<String>(
-                    initialValue: settings.currency,
+                    value: settings.currency,
                     decoration: const InputDecoration(
                       isDense: true,
                       contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -69,7 +69,9 @@ class SettingsScreen extends StatelessWidget {
                 ],
               ),
             ),
-            LiquidGlassCard(
+          ),
+          Card(
+            child: Padding(
               padding: const EdgeInsets.all(20),
               child: ListTile(
                 contentPadding: EdgeInsets.zero,
@@ -81,8 +83,8 @@ class SettingsScreen extends StatelessWidget {
                 ),
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

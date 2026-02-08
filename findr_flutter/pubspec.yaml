@@ -27,3 +27,4 @@ flutter:
   uses-material-design: true
   assets:
     - assets/
+    - assets/earth_from_space.png

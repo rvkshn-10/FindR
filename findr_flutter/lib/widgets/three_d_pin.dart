@@ -158,7 +158,9 @@ class _PinPerspectiveState extends State<PinPerspective>
 
   @override
   void dispose() {
-    for (final c in _rippleControllers) c.dispose();
+    for (final c in _rippleControllers) {
+      c.dispose();
+    }
     super.dispose();
   }
 
@@ -336,10 +338,10 @@ class PinDemoContent extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 16),
-          Row(
+          const Row(
             children: [
               _StatBlock(value: '427', label: 'Days in Orbit', color: 0xFF0EA5E9),
-              const SizedBox(width: 16),
+              SizedBox(width: 16),
               _StatBlock(value: '98%', label: 'Systems Online', color: 0xFF10B981),
             ],
           ),

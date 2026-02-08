@@ -99,22 +99,15 @@ class _ResultsScreenState extends State<ResultsScreen> {
         curve: Curves.easeOutCubic);
   }
 
-  Widget _wrapBody(Widget child) {
-    if (widget.embedInBackground) {
-      return LiquidGlassBackground(child: child);
-    }
-    return child;
-  }
-
   @override
   Widget build(BuildContext context) {
     final settings = context.watch<SettingsProvider>();
     final topPadding = MediaQuery.paddingOf(context).top + kToolbarHeight + 24;
     if (_loading) {
       return Scaffold(
-        extendBodyBehindAppBar: true,
+        backgroundColor: LiquidGlassColors.surfaceLight,
         appBar: AppBar(
-          flexibleSpace: const LiquidGlassAppBarBar(),
+          backgroundColor: LiquidGlassColors.surfaceLight,
           title: Text('Results for "${widget.item}"'),
           actions: [
             IconButton(
@@ -125,8 +118,7 @@ class _ResultsScreenState extends State<ResultsScreen> {
             ),
           ],
         ),
-        body: _wrapBody(
-          Padding(
+        body: Padding(
             padding: EdgeInsets.only(top: topPadding),
             child: const Center(
               child: Column(
@@ -137,20 +129,19 @@ class _ResultsScreenState extends State<ResultsScreen> {
                   Text(
                     'Finding nearby stores…',
                     style: TextStyle(
-                        fontSize: 14, color: LiquidGlassColors.onDarkLabel),
+                        fontSize: 14, color: LiquidGlassColors.label),
                   ),
                 ],
               ),
             ),
           ),
-        ),
-      );
+        );
     }
     if (_error != null) {
       return Scaffold(
-        extendBodyBehindAppBar: true,
+        backgroundColor: LiquidGlassColors.surfaceLight,
         appBar: AppBar(
-          flexibleSpace: const LiquidGlassAppBarBar(),
+          backgroundColor: LiquidGlassColors.surfaceLight,
           title: const Text('Results'),
           actions: [
             IconButton(
@@ -161,8 +152,7 @@ class _ResultsScreenState extends State<ResultsScreen> {
             ),
           ],
         ),
-        body: _wrapBody(
-          Padding(
+        body: Padding(
             padding: EdgeInsets.only(top: topPadding),
             child: Center(
               child: Padding(
@@ -192,7 +182,6 @@ class _ResultsScreenState extends State<ResultsScreen> {
               ),
             ),
           ),
-        ),
       );
     }
     final result = _result!;
@@ -200,9 +189,8 @@ class _ResultsScreenState extends State<ResultsScreen> {
     final searchRadiusMeters = widget.maxDistanceMiles * 1609.34;
 
     return Scaffold(
-      extendBodyBehindAppBar: true,
-      body: _wrapBody(
-        Stack(
+      backgroundColor: LiquidGlassColors.surfaceLight,
+      body: Stack(
           children: [
             // CustomScrollView with SliverAppBar (collapsible search bar / header)
             CustomScrollView(
@@ -211,11 +199,8 @@ class _ResultsScreenState extends State<ResultsScreen> {
                   expandedHeight: 140,
                   pinned: true,
                   stretch: true,
-                  flexibleSpace: Stack(
-                    fit: StackFit.expand,
-                    children: [
-                      const LiquidGlassAppBarBar(),
-                      FlexibleSpaceBar(
+                  backgroundColor: LiquidGlassColors.surfaceLight,
+                  flexibleSpace: FlexibleSpaceBar(
                         titlePadding: const EdgeInsets.only(
                             left: 16, right: 16, bottom: 16),
                         title: Text(
@@ -223,10 +208,10 @@ class _ResultsScreenState extends State<ResultsScreen> {
                           style: const TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w600,
-                            color: LiquidGlassColors.onDarkLabel,
+                            color: LiquidGlassColors.label,
                           ),
                         ),
-                        background: Padding(
+                    background: Padding(
                           padding: EdgeInsets.only(
                               top: MediaQuery.paddingOf(context).top +
                                   kToolbarHeight +
@@ -240,7 +225,7 @@ class _ResultsScreenState extends State<ResultsScreen> {
                               result.summary,
                               style: const TextStyle(
                                 fontSize: 13,
-                                color: LiquidGlassColors.onDarkLabelSecondary,
+                                color: LiquidGlassColors.labelSecondary,
                                 fontWeight: FontWeight.w500,
                               ),
                               maxLines: 2,
@@ -249,8 +234,6 @@ class _ResultsScreenState extends State<ResultsScreen> {
                           ),
                         ),
                       ),
-                    ],
-                  ),
                   actions: [
                     IconButton(
                       icon: const Icon(Icons.settings),
@@ -273,13 +256,14 @@ class _ResultsScreenState extends State<ResultsScreen> {
                 ),
                 SliverToBoxAdapter(
                   child: Padding(
-                    padding: EdgeInsets.fromLTRB(16, 8, 16, 24),
+                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        LiquidGlassCard(
-                          padding: const EdgeInsets.all(16),
-                          child: Column(
+                        Card(
+                          child: Padding(
+                            padding: const EdgeInsets.all(16),
+                            child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               RichText(
@@ -315,6 +299,7 @@ class _ResultsScreenState extends State<ResultsScreen> {
                                 ),
                               ),
                             ],
+                            ),
                           ),
                         ),
                         const SizedBox(height: 16),
@@ -323,14 +308,13 @@ class _ResultsScreenState extends State<ResultsScreen> {
                           child: Row(
                             crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
-                              // Map with InteractiveViewer for pan/zoom of the card; radius drawn via CircleLayer (CustomPaint under the hood)
+                              // Map card
                               Expanded(
                                 flex: 1,
                                 child: Padding(
                                   padding: const EdgeInsets.only(right: 8),
-                                  child: LiquidGlassCard(
-                                    padding: EdgeInsets.zero,
-                                    borderRadius: 20,
+                                  child: Card(
+                                    clipBehavior: Clip.antiAlias,
                                     child: ClipRRect(
                                       borderRadius: BorderRadius.circular(20),
                                       child: stores.isEmpty
@@ -429,14 +413,12 @@ class _ResultsScreenState extends State<ResultsScreen> {
                                   ),
                                 ),
                               ),
-                              // Store list with Hero for transitions
+                              // Store list
                               Expanded(
                                 flex: 1,
                                 child: Padding(
                                   padding: const EdgeInsets.only(left: 8),
-                                  child: LiquidGlassCard(
-                                    padding: EdgeInsets.zero,
-                                    borderRadius: 20,
+                                  child: Card(
                                     child: Column(
                                       mainAxisSize: MainAxisSize.max,
                                       crossAxisAlignment:
@@ -525,7 +507,6 @@ class _ResultsScreenState extends State<ResultsScreen> {
               ),
           ],
         ),
-      ),
     );
   }
 }
@@ -642,10 +623,10 @@ class _StoreDetailSheet extends StatelessWidget {
       borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
       child: Container(
         decoration: BoxDecoration(
-          color: LiquidGlassColors.glassFill,
+          color: LiquidGlassColors.glassFillLight,
           borderRadius:
               const BorderRadius.vertical(top: Radius.circular(20)),
-          border: Border.all(color: LiquidGlassColors.glassBorder),
+          border: Border.all(color: LiquidGlassColors.glassBorderLight),
         ),
         child: ListView(
           controller: scrollController,
