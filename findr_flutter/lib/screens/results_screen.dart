@@ -1,3 +1,4 @@
+import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_map/flutter_map.dart';
@@ -40,8 +41,6 @@ class _ResultsScreenState extends State<ResultsScreen> {
   String? _error;
   final MapController _mapController = MapController();
   String? _selectedStoreId;
-  final DraggableScrollableController _sheetController =
-      DraggableScrollableController();
 
   @override
   void initState() {
@@ -52,7 +51,6 @@ class _ResultsScreenState extends State<ResultsScreen> {
   @override
   void dispose() {
     _mapController.dispose();
-    _sheetController.dispose();
     super.dispose();
   }
 
@@ -75,6 +73,10 @@ class _ResultsScreenState extends State<ResultsScreen> {
         _result = result;
         _loading = false;
       });
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        _fitMapToClosestStores(result.stores);
+      });
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -93,10 +95,25 @@ class _ResultsScreenState extends State<ResultsScreen> {
 
   void _onSelectStore(Store store) {
     setState(() => _selectedStoreId = store.id);
-    _mapController.move(LatLng(store.lat, store.lng), 16);
-    _sheetController.animateTo(0.4,
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeOutCubic);
+    const targetZoom = 17.5;
+    final currentZoom = _mapController.camera.zoom;
+    final nextZoom = currentZoom < targetZoom ? targetZoom : currentZoom;
+    _mapController.move(LatLng(store.lat, store.lng), nextZoom);
+  }
+
+  void _fitMapToClosestStores(List<Store> stores) {
+    if (stores.isEmpty) return;
+    final points = <LatLng>[
+      LatLng(widget.lat, widget.lng),
+      ...stores.take(5).map((s) => LatLng(s.lat, s.lng)),
+    ];
+    final bounds = LatLngBounds.fromPoints(points);
+    _mapController.fitCamera(
+      CameraFit.bounds(
+        bounds: bounds,
+        padding: const EdgeInsets.all(40),
+      ),
+    );
   }
 
   @override
@@ -187,6 +204,15 @@ class _ResultsScreenState extends State<ResultsScreen> {
     final result = _result!;
     final stores = result.stores;
     final searchRadiusMeters = widget.maxDistanceMiles * 1609.34;
+    Store? selectedStore;
+    if (_selectedStoreId != null) {
+      for (final s in stores) {
+        if (s.id == _selectedStoreId) {
+          selectedStore = s;
+          break;
+        }
+      }
+    }
 
     return Scaffold(
       backgroundColor: LiquidGlassColors.surfaceLight,
@@ -200,6 +226,8 @@ class _ResultsScreenState extends State<ResultsScreen> {
                   pinned: true,
                   stretch: true,
                   backgroundColor: LiquidGlassColors.surfaceLight,
+                  surfaceTintColor: Colors.transparent,
+                  scrolledUnderElevation: 0,
                   flexibleSpace: FlexibleSpaceBar(
                         titlePadding: const EdgeInsets.only(
                             left: 16, right: 16, bottom: 16),
@@ -209,6 +237,7 @@ class _ResultsScreenState extends State<ResultsScreen> {
                             fontSize: 16,
                             fontWeight: FontWeight.w600,
                             color: LiquidGlassColors.label,
+                            decoration: TextDecoration.none,
                           ),
                         ),
                     background: Padding(
@@ -266,36 +295,46 @@ class _ResultsScreenState extends State<ResultsScreen> {
                             child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              RichText(
-                                text: TextSpan(
-                                  style: DefaultTextStyle.of(context)
-                                      .style
-                                      .copyWith(
-                                        color: Theme.of(context)
-                                            .colorScheme
-                                            .onSurface,
-                                        fontWeight: FontWeight.w500,
-                                      ),
-                                  children: [
-                                    const TextSpan(text: 'Within '),
-                                    TextSpan(
-                                      text: formatMaxDistance(
-                                          widget.maxDistanceMiles,
-                                          useKm: settings.useKm),
-                                      style: const TextStyle(
-                                          fontWeight: FontWeight.w600),
+                              DefaultTextStyle(
+                                style: DefaultTextStyle.of(context).style.copyWith(
+                                  color: Theme.of(context).colorScheme.onSurface,
+                                  fontWeight: FontWeight.w500,
+                                  decoration: TextDecoration.none,
+                                  decorationColor: Colors.transparent,
+                                ),
+                                child: RichText(
+                                  text: TextSpan(
+                                    style: TextStyle(
+                                      color: Theme.of(context).colorScheme.onSurface,
+                                      fontWeight: FontWeight.w500,
+                                      decoration: TextDecoration.none,
+                                      decorationColor: Colors.transparent,
                                     ),
-                                    TextSpan(
-                                      text:
-                                          ' · Tap a store for details or directions.',
-                                      style: TextStyle(
-                                        color: Theme.of(context)
-                                            .colorScheme
-                                            .onSurfaceVariant,
-                                        fontWeight: FontWeight.normal,
+                                    children: [
+                                      const TextSpan(text: 'Within '),
+                                      TextSpan(
+                                        text: formatMaxDistance(
+                                            widget.maxDistanceMiles,
+                                            useKm: settings.useKm),
+                                        style: const TextStyle(
+                                            fontWeight: FontWeight.w600,
+                                            decoration: TextDecoration.none,
+                                            decorationColor: Colors.transparent),
                                       ),
-                                    ),
-                                  ],
+                                      TextSpan(
+                                        text:
+                                            ' · Tap a store for details or directions.',
+                                        style: TextStyle(
+                                          color: Theme.of(context)
+                                              .colorScheme
+                                              .onSurfaceVariant,
+                                          fontWeight: FontWeight.normal,
+                                          decoration: TextDecoration.none,
+                                          decorationColor: Colors.transparent,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
                                 ),
                               ),
                             ],
@@ -374,7 +413,9 @@ class _ResultsScreenState extends State<ResultsScreen> {
                                                         size: 24,
                                                       ),
                                                     ),
-                                                    ...stores.map((s) {
+                                                    ...stores.asMap().entries.map((entry) {
+                                                      final i = entry.key;
+                                                      final s = entry.value;
                                                       final isBest =
                                                           s.id ==
                                                               result
@@ -385,26 +426,31 @@ class _ResultsScreenState extends State<ResultsScreen> {
                                                       return Marker(
                                                         point: LatLng(
                                                             s.lat, s.lng),
-                                                        width: 24,
-                                                        height: 24,
-                                                        child: Icon(
-                                                          Icons.store,
-                                                          color: isSelected
-                                                              ? Theme.of(
-                                                                      context)
-                                                                  .colorScheme
-                                                                  .primary
-                                                              : (isBest
-                                                                  ? Colors
-                                                                      .green
-                                                                  : Colors
-                                                                      .orange),
-                                                          size: isSelected
-                                                              ? 28
-                                                              : 24,
+                                                        width: 34,
+                                                        height: 34,
+                                                        child: _StoreMarkerBadge(
+                                                          index: i + 1,
+                                                          isBest: isBest,
+                                                          isSelected: isSelected,
+                                                          onTap: () => _onSelectStore(s),
                                                         ),
                                                       );
                                                     }),
+                                                    if (selectedStore != null)
+                                                      Marker(
+                                                        point: LatLng(selectedStore.lat, selectedStore.lng),
+                                                        width: 250,
+                                                        height: 130,
+                                                        child: Align(
+                                                          alignment: Alignment.topCenter,
+                                                          child: _SelectedStorePopup(
+                                                            store: selectedStore,
+                                                            settings: settings,
+                                                            onClose: () => setState(() => _selectedStoreId = null),
+                                                            onDirections: () => _openDirections(selectedStore!),
+                                                          ),
+                                                        ),
+                                                      ),
                                                   ],
                                                 ),
                                               ],
@@ -459,11 +505,10 @@ class _ResultsScreenState extends State<ResultsScreen> {
                                                 return _StoreListTile(
                                                   store: s,
                                                   isBest: isBest,
+                                                  isSelected: s.id == _selectedStoreId,
                                                   settings: settings,
                                                   onTap: () =>
                                                       _onSelectStore(s),
-                                                  onDirections: () =>
-                                                      _openDirections(s),
                                                 );
                                               },
                                             ),
@@ -482,29 +527,6 @@ class _ResultsScreenState extends State<ResultsScreen> {
                 ),
               ],
             ),
-            // DraggableScrollableSheet for slide-up store details panel
-            if (_selectedStoreId != null)
-              DraggableScrollableSheet(
-                controller: _sheetController,
-                initialChildSize: 0.35,
-                minChildSize: 0.2,
-                maxChildSize: 0.7,
-                snap: true,
-                snapSizes: const [0.2, 0.4, 0.7],
-                builder: (context, scrollController) {
-                  final store = stores
-                      .firstWhere((s) => s.id == _selectedStoreId!);
-                  return _StoreDetailSheet(
-                    store: store,
-                    result: result,
-                    settings: settings,
-                    scrollController: scrollController,
-                    onClose: () =>
-                        setState(() => _selectedStoreId = null),
-                    onDirections: () => _openDirections(store),
-                  );
-                },
-              ),
           ],
         ),
     );
@@ -516,29 +538,32 @@ class _StoreListTile extends StatelessWidget {
   const _StoreListTile({
     required this.store,
     required this.isBest,
+    required this.isSelected,
     required this.settings,
     required this.onTap,
-    required this.onDirections,
   });
 
   final Store store;
   final bool isBest;
+  final bool isSelected;
   final SettingsProvider settings;
   final VoidCallback onTap;
-  final VoidCallback onDirections;
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final bool showHighlight = isBest || isSelected;
     return Container(
-      decoration: isBest
+      decoration: showHighlight
           ? BoxDecoration(
-              color: Theme.of(context)
-                  .colorScheme
-                  .primaryContainer
-                  .withValues(alpha: 0.3),
-              border: const Border(
+              color: isSelected
+                  ? theme.colorScheme.primary.withValues(alpha: 0.2)
+                  : theme.colorScheme.primaryContainer.withValues(alpha: 0.3),
+              border: Border(
                 left: BorderSide(
-                    color: LiquidGlassColors.primary, width: 4),
+                  color: LiquidGlassColors.primary,
+                  width: isSelected ? 5 : 4,
+                ),
               ),
             )
           : null,
@@ -564,11 +589,31 @@ class _StoreListTile extends StatelessWidget {
                   color: Colors.transparent,
                   child: Text(
                     store.name,
-                    style: const TextStyle(fontSize: 14),
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                    ),
                   ),
                 ),
               ),
             ),
+            if (isSelected)
+              Container(
+                margin: const EdgeInsets.only(right: 6),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.primary.withValues(alpha: 0.18),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: Text(
+                  'Selected',
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                    color: theme.colorScheme.primary,
+                  ),
+                ),
+              ),
             if (isBest)
               Chip(
                 label: const Text('Best', style: TextStyle(fontSize: 11)),
@@ -582,14 +627,152 @@ class _StoreListTile extends StatelessWidget {
         subtitle: Text(
           '${formatDistance(store.distanceKm, useKm: settings.useKm)} away'
           '${store.durationMinutes != null ? ' · ~${store.durationMinutes} min' : ''}',
-          style: const TextStyle(fontSize: 12),
+          style: TextStyle(
+            fontSize: 12,
+            color: isSelected
+                ? theme.colorScheme.onSurface
+                : theme.colorScheme.onSurfaceVariant,
+          ),
         ),
-        trailing: IconButton(
-          onPressed: onDirections,
-          icon: const Icon(Icons.directions, size: 20),
-          style: IconButton.styleFrom(
-            padding: const EdgeInsets.all(8),
-            minimumSize: const Size(36, 36),
+        trailing: const Icon(Icons.chevron_right, size: 18),
+      ),
+    );
+  }
+}
+
+class _SelectedStorePopup extends StatelessWidget {
+  const _SelectedStorePopup({
+    required this.store,
+    required this.settings,
+    required this.onClose,
+    required this.onDirections,
+  });
+
+  final Store store;
+  final SettingsProvider settings;
+  final VoidCallback onClose;
+  final VoidCallback onDirections;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Material(
+          elevation: 8,
+          borderRadius: BorderRadius.circular(12),
+          child: Container(
+            decoration: BoxDecoration(
+              color: theme.colorScheme.surface,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: theme.colorScheme.primary.withValues(alpha: 0.25)),
+            ),
+            padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(Icons.store, size: 16, color: theme.colorScheme.primary),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        store.name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+                      ),
+                    ),
+                    IconButton(
+                      onPressed: onClose,
+                      icon: const Icon(Icons.close, size: 16),
+                      splashRadius: 16,
+                      constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                      padding: EdgeInsets.zero,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  '${formatDistance(store.distanceKm, useKm: settings.useKm)} away'
+                  '${store.durationMinutes != null ? ' · ~${store.durationMinutes} min' : ''}',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: FilledButton.icon(
+                    onPressed: onDirections,
+                    icon: const Icon(Icons.directions, size: 16),
+                    label: const Text('Directions'),
+                    style: FilledButton.styleFrom(
+                      minimumSize: const Size(0, 34),
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        CustomPaint(
+          size: const Size(18, 8),
+          painter: _PopupArrowPainter(color: theme.colorScheme.surface),
+        ),
+      ],
+    );
+  }
+}
+
+class _StoreMarkerBadge extends StatelessWidget {
+  const _StoreMarkerBadge({
+    required this.index,
+    required this.isBest,
+    required this.isSelected,
+    required this.onTap,
+  });
+
+  final int index;
+  final bool isBest;
+  final bool isSelected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final fill = isSelected
+        ? theme.colorScheme.primary
+        : (isBest ? Colors.green : Colors.orange);
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      child: GestureDetector(
+        onTap: onTap,
+        behavior: HitTestBehavior.opaque,
+        child: Container(
+          decoration: BoxDecoration(
+            color: fill,
+            shape: BoxShape.circle,
+            border: Border.all(color: Colors.white, width: 2),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.25),
+                blurRadius: 6,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          alignment: Alignment.center,
+          child: Text(
+            '$index',
+            style: TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.w700,
+              fontSize: isSelected ? 13 : 12,
+            ),
           ),
         ),
       ),
@@ -597,131 +780,24 @@ class _StoreListTile extends StatelessWidget {
   }
 }
 
-/// Slide-up panel content with Hero targets and scrollable details.
-class _StoreDetailSheet extends StatelessWidget {
-  const _StoreDetailSheet({
-    required this.store,
-    required this.result,
-    required this.settings,
-    required this.scrollController,
-    required this.onClose,
-    required this.onDirections,
-  });
+class _PopupArrowPainter extends CustomPainter {
+  _PopupArrowPainter({required this.color});
 
-  final Store store;
-  final SearchResult result;
-  final SettingsProvider settings;
-  final ScrollController scrollController;
-  final VoidCallback onClose;
-  final VoidCallback onDirections;
+  final Color color;
 
   @override
-  Widget build(BuildContext context) {
-    final isBest = store.id == result.bestOptionId;
-    return Material(
-      elevation: 12,
-      borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-      child: Container(
-        decoration: BoxDecoration(
-          color: LiquidGlassColors.glassFillLight,
-          borderRadius:
-              const BorderRadius.vertical(top: Radius.circular(20)),
-          border: Border.all(color: LiquidGlassColors.glassBorderLight),
-        ),
-        child: ListView(
-          controller: scrollController,
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
-          children: [
-                            Center(
-                              child: Container(
-                                width: 36,
-                                height: 4,
-                                decoration: BoxDecoration(
-                                  color: Theme.of(context)
-                                      .colorScheme
-                                      .onSurfaceVariant
-                                      .withValues(alpha: 0.5),
-                                  borderRadius: BorderRadius.circular(2),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(height: 12),
-                            Row(
-                              children: [
-                                Hero(
-                                  tag: 'store_icon_${store.id}',
-                                  child: Icon(
-                                    isBest ? Icons.star : Icons.store,
-                                    color: isBest
-                                        ? Theme.of(context)
-                                            .colorScheme
-                                            .primary
-                                        : null,
-                                    size: 28,
-                                  ),
-                                ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: Hero(
-                                    tag: 'store_name_${store.id}',
-                                    child: Material(
-                                      color: Colors.transparent,
-                                      child: Text(
-                                        store.name,
-                                        style: Theme.of(context)
-                                            .textTheme
-                                            .titleLarge
-                                            ?.copyWith(
-                                                fontWeight:
-                                                    FontWeight.w600),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                                IconButton(
-                                  onPressed: onClose,
-                                  icon: const Icon(Icons.close),
-                                  style: IconButton.styleFrom(
-                                    padding: const EdgeInsets.all(4),
-                                    minimumSize: const Size(32, 32),
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              '${formatDistance(store.distanceKm, useKm: settings.useKm)} away'
-                              '${store.durationMinutes != null ? ' · ~${store.durationMinutes} min' : ''}',
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .bodySmall
-                                  ?.copyWith(
-                                      color: Theme.of(context)
-                                          .colorScheme
-                                          .onSurfaceVariant),
-                            ),
-                            if (store.address.isNotEmpty) ...[
-                              const SizedBox(height: 8),
-                              Text(
-                                store.address,
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .bodySmall
-                                    ?.copyWith(
-                                        color: Theme.of(context)
-                                            .colorScheme
-                                            .onSurfaceVariant),
-                              ),
-                            ],
-                            const SizedBox(height: 16),
-                            FilledButton.icon(
-                              onPressed: onDirections,
-                              icon: const Icon(Icons.directions, size: 20),
-                              label: const Text('Directions'),
-                            ),
-                          ],
-        ),
-      ),
-    );
+  void paint(Canvas canvas, Size size) {
+    final p = ui.Path()
+      ..moveTo(0, 0)
+      ..lineTo(size.width / 2, size.height)
+      ..lineTo(size.width, 0)
+      ..close();
+    final paint = Paint()..color = color;
+    canvas.drawPath(p, paint);
   }
+
+  @override
+  bool shouldRepaint(covariant _PopupArrowPainter oldDelegate) =>
+      oldDelegate.color != color;
 }
+

@@ -161,11 +161,11 @@ class _RootWithBackground extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Stack(
+    return const Stack(
       fit: StackFit.expand,
       children: [
-        const ColoredBox(color: LiquidGlassColors.surfaceLight),
-        const SupplyMapShell(),
+        ColoredBox(color: LiquidGlassColors.surfaceLight),
+        SupplyMapShell(),
       ],
     );
   }

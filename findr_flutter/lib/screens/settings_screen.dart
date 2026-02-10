@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/settings_provider.dart';
 import '../widgets/liquid_glass_background.dart';
-import 'sidebar_demo_screen.dart';
 
 const _currencies = ['USD', 'EUR', 'GBP', 'CAD', 'MXN'];
 
@@ -19,7 +18,9 @@ class SettingsScreen extends StatelessWidget {
         backgroundColor: LiquidGlassColors.surfaceLight,
         title: const Text('Settings'),
       ),
-      body: ListView(
+      body: ColoredBox(
+        color: LiquidGlassColors.surfaceLight,
+        child: ListView(
         padding: EdgeInsets.fromLTRB(20, topPadding, 20, 40),
         children: [
           Card(
@@ -57,7 +58,7 @@ class SettingsScreen extends StatelessWidget {
                     title: const Text('Currency', style: TextStyle(fontWeight: FontWeight.w600)),
                   ),
                   DropdownButtonFormField<String>(
-                    value: settings.currency,
+                    initialValue: settings.currency,
                     decoration: const InputDecoration(
                       isDense: true,
                       contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -70,21 +71,8 @@ class SettingsScreen extends StatelessWidget {
               ),
             ),
           ),
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(20),
-              child: ListTile(
-                contentPadding: EdgeInsets.zero,
-                leading: Icon(Icons.view_sidebar, color: Theme.of(context).colorScheme.primary),
-                title: const Text('Sidebar demo', style: TextStyle(fontWeight: FontWeight.w600)),
-                subtitle: const Text('Collapsible sidebar (desktop + mobile)'),
-                onTap: () => Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const SidebarDemoScreen()),
-                ),
-              ),
-            ),
-          ),
         ],
+        ),
       ),
     );
   }

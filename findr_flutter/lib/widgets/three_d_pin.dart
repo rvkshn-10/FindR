@@ -77,7 +77,7 @@ class _PinContainerState extends State<PinContainer>
               transform: Matrix4.identity()
                 ..setEntry(3, 2, 0.001)
                 ..rotateX(70 * (3.14159 / 180))
-                ..translate(0.0, 0.0),
+                ..translateByDouble(0.0, 0.0, 0.0, 1.0),
               child: AnimatedBuilder(
                 animation: _tiltAnimation,
                 builder: (context, child) {
@@ -88,7 +88,7 @@ class _PinContainerState extends State<PinContainer>
                     transform: Matrix4.identity()
                       ..setEntry(3, 2, 0.001)
                       ..rotateX(tilt)
-                      ..scale(scale),
+                      ..scaleByDouble(scale, scale, scale, 1.0),
                     child: child,
                   );
                 },
