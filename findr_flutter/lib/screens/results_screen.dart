@@ -805,7 +805,7 @@ class _ResultCardState extends State<_ResultCard> {
           style: noShadowStyle,
           child: AnimatedContainer(
           duration: const Duration(milliseconds: 200),
-          curve: Curves.easeOutBack,
+          curve: Curves.easeOutCubic,
           transform: Matrix4.diagonal3Values(
               _hovered ? 1.02 : 1.0, _hovered ? 1.02 : 1.0, 1.0),
           decoration: BoxDecoration(
