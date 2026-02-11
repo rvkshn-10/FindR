@@ -1,0 +1,5 @@
+# Local run
+
+- **Flutter web** is served on **port 1129**. When suggesting or running the app locally, use:
+  - Command: `flutter run -d web-server --web-port=1129`
+  - URL: **http://localhost:1129**
