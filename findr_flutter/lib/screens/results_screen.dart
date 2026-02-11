@@ -401,7 +401,7 @@ class _ResultsScreenState extends State<ResultsScreen> {
                                 final s = stores[i];
                                 final isBest = s.id == result.bestOptionId;
                                 final style = _styleForIndex(i, isBest);
-                                return _ResultCard(
+                                return _SafeResultCard(
                                   store: s,
                                   style: style,
                                   settings: settings,
@@ -592,11 +592,8 @@ class _Sidebar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ClipRect(
-      child: BackdropFilter(
-        filter: ui.ImageFilter.blur(
-            sigmaX: kBlurStrength, sigmaY: kBlurStrength),
-        child: Container(
+    // BackdropFilter removed: can trigger text shadow blurRadius assertion on web when hovering.
+    return Container(
           width: 440,
           decoration: const BoxDecoration(
             color: SupplyMapColors.sidebarBg,
@@ -703,7 +700,7 @@ class _Sidebar extends StatelessWidget {
                               s.id == result.bestOptionId;
                           final style =
                               _styleForIndex(i, isBest);
-                          return _ResultCard(
+                          return _SafeResultCard(
                             store: s,
                             style: style,
                             settings: settings,
@@ -716,7 +713,43 @@ class _Sidebar extends StatelessWidget {
               ),
             ],
           ),
-        ),
+        );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Wrapper that forces no text shadow for result cards (avoids blurRadius assertion).
+// ---------------------------------------------------------------------------
+
+class _SafeResultCard extends StatelessWidget {
+  const _SafeResultCard({
+    required this.store,
+    required this.style,
+    required this.settings,
+    required this.isSelected,
+    required this.onTap,
+  });
+
+  final Store store;
+  final _CardStyle style;
+  final SettingsProvider settings;
+  final bool isSelected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final noShadow = Theme.of(context)
+        .textTheme
+        .bodyMedium!
+        .copyWith(shadows: const <Shadow>[]);
+    return DefaultTextStyle(
+      style: noShadow,
+      child: _ResultCard(
+        store: store,
+        style: style,
+        settings: settings,
+        isSelected: isSelected,
+        onTap: onTap,
       ),
     );
   }

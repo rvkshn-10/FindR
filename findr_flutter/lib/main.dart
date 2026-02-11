@@ -19,8 +19,12 @@ void main() async {
   runApp(const FindRApp());
 }
 
-/// Strip text shadows to avoid blurRadius assertion (e.g. on hover).
-TextStyle _noTextShadow(TextStyle s) => s.copyWith(shadows: const <Shadow>[]);
+/// Strip/clamp text shadows to avoid blurRadius assertion (e.g. on hover).
+/// Replaces shadows with empty list so no negative blurRadius can reach the engine.
+TextStyle _noTextShadow(TextStyle s) {
+  if (s.shadows == null || s.shadows!.isEmpty) return s;
+  return s.copyWith(shadows: const <Shadow>[]);
+}
 
 /// Dark theme that matches the HTML hackathon design.
 ThemeData get _supplyMapTheme {
