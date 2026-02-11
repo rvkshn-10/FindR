@@ -28,11 +28,9 @@ class DefaultFirebaseOptions {
     storageBucket: 'supplymapper.firebasestorage.app',
   );
 
-  // TODO: Run `flutterfire configure` to generate real Android appId.
-  // For now the web config is reused so Firebase.initializeApp won't crash.
   static const FirebaseOptions android = FirebaseOptions(
     apiKey: 'AIzaSyCshZiCFX7djYdP5GZ6g0P7qaz4Lt7OvVE',
-    appId: '1:1053711084660:web:62622b2b429cb76658b521',
+    appId: '1:1053711084660:android:21097e2dc7d5a8f058b521',
     messagingSenderId: '1053711084660',
     projectId: 'supplymapper',
     storageBucket: 'supplymapper.firebasestorage.app',

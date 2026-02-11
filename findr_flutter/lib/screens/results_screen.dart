@@ -455,7 +455,7 @@ class _ResultsScreenState extends State<ResultsScreen> {
                     TileLayer(
                       urlTemplate:
                           'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                      userAgentPackageName: 'com.findr.app',
+                      userAgentPackageName: 'com.findr.findr_flutter',
                     ),
                     CircleLayer(
                       circles: [

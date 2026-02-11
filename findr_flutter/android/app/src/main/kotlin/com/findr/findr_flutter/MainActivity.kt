@@ -1,4 +1,4 @@
-package com.findr.app
+package com.findr.findr_flutter
 
 import io.flutter.embedding.android.FlutterActivity
 
