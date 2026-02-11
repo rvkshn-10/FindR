@@ -19,9 +19,29 @@ void main() async {
   runApp(const FindRApp());
 }
 
+/// Strip text shadows to avoid blurRadius assertion (e.g. on hover).
+TextStyle _noTextShadow(TextStyle s) => s.copyWith(shadows: const <Shadow>[]);
+
 /// Dark theme that matches the HTML hackathon design.
 ThemeData get _supplyMapTheme {
-  final textTheme = GoogleFonts.interTextTheme(ThemeData.dark().textTheme);
+  final base = GoogleFonts.interTextTheme(ThemeData.dark().textTheme);
+  final textTheme = TextTheme(
+    displayLarge: _noTextShadow(base.displayLarge!),
+    displayMedium: _noTextShadow(base.displayMedium!),
+    displaySmall: _noTextShadow(base.displaySmall!),
+    headlineLarge: _noTextShadow(base.headlineLarge!),
+    headlineMedium: _noTextShadow(base.headlineMedium!),
+    headlineSmall: _noTextShadow(base.headlineSmall!),
+    titleLarge: _noTextShadow(base.titleLarge!),
+    titleMedium: _noTextShadow(base.titleMedium!),
+    titleSmall: _noTextShadow(base.titleSmall!),
+    bodyLarge: _noTextShadow(base.bodyLarge!),
+    bodyMedium: _noTextShadow(base.bodyMedium!),
+    bodySmall: _noTextShadow(base.bodySmall!),
+    labelLarge: _noTextShadow(base.labelLarge!),
+    labelMedium: _noTextShadow(base.labelMedium!),
+    labelSmall: _noTextShadow(base.labelSmall!),
+  );
   return ThemeData(
     useMaterial3: true,
     brightness: Brightness.dark,
@@ -39,25 +59,25 @@ ThemeData get _supplyMapTheme {
       foregroundColor: SupplyMapColors.textWhite,
       elevation: 0,
       scrolledUnderElevation: 0,
-      titleTextStyle: GoogleFonts.inter(
+      titleTextStyle: _noTextShadow(GoogleFonts.inter(
         fontSize: 17,
         fontWeight: FontWeight.w700,
         color: SupplyMapColors.textWhite,
-      ),
+      )),
     ),
     snackBarTheme: SnackBarThemeData(
       backgroundColor: SupplyMapColors.sidebarBg,
       contentTextStyle:
-          GoogleFonts.inter(color: Colors.white, fontSize: 14),
+          _noTextShadow(GoogleFonts.inter(color: Colors.white, fontSize: 14)),
       behavior: SnackBarBehavior.floating,
       shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(kRadiusMd)),
     ),
     tooltipTheme: TooltipThemeData(
-      textStyle: GoogleFonts.inter(
+      textStyle: _noTextShadow(GoogleFonts.inter(
         color: Colors.white,
         fontSize: 12,
-      ).copyWith(shadows: const <Shadow>[]),
+      )),
     ),
   );
 }
@@ -72,6 +92,14 @@ class FindRApp extends StatelessWidget {
       child: MaterialApp(
         title: 'FindR – Supply Map',
         theme: _supplyMapTheme,
+        builder: (context, child) {
+          // Force no text shadows app-wide to avoid blurRadius assertion on hover.
+          final theme = Theme.of(context);
+          return DefaultTextStyle(
+            style: _noTextShadow(theme.textTheme.bodyLarge!),
+            child: child ?? const SizedBox.shrink(),
+          );
+        },
         home: const SupplyMapShell(),
         debugShowCheckedModeBanner: false,
       ),

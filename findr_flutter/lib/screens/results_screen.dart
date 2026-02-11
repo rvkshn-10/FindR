@@ -651,7 +651,7 @@ class _Sidebar extends StatelessWidget {
                     icon:
                         const Icon(Icons.close, color: Colors.white54),
                     onPressed: onNewSearch,
-                    tooltip: 'New search',
+                    tooltip: '', // Avoid tooltip to prevent text-shadow assertion on hover
                   ),
                 ],
               ),
@@ -755,13 +755,19 @@ class _ResultCardState extends State<_ResultCard> {
     final fg = dark ? SupplyMapColors.textBlack : Colors.white;
     final isGlass = widget.style == _CardStyle.substitute;
 
+    final noShadowStyle = Theme.of(context)
+        .textTheme
+        .bodyLarge!
+        .copyWith(shadows: const <Shadow>[]);
     return MouseRegion(
       onEnter: (_) => setState(() => _hovered = true),
       onExit: (_) => setState(() => _hovered = false),
       cursor: SystemMouseCursors.click,
       child: GestureDetector(
         onTap: widget.onTap,
-        child: AnimatedContainer(
+        child: DefaultTextStyle(
+          style: noShadowStyle,
+          child: AnimatedContainer(
           duration: const Duration(milliseconds: 200),
           curve: Curves.easeOutBack,
           transform: Matrix4.diagonal3Values(
@@ -877,6 +883,7 @@ class _ResultCardState extends State<_ResultCard> {
               ),
             ],
           ),
+        ),
         ),
       ),
     );
