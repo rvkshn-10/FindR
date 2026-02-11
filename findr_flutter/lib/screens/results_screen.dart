@@ -211,7 +211,8 @@ class _ResultsScreenState extends State<ResultsScreen> {
               Text(
                 'Finding nearby stores…',
                 style: GoogleFonts.inter(
-                    fontSize: 14, color: Colors.white70),
+                    fontSize: 14, color: Colors.white70)
+                    .copyWith(shadows: const <Shadow>[]),
               ),
             ],
           ),
@@ -232,7 +233,8 @@ class _ResultsScreenState extends State<ResultsScreen> {
                 Text(
                   _error!,
                   style: GoogleFonts.inter(
-                      color: SupplyMapColors.red, fontSize: 14),
+                      color: SupplyMapColors.red, fontSize: 14)
+                      .copyWith(shadows: const <Shadow>[]),
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 16),
@@ -438,7 +440,8 @@ class _ResultsScreenState extends State<ResultsScreen> {
               child: Text(
                 'No nearby stores found.',
                 style:
-                    GoogleFonts.inter(color: Colors.white54, fontSize: 14),
+                    GoogleFonts.inter(color: Colors.white54, fontSize: 14)
+                        .copyWith(shadows: const <Shadow>[]),
               ),
             )
           : Stack(
@@ -1038,26 +1041,20 @@ class _MapControlBtnState extends State<_MapControlBtn> {
       cursor: SystemMouseCursors.click,
       child: GestureDetector(
         onTap: widget.onTap,
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(12),
-          child: BackdropFilter(
-            filter: ui.ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-            child: Container(
-              width: 48,
-              height: 48,
-              decoration: BoxDecoration(
-                color: _hovered
-                    ? Colors.white.withValues(alpha: 0.2)
-                    : SupplyMapColors.glass,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                    color: SupplyMapColors.glassBorder),
-              ),
-              alignment: Alignment.center,
-              child: Icon(widget.icon,
-                  color: Colors.white, size: 20),
-            ),
+        child: Container(
+          width: 48,
+          height: 48,
+          decoration: BoxDecoration(
+            color: _hovered
+                ? Colors.white.withValues(alpha: 0.2)
+                : SupplyMapColors.glass,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+                color: SupplyMapColors.glassBorder),
           ),
+          alignment: Alignment.center,
+          child: Icon(widget.icon,
+              color: Colors.white, size: 20),
         ),
       ),
     );
@@ -1086,11 +1083,7 @@ class _SelectedStorePopup extends StatelessWidget {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        ClipRRect(
-          borderRadius: BorderRadius.circular(12),
-          child: BackdropFilter(
-            filter: ui.ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-            child: Container(
+        Container(
               decoration: BoxDecoration(
                 color: SupplyMapColors.sidebarBg,
                 borderRadius: BorderRadius.circular(12),
@@ -1166,8 +1159,6 @@ class _SelectedStorePopup extends StatelessWidget {
                   ),
                 ],
               ),
-            ),
-          ),
         ),
         CustomPaint(
           size: const Size(18, 8),
@@ -1246,7 +1237,7 @@ Widget _pillButton(String label, {required VoidCallback onTap}) {
           fontSize: 14,
           fontWeight: FontWeight.w500,
           color: Colors.white,
-        ),
+        ).copyWith(shadows: const <Shadow>[]),
       ),
     ),
   );

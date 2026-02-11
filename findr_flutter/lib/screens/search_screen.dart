@@ -209,7 +209,7 @@ class _SearchScreenState extends State<SearchScreen> {
                         height: 0.95,
                         letterSpacing: isNarrow ? -2 : -4,
                         color: Colors.white, // masked by shader
-                      ),
+                      ).copyWith(shadows: const <Shadow>[]),
                     ),
                   );
                 }),
@@ -228,7 +228,7 @@ class _SearchScreenState extends State<SearchScreen> {
                       fontWeight: FontWeight.w400,
                       color: Colors.white.withValues(alpha: 0.6),
                       height: 1.4,
-                    ),
+                    ).copyWith(shadows: const <Shadow>[]),
                   );
                 }),
                 const SizedBox(height: 36),
@@ -293,14 +293,14 @@ class _SearchScreenState extends State<SearchScreen> {
                 fontSize: 18,
                 fontWeight: FontWeight.w500,
                 color: SupplyMapColors.textBlack,
-              ),
+              ).copyWith(shadows: const <Shadow>[]),
               decoration: InputDecoration(
                 hintText: "What are you looking for? e.g. 'AA Batteries'",
                 hintStyle: GoogleFonts.inter(
                   fontSize: 18,
                   fontWeight: FontWeight.w500,
                   color: const Color(0xFF999999),
-                ),
+                ).copyWith(shadows: const <Shadow>[]),
                 border: InputBorder.none,
                 enabledBorder: InputBorder.none,
                 focusedBorder: InputBorder.none,
@@ -353,7 +353,7 @@ class _SearchScreenState extends State<SearchScreen> {
                 style: GoogleFonts.inter(
                   fontSize: 13,
                   color: Colors.white70,
-                ),
+                ).copyWith(shadows: const <Shadow>[]),
               ),
             ],
           ),
@@ -368,11 +368,13 @@ class _SearchScreenState extends State<SearchScreen> {
               child: TextField(
                 controller: _locationController,
                 style: GoogleFonts.inter(
-                    fontSize: 14, color: SupplyMapColors.textWhite),
+                    fontSize: 14, color: SupplyMapColors.textWhite)
+                    .copyWith(shadows: const <Shadow>[]),
                 decoration: InputDecoration(
                   hintText: 'City or address',
                   hintStyle: GoogleFonts.inter(
-                      fontSize: 14, color: Colors.white54),
+                      fontSize: 14, color: Colors.white54)
+                      .copyWith(shadows: const <Shadow>[]),
                   border: InputBorder.none,
                   enabledBorder: InputBorder.none,
                   focusedBorder: InputBorder.none,
@@ -470,7 +472,7 @@ class _SuggestionPillState extends State<_SuggestionPill> {
               fontSize: 14,
               fontWeight: FontWeight.w500,
               color: Colors.white,
-            ),
+            ).copyWith(shadows: const <Shadow>[]),
           ),
         ),
       ),

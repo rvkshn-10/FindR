@@ -18,7 +18,8 @@ class SettingsScreen extends StatelessWidget {
         backgroundColor: SupplyMapColors.bodyBg,
         foregroundColor: Colors.white,
         title: Text('Settings',
-            style: GoogleFonts.inter(fontWeight: FontWeight.w700)),
+            style: GoogleFonts.inter(fontWeight: FontWeight.w700)
+                .copyWith(shadows: const <Shadow>[])),
         elevation: 0,
       ),
       body: ListView(
@@ -40,7 +41,7 @@ class SettingsScreen extends StatelessWidget {
                         fontSize: 15,
                         fontWeight: FontWeight.w600,
                         color: Colors.white,
-                      ),
+                      ).copyWith(shadows: const <Shadow>[]),
                     ),
                   ],
                 ),
@@ -69,7 +70,7 @@ class SettingsScreen extends StatelessWidget {
                         fontSize: 15,
                         fontWeight: FontWeight.w600,
                         color: Colors.white,
-                      ),
+                      ).copyWith(shadows: const <Shadow>[]),
                     ),
                   ],
                 ),
@@ -87,7 +88,8 @@ class SettingsScreen extends StatelessWidget {
                       dropdownColor: SupplyMapColors.darkBg,
                       isExpanded: true,
                       style: GoogleFonts.inter(
-                          color: Colors.white, fontSize: 14),
+                          color: Colors.white, fontSize: 14)
+                          .copyWith(shadows: const <Shadow>[]),
                       items: _currencies
                           .map((c) => DropdownMenuItem(
                               value: c, child: Text(c)))
@@ -156,7 +158,7 @@ class _RadioOption<T> extends StatelessWidget {
               style: GoogleFonts.inter(
                 fontSize: 14,
                 color: Colors.white,
-              ),
+              ).copyWith(shadows: const <Shadow>[]),
             ),
           ],
         ),
