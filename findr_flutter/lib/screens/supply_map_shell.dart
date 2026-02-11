@@ -21,8 +21,7 @@ class SearchResultParams {
   });
 }
 
-/// Shell that keeps the background fixed and only animates the content
-/// when switching between search and results.
+/// Shell: gradient background stays fixed, search ↔ results animate inside.
 class SupplyMapShell extends StatefulWidget {
   const SupplyMapShell({super.key});
 
@@ -43,45 +42,45 @@ class _SupplyMapShellState extends State<SupplyMapShell> {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox.expand(
-      child: Container(
-        color: LiquidGlassColors.surfaceLight,
-        child: AnimatedSwitcher(
-          duration: const Duration(milliseconds: 320),
-          switchInCurve: Curves.easeOutCubic,
-          switchOutCurve: Curves.easeInCubic,
-          transitionBuilder: (Widget child, Animation<double> animation) {
-            final isSearch = child.key == const ValueKey<String>('search');
-            final offsetAnim = Tween<Offset>(
-              begin: isSearch ? const Offset(-1, 0) : const Offset(1, 0),
-              end: Offset.zero,
-            ).animate(CurvedAnimation(parent: animation, curve: Curves.easeOutCubic));
-            return SlideTransition(
-              position: offsetAnim,
-              child: child,
+    return GradientBackground(
+      child: AnimatedSwitcher(
+        duration: const Duration(milliseconds: 400),
+        switchInCurve: Curves.easeOutCubic,
+        switchOutCurve: Curves.easeInCubic,
+        transitionBuilder: (Widget child, Animation<double> animation) {
+          // Home fades + scales; Results fades in
+          if (child.key == const ValueKey<String>('search')) {
+            return FadeTransition(
+              opacity: animation,
+              child: ScaleTransition(
+                scale: Tween<double>(begin: 0.95, end: 1.0)
+                    .animate(animation),
+                child: child,
+              ),
             );
-          },
-          child: _resultParams == null
-              ? KeyedSubtree(
-                  key: const ValueKey<String>('search'),
-                  child: SearchScreen(
-                    embedInBackground: false,
-                    onSearchResult: _onSearchResult,
-                  ),
-                )
-              : KeyedSubtree(
-                  key: const ValueKey<String>('results'),
-                  child: ResultsScreen(
-                    item: _resultParams!.item,
-                    lat: _resultParams!.lat,
-                    lng: _resultParams!.lng,
-                    maxDistanceMiles: _resultParams!.maxDistanceMiles,
-                    filters: _resultParams!.filters,
-                    embedInBackground: false,
-                    onNewSearch: _onNewSearch,
-                  ),
+          }
+          return FadeTransition(opacity: animation, child: child);
+        },
+        child: _resultParams == null
+            ? KeyedSubtree(
+                key: const ValueKey<String>('search'),
+                child: SearchScreen(
+                  embedInBackground: false,
+                  onSearchResult: _onSearchResult,
                 ),
-        ),
+              )
+            : KeyedSubtree(
+                key: const ValueKey<String>('results'),
+                child: ResultsScreen(
+                  item: _resultParams!.item,
+                  lat: _resultParams!.lat,
+                  lng: _resultParams!.lng,
+                  maxDistanceMiles: _resultParams!.maxDistanceMiles,
+                  filters: _resultParams!.filters,
+                  embedInBackground: false,
+                  onNewSearch: _onNewSearch,
+                ),
+              ),
       ),
     );
   }

@@ -19,122 +19,39 @@ void main() async {
   runApp(const FindRApp());
 }
 
-/// Distinctive typography: Fraunces (display serif) + Outfit (body).
-TextTheme _creativeTextTheme(TextTheme base) {
-  final display = GoogleFonts.fraunces(color: LiquidGlassColors.label);
-  final body = GoogleFonts.outfit(color: LiquidGlassColors.label);
-  final bodySecondary = GoogleFonts.outfit(color: LiquidGlassColors.labelSecondary);
-  return base.copyWith(
-    bodyLarge: body.copyWith(fontSize: 16),
-    bodyMedium: body.copyWith(fontSize: 14),
-    bodySmall: bodySecondary.copyWith(fontSize: 12),
-    titleLarge: display.copyWith(fontSize: 22, fontWeight: FontWeight.w600),
-    titleMedium: display.copyWith(fontSize: 17, fontWeight: FontWeight.w600),
-    titleSmall: display.copyWith(fontSize: 15, fontWeight: FontWeight.w600),
-    labelLarge: body.copyWith(fontSize: 14, fontWeight: FontWeight.w600),
-    labelMedium: bodySecondary.copyWith(fontSize: 12),
-    labelSmall: bodySecondary.copyWith(fontSize: 11),
-  );
-}
-
-/// Apple Liquid Glass–inspired theme with creative fonts.
-ThemeData get _liquidGlassTheme {
-  final base = ThemeData(
+/// Dark theme that matches the HTML hackathon design.
+ThemeData get _supplyMapTheme {
+  final textTheme = GoogleFonts.interTextTheme(ThemeData.dark().textTheme);
+  return ThemeData(
     useMaterial3: true,
-    colorScheme: ColorScheme.fromSeed(
-      seedColor: LiquidGlassColors.primary,
-      brightness: Brightness.light,
-      primary: LiquidGlassColors.primary,
-      surface: LiquidGlassColors.surfaceLight,
-      onSurface: LiquidGlassColors.label,
-      onSurfaceVariant: LiquidGlassColors.labelSecondary,
+    brightness: Brightness.dark,
+    scaffoldBackgroundColor: SupplyMapColors.bodyBg,
+    colorScheme: const ColorScheme.dark(
+      primary: SupplyMapColors.blue,
+      secondary: SupplyMapColors.purple,
+      error: SupplyMapColors.red,
+      surface: SupplyMapColors.darkBg,
+      onSurface: SupplyMapColors.textWhite,
     ),
-    scaffoldBackgroundColor: LiquidGlassColors.surfaceLight,
-  );
-  return base.copyWith(
-    textTheme: _creativeTextTheme(base.textTheme),
+    textTheme: textTheme,
     appBarTheme: AppBarTheme(
-      centerTitle: true,
+      backgroundColor: SupplyMapColors.bodyBg,
+      foregroundColor: SupplyMapColors.textWhite,
       elevation: 0,
       scrolledUnderElevation: 0,
-      backgroundColor: LiquidGlassColors.surfaceLight,
-      foregroundColor: LiquidGlassColors.label,
-      titleTextStyle: GoogleFonts.fraunces(
+      titleTextStyle: GoogleFonts.inter(
         fontSize: 17,
-        fontWeight: FontWeight.w600,
-        color: LiquidGlassColors.label,
+        fontWeight: FontWeight.w700,
+        color: SupplyMapColors.textWhite,
       ),
-      iconTheme: const IconThemeData(color: LiquidGlassColors.label),
     ),
-    cardTheme: CardThemeData(
-      elevation: 0,
-      shadowColor: Colors.transparent,
-      color: LiquidGlassColors.glassFillLight,
+    snackBarTheme: SnackBarThemeData(
+      backgroundColor: SupplyMapColors.sidebarBg,
+      contentTextStyle:
+          GoogleFonts.inter(color: Colors.white, fontSize: 14),
+      behavior: SnackBarBehavior.floating,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(24),
-        side: const BorderSide(color: LiquidGlassColors.glassBorderLight, width: 1),
-      ),
-    ),
-    inputDecorationTheme: InputDecorationTheme(
-      filled: true,
-      fillColor: Colors.white.withValues(alpha: 0.25),
-      border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
-      enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(14),
-        borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.5)),
-      ),
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-      hintStyle: GoogleFonts.outfit(color: LiquidGlassColors.labelSecondary),
-      labelStyle: GoogleFonts.outfit(color: LiquidGlassColors.label),
-      floatingLabelStyle: GoogleFonts.outfit(color: LiquidGlassColors.label),
-    ),
-    filledButtonTheme: FilledButtonThemeData(
-      style: FilledButton.styleFrom(
-        backgroundColor: LiquidGlassColors.primary,
-        foregroundColor: Colors.white,
-        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-        minimumSize: const Size(140, 44),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-        elevation: 0,
-      ),
-    ),
-    textButtonTheme: TextButtonThemeData(
-      style: TextButton.styleFrom(
-        foregroundColor: LiquidGlassColors.label,
-      ),
-    ),
-    chipTheme: ChipThemeData(
-      backgroundColor: Colors.white.withValues(alpha: 0.5),
-      selectedColor: LiquidGlassColors.primary.withValues(alpha: 0.4),
-      side: BorderSide(color: Colors.white.withValues(alpha: 0.6)),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      labelStyle: GoogleFonts.outfit(color: LiquidGlassColors.label, fontSize: 12),
-      secondaryLabelStyle: GoogleFonts.outfit(color: LiquidGlassColors.label),
-    ),
-    dividerColor: LiquidGlassColors.labelSecondary.withValues(alpha: 0.4),
-    checkboxTheme: CheckboxThemeData(
-      fillColor: WidgetStateProperty.resolveWith((states) {
-        if (states.contains(WidgetState.selected)) return LiquidGlassColors.primary;
-        return Colors.transparent;
-      }),
-      side: BorderSide(color: LiquidGlassColors.labelSecondary.withValues(alpha: 0.7)),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
-    ),
-    listTileTheme: const ListTileThemeData(
-      textColor: LiquidGlassColors.label,
-      iconColor: LiquidGlassColors.label,
-    ),
-    radioTheme: RadioThemeData(
-      fillColor: WidgetStateProperty.resolveWith((states) {
-        if (states.contains(WidgetState.selected)) return LiquidGlassColors.primary;
-        return LiquidGlassColors.labelSecondary;
-      }),
-    ),
-    dropdownMenuTheme: DropdownMenuThemeData(
-      textStyle: GoogleFonts.outfit(color: LiquidGlassColors.label),
-      inputDecorationTheme: InputDecorationTheme(
-        hintStyle: GoogleFonts.outfit(color: LiquidGlassColors.labelSecondary),
-      ),
+          borderRadius: BorderRadius.circular(kRadiusMd)),
     ),
   );
 }
@@ -148,25 +65,10 @@ class FindRApp extends StatelessWidget {
       create: (_) => SettingsProvider(),
       child: MaterialApp(
         title: 'FindR – Supply Map',
-        theme: _liquidGlassTheme,
-        home: const _RootWithBackground(),
+        theme: _supplyMapTheme,
+        home: const SupplyMapShell(),
+        debugShowCheckedModeBanner: false,
       ),
-    );
-  }
-}
-
-/// Ensures the first frame always paints a visible background (fixes white screen on Safari/local).
-class _RootWithBackground extends StatelessWidget {
-  const _RootWithBackground();
-
-  @override
-  Widget build(BuildContext context) {
-    return const Stack(
-      fit: StackFit.expand,
-      children: [
-        ColoredBox(color: LiquidGlassColors.surfaceLight),
-        SupplyMapShell(),
-      ],
     );
   }
 }

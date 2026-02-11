@@ -1,8 +1,0 @@
-{
-  "projects": {
-    "default": "supplymapper",
-    "FindR": "supplymapper"
-  },
-  "targets": {},
-  "etags": {}
-}

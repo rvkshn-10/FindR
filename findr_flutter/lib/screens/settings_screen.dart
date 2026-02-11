@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../providers/settings_provider.dart';
 import '../widgets/liquid_glass_background.dart';
@@ -11,67 +12,153 @@ class SettingsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final settings = context.watch<SettingsProvider>();
-    final topPadding = MediaQuery.paddingOf(context).top + kToolbarHeight + 20;
     return Scaffold(
-      backgroundColor: LiquidGlassColors.surfaceLight,
+      backgroundColor: SupplyMapColors.bodyBg,
       appBar: AppBar(
-        backgroundColor: LiquidGlassColors.surfaceLight,
-        title: const Text('Settings'),
+        backgroundColor: SupplyMapColors.bodyBg,
+        foregroundColor: Colors.white,
+        title: Text('Settings',
+            style: GoogleFonts.inter(fontWeight: FontWeight.w700)),
+        elevation: 0,
       ),
-      body: ColoredBox(
-        color: LiquidGlassColors.surfaceLight,
-        child: ListView(
-        padding: EdgeInsets.fromLTRB(20, topPadding, 20, 40),
+      body: ListView(
+        padding: const EdgeInsets.fromLTRB(24, 16, 24, 40),
         children: [
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    leading: Icon(Icons.straighten, color: Theme.of(context).colorScheme.primary),
-                    title: const Text('Distance unit', style: TextStyle(fontWeight: FontWeight.w600)),
+          GlassPanel(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const Icon(Icons.straighten,
+                        color: SupplyMapColors.blue, size: 20),
+                    const SizedBox(width: 12),
+                    Text(
+                      'Distance unit',
+                      style: GoogleFonts.inter(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                _RadioOption<DistanceUnit>(
+                  value: DistanceUnit.mi,
+                  groupValue: settings.distanceUnit,
+                  label: 'Miles (mi)',
+                  onChanged: (v) => settings.setDistanceUnit(v!),
+                ),
+                _RadioOption<DistanceUnit>(
+                  value: DistanceUnit.km,
+                  groupValue: settings.distanceUnit,
+                  label: 'Kilometers (km)',
+                  onChanged: (v) => settings.setDistanceUnit(v!),
+                ),
+                const Divider(color: Colors.white24, height: 32),
+                Row(
+                  children: [
+                    const Icon(Icons.attach_money,
+                        color: SupplyMapColors.green, size: 20),
+                    const SizedBox(width: 12),
+                    Text(
+                      'Currency',
+                      style: GoogleFonts.inter(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  decoration: BoxDecoration(
+                    color: SupplyMapColors.glass,
+                    borderRadius: BorderRadius.circular(kRadiusSm),
+                    border: Border.all(color: SupplyMapColors.glassBorder),
                   ),
-                  RadioGroup<DistanceUnit>(
-                    groupValue: settings.distanceUnit,
-                    onChanged: (v) => settings.setDistanceUnit(v!),
-                    child: const Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        RadioListTile<DistanceUnit>(
-                          title: Text('Miles (mi)'),
-                          value: DistanceUnit.mi,
-                        ),
-                        RadioListTile<DistanceUnit>(
-                          title: Text('Kilometers (km)'),
-                          value: DistanceUnit.km,
-                        ),
-                      ],
+                  child: DropdownButtonHideUnderline(
+                    child: DropdownButton<String>(
+                      value: settings.currency,
+                      dropdownColor: SupplyMapColors.darkBg,
+                      isExpanded: true,
+                      style: GoogleFonts.inter(
+                          color: Colors.white, fontSize: 14),
+                      items: _currencies
+                          .map((c) => DropdownMenuItem(
+                              value: c, child: Text(c)))
+                          .toList(),
+                      onChanged: (v) =>
+                          settings.setCurrency(v ?? 'USD'),
                     ),
                   ),
-                  const Divider(),
-                  ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    leading: Icon(Icons.attach_money, color: Theme.of(context).colorScheme.primary),
-                    title: const Text('Currency', style: TextStyle(fontWeight: FontWeight.w600)),
-                  ),
-                  DropdownButtonFormField<String>(
-                    initialValue: settings.currency,
-                    decoration: const InputDecoration(
-                      isDense: true,
-                      contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                    ),
-                    isExpanded: true,
-                    items: _currencies.map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
-                    onChanged: (v) => settings.setCurrency(v ?? 'USD'),
-                  ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _RadioOption<T> extends StatelessWidget {
+  const _RadioOption({
+    super.key,
+    required this.value,
+    required this.groupValue,
+    required this.label,
+    required this.onChanged,
+  });
+
+  final T value;
+  final T groupValue;
+  final String label;
+  final ValueChanged<T?> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final selected = value == groupValue;
+    return InkWell(
+      onTap: () => onChanged(value),
+      borderRadius: BorderRadius.circular(8),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        child: Row(
+          children: [
+            Container(
+              width: 20,
+              height: 20,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: selected
+                      ? SupplyMapColors.blue
+                      : Colors.white38,
+                  width: 2,
+                ),
+                color: selected
+                    ? SupplyMapColors.blue
+                    : Colors.transparent,
+              ),
+              child: selected
+                  ? const Icon(Icons.check,
+                      size: 14, color: Colors.white)
+                  : null,
+            ),
+            const SizedBox(width: 12),
+            Text(
+              label,
+              style: GoogleFonts.inter(
+                fontSize: 14,
+                color: Colors.white,
+              ),
+            ),
+          ],
         ),
       ),
     );

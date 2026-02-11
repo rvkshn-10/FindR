@@ -1,5 +1,6 @@
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
@@ -9,7 +10,83 @@ import '../services/search_service.dart';
 import '../services/distance_util.dart';
 import '../providers/settings_provider.dart';
 import '../widgets/liquid_glass_background.dart';
-import 'settings_screen.dart';
+// settings_screen.dart unused in results but kept for navigation if needed
+
+// ---------------------------------------------------------------------------
+// Card style enum – matches the HTML design card variants
+// ---------------------------------------------------------------------------
+
+enum _CardStyle { bestMatch, goodMatch, convenient, available, substitute }
+
+_CardStyle _styleForIndex(int i, bool isBest) {
+  if (isBest) return _CardStyle.bestMatch;
+  switch (i) {
+    case 0:
+      return _CardStyle.bestMatch;
+    case 1:
+      return _CardStyle.goodMatch;
+    case 2:
+      return _CardStyle.convenient;
+    case 3:
+      return _CardStyle.substitute;
+    default:
+      return i % 2 == 0 ? _CardStyle.available : _CardStyle.substitute;
+  }
+}
+
+Color _cardBg(_CardStyle s) {
+  switch (s) {
+    case _CardStyle.bestMatch:
+      return SupplyMapColors.red;
+    case _CardStyle.goodMatch:
+      return SupplyMapColors.purple;
+    case _CardStyle.convenient:
+      return SupplyMapColors.yellow;
+    case _CardStyle.available:
+      return SupplyMapColors.green;
+    case _CardStyle.substitute:
+      return SupplyMapColors.glass;
+  }
+}
+
+bool _cardDarkText(_CardStyle s) {
+  return s == _CardStyle.convenient || s == _CardStyle.available;
+}
+
+String _badgeLabel(_CardStyle s) {
+  switch (s) {
+    case _CardStyle.bestMatch:
+      return 'Best Match';
+    case _CardStyle.goodMatch:
+      return 'Convenient';
+    case _CardStyle.convenient:
+      return 'Cheapest';
+    case _CardStyle.available:
+      return 'Open Now';
+    case _CardStyle.substitute:
+      return 'Suggestion';
+  }
+}
+
+// Pin color on map
+Color _pinColor(_CardStyle s) {
+  switch (s) {
+    case _CardStyle.bestMatch:
+      return SupplyMapColors.red;
+    case _CardStyle.goodMatch:
+      return SupplyMapColors.purple;
+    case _CardStyle.convenient:
+      return SupplyMapColors.yellow;
+    case _CardStyle.available:
+      return SupplyMapColors.green;
+    case _CardStyle.substitute:
+      return Colors.white;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Results screen
+// ---------------------------------------------------------------------------
 
 class ResultsScreen extends StatefulWidget {
   final String item;
@@ -109,101 +186,74 @@ class _ResultsScreenState extends State<ResultsScreen> {
     ];
     final bounds = LatLngBounds.fromPoints(points);
     _mapController.fitCamera(
-      CameraFit.bounds(
-        bounds: bounds,
-        padding: const EdgeInsets.all(40),
-      ),
+      CameraFit.bounds(bounds: bounds, padding: const EdgeInsets.all(40)),
     );
   }
+
+  // -----------------------------------------------------------------------
+  // Build
+  // -----------------------------------------------------------------------
 
   @override
   Widget build(BuildContext context) {
     final settings = context.watch<SettingsProvider>();
-    final topPadding = MediaQuery.paddingOf(context).top + kToolbarHeight + 24;
+
+    // Loading
     if (_loading) {
       return Scaffold(
-        backgroundColor: LiquidGlassColors.surfaceLight,
-        appBar: AppBar(
-          backgroundColor: LiquidGlassColors.surfaceLight,
-          title: Text('Results for "${widget.item}"'),
-          actions: [
-            IconButton(
-              icon: const Icon(Icons.settings),
-              onPressed: () => Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const SettingsScreen()),
+        backgroundColor: Colors.transparent,
+        body: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const CircularProgressIndicator(color: Colors.white),
+              const SizedBox(height: 16),
+              Text(
+                'Finding nearby stores…',
+                style: GoogleFonts.inter(
+                    fontSize: 14, color: Colors.white70),
               ),
-            ),
-          ],
-        ),
-        body: Padding(
-            padding: EdgeInsets.only(top: topPadding),
-            child: const Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  CircularProgressIndicator(),
-                  SizedBox(height: 12),
-                  Text(
-                    'Finding nearby stores…',
-                    style: TextStyle(
-                        fontSize: 14, color: LiquidGlassColors.label),
-                  ),
-                ],
-              ),
-            ),
+            ],
           ),
-        );
-    }
-    if (_error != null) {
-      return Scaffold(
-        backgroundColor: LiquidGlassColors.surfaceLight,
-        appBar: AppBar(
-          backgroundColor: LiquidGlassColors.surfaceLight,
-          title: const Text('Results'),
-          actions: [
-            IconButton(
-              icon: const Icon(Icons.settings),
-              onPressed: () => Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const SettingsScreen()),
-              ),
-            ),
-          ],
         ),
-        body: Padding(
-            padding: EdgeInsets.only(top: topPadding),
-            child: Center(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      _error!,
-                      style: const TextStyle(
-                          color: Colors.red, fontSize: 13),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 12),
-                    FilledButton(
-                      onPressed: () {
-                        if (widget.onNewSearch != null) {
-                          widget.onNewSearch!();
-                        } else {
-                          Navigator.of(context).pop();
-                        }
-                      },
-                      child: const Text('Back'),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
       );
     }
+
+    // Error
+    if (_error != null) {
+      return Scaffold(
+        backgroundColor: Colors.transparent,
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  _error!,
+                  style: GoogleFonts.inter(
+                      color: SupplyMapColors.red, fontSize: 14),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 16),
+                _pillButton('Back', onTap: () {
+                  if (widget.onNewSearch != null) {
+                    widget.onNewSearch!();
+                  } else {
+                    Navigator.of(context).pop();
+                  }
+                }),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
     final result = _result!;
     final stores = result.stores;
     final searchRadiusMeters = widget.maxDistanceMiles * 1609.34;
+
     Store? selectedStore;
     if (_selectedStoreId != null) {
       for (final s in stores) {
@@ -214,309 +264,261 @@ class _ResultsScreenState extends State<ResultsScreen> {
       }
     }
 
+    // Desktop / tablet: sidebar + map side-by-side
     return Scaffold(
-      backgroundColor: LiquidGlassColors.surfaceLight,
-      body: Stack(
-          children: [
-            // CustomScrollView with SliverAppBar (collapsible search bar / header)
-            CustomScrollView(
-              slivers: [
-                SliverAppBar(
-                  expandedHeight: 140,
-                  pinned: true,
-                  stretch: true,
-                  backgroundColor: LiquidGlassColors.surfaceLight,
-                  surfaceTintColor: Colors.transparent,
-                  scrolledUnderElevation: 0,
-                  flexibleSpace: FlexibleSpaceBar(
-                        titlePadding: const EdgeInsets.only(
-                            left: 16, right: 16, bottom: 16),
-                        title: Text(
-                          'Results for "${widget.item}"',
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                            color: LiquidGlassColors.label,
-                            decoration: TextDecoration.none,
-                          ),
-                        ),
-                    background: Padding(
-                          padding: EdgeInsets.only(
-                              top: MediaQuery.paddingOf(context).top +
-                                  kToolbarHeight +
-                                  8,
-                              left: 16,
-                              right: 16,
-                              bottom: 8),
-                          child: Align(
-                            alignment: Alignment.bottomLeft,
-                            child: Text(
-                              result.summary,
-                              style: const TextStyle(
-                                fontSize: 13,
-                                color: LiquidGlassColors.labelSecondary,
-                                fontWeight: FontWeight.w500,
-                              ),
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                        ),
+      backgroundColor: Colors.transparent,
+      body: Row(
+        children: [
+          // ── Sidebar ─────────────────────────────────────────────
+          _Sidebar(
+            query: widget.item,
+            stores: stores,
+            result: result,
+            settings: settings,
+            selectedStoreId: _selectedStoreId,
+            onSelectStore: _onSelectStore,
+            onDirections: _openDirections,
+            onNewSearch: () {
+              if (widget.onNewSearch != null) {
+                widget.onNewSearch!();
+              } else {
+                Navigator.of(context).pop();
+              }
+            },
+          ),
+          // ── Map area ────────────────────────────────────────────
+          Expanded(
+            child: Container(
+              color: SupplyMapColors.mapBg,
+              child: stores.isEmpty
+                  ? Center(
+                      child: Text(
+                        'No nearby stores found.',
+                        style: GoogleFonts.inter(
+                            color: Colors.white54, fontSize: 14),
                       ),
-                  actions: [
-                    IconButton(
-                      icon: const Icon(Icons.settings),
-                      onPressed: () => Navigator.of(context).push(
-                        MaterialPageRoute(
-                            builder: (_) => const SettingsScreen()),
-                      ),
-                    ),
-                    TextButton(
-                      onPressed: () {
-                        if (widget.onNewSearch != null) {
-                          widget.onNewSearch!();
-                        } else {
-                          Navigator.of(context).pop();
-                        }
-                      },
-                      child: const Text('New search'),
-                    ),
-                  ],
-                ),
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                    )
+                  : Stack(
                       children: [
-                        Card(
-                          child: Padding(
-                            padding: const EdgeInsets.all(16),
-                            child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              DefaultTextStyle(
-                                style: DefaultTextStyle.of(context).style.copyWith(
-                                  color: Theme.of(context).colorScheme.onSurface,
-                                  fontWeight: FontWeight.w500,
-                                  decoration: TextDecoration.none,
-                                  decorationColor: Colors.transparent,
+                        // Grid background
+                        CustomPaint(
+                          painter: _GridPainter(),
+                          size: Size.infinite,
+                        ),
+                        FlutterMap(
+                          mapController: _mapController,
+                          options: MapOptions(
+                            initialCenter:
+                                LatLng(widget.lat, widget.lng),
+                            initialZoom: 14,
+                            backgroundColor: Colors.transparent,
+                          ),
+                          children: [
+                            TileLayer(
+                              urlTemplate:
+                                  'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                              userAgentPackageName:
+                                  'com.findr.findr_flutter',
+                            ),
+                            CircleLayer(
+                              circles: [
+                                CircleMarker(
+                                  point: LatLng(
+                                      widget.lat, widget.lng),
+                                  radius: searchRadiusMeters,
+                                  useRadiusInMeter: true,
+                                  color: SupplyMapColors.blue
+                                      .withValues(alpha: 0.10),
+                                  borderColor: SupplyMapColors.blue
+                                      .withValues(alpha: 0.30),
+                                  borderStrokeWidth: 1.5,
                                 ),
-                                child: RichText(
-                                  text: TextSpan(
-                                    style: TextStyle(
-                                      color: Theme.of(context).colorScheme.onSurface,
-                                      fontWeight: FontWeight.w500,
-                                      decoration: TextDecoration.none,
-                                      decorationColor: Colors.transparent,
-                                    ),
-                                    children: [
-                                      const TextSpan(text: 'Within '),
-                                      TextSpan(
-                                        text: formatMaxDistance(
-                                            widget.maxDistanceMiles,
-                                            useKm: settings.useKm),
-                                        style: const TextStyle(
-                                            fontWeight: FontWeight.w600,
-                                            decoration: TextDecoration.none,
-                                            decorationColor: Colors.transparent),
-                                      ),
-                                      TextSpan(
-                                        text:
-                                            ' · Tap a store for details or directions.',
-                                        style: TextStyle(
-                                          color: Theme.of(context)
-                                              .colorScheme
-                                              .onSurfaceVariant,
-                                          fontWeight: FontWeight.normal,
-                                          decoration: TextDecoration.none,
-                                          decorationColor: Colors.transparent,
-                                        ),
-                                      ),
-                                    ],
+                              ],
+                            ),
+                            MarkerLayer(
+                              markers: [
+                                Marker(
+                                  point: LatLng(
+                                      widget.lat, widget.lng),
+                                  width: 24,
+                                  height: 24,
+                                  child: const Icon(
+                                    Icons.person_pin_circle,
+                                    color: SupplyMapColors.blue,
+                                    size: 24,
                                   ),
                                 ),
-                              ),
-                            ],
+                                ...stores.asMap().entries.map((entry) {
+                                  final i = entry.key;
+                                  final s = entry.value;
+                                  final isBest =
+                                      s.id == result.bestOptionId;
+                                  final style =
+                                      _styleForIndex(i, isBest);
+                                  final isSelected =
+                                      s.id == _selectedStoreId;
+                                  return Marker(
+                                    point: LatLng(s.lat, s.lng),
+                                    width: isSelected ? 50 : 40,
+                                    height: isSelected ? 50 : 40,
+                                    child: _MapPin(
+                                      index: i + 1,
+                                      color: _pinColor(style),
+                                      isBest: isBest,
+                                      isSelected: isSelected,
+                                      darkText:
+                                          _cardDarkText(style),
+                                      onTap: () =>
+                                          _onSelectStore(s),
+                                    ),
+                                  );
+                                }),
+                                if (selectedStore != null)
+                                  Marker(
+                                    point: LatLng(
+                                        selectedStore.lat,
+                                        selectedStore.lng),
+                                    width: 250,
+                                    height: 130,
+                                    child: Align(
+                                      alignment:
+                                          Alignment.topCenter,
+                                      child:
+                                          _SelectedStorePopup(
+                                        store: selectedStore,
+                                        settings: settings,
+                                        onClose: () => setState(
+                                            () => _selectedStoreId =
+                                                null),
+                                        onDirections: () =>
+                                            _openDirections(
+                                                selectedStore!),
+                                      ),
+                                    ),
+                                  ),
+                              ],
                             ),
+                          ],
+                        ),
+                        // Map controls
+                        Positioned(
+                          bottom: 32,
+                          right: 32,
+                          child: Row(
+                            children: [
+                              _MapControlBtn(
+                                  icon: Icons.add,
+                                  onTap: () {
+                                    final cam =
+                                        _mapController.camera;
+                                    _mapController.move(
+                                        cam.center,
+                                        cam.zoom + 1);
+                                  }),
+                              const SizedBox(width: 12),
+                              _MapControlBtn(
+                                  icon: Icons.remove,
+                                  onTap: () {
+                                    final cam =
+                                        _mapController.camera;
+                                    _mapController.move(
+                                        cam.center,
+                                        cam.zoom - 1);
+                                  }),
+                              const SizedBox(width: 12),
+                              _MapControlBtn(
+                                  icon: Icons.navigation,
+                                  onTap: () {
+                                    _fitMapToClosestStores(
+                                        stores);
+                                  }),
+                            ],
                           ),
                         ),
-                        const SizedBox(height: 16),
-                        SizedBox(
-                          height: 400,
-                          child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                      ],
+                    ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Sidebar
+// ---------------------------------------------------------------------------
+
+class _Sidebar extends StatelessWidget {
+  const _Sidebar({
+    required this.query,
+    required this.stores,
+    required this.result,
+    required this.settings,
+    required this.selectedStoreId,
+    required this.onSelectStore,
+    required this.onDirections,
+    required this.onNewSearch,
+  });
+
+  final String query;
+  final List<Store> stores;
+  final SearchResult result;
+  final SettingsProvider settings;
+  final String? selectedStoreId;
+  final void Function(Store) onSelectStore;
+  final void Function(Store) onDirections;
+  final VoidCallback onNewSearch;
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRect(
+      child: BackdropFilter(
+        filter: ui.ImageFilter.blur(
+            sigmaX: kBlurStrength, sigmaY: kBlurStrength),
+        child: Container(
+          width: 440,
+          decoration: const BoxDecoration(
+            color: SupplyMapColors.sidebarBg,
+            border: Border(
+              right: BorderSide(
+                  color: SupplyMapColors.glassBorder, width: 1),
+            ),
+          ),
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Header
+              Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Results',
+                          style: GoogleFonts.inter(
+                            fontSize: 32,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.white,
+                            letterSpacing: -0.5,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text.rich(
+                          TextSpan(
+                            text: 'Searching for ',
+                            style: GoogleFonts.inter(
+                              fontSize: 14,
+                              color: Colors.white60,
+                            ),
                             children: [
-                              // Map card
-                              Expanded(
-                                flex: 1,
-                                child: Padding(
-                                  padding: const EdgeInsets.only(right: 8),
-                                  child: Card(
-                                    clipBehavior: Clip.antiAlias,
-                                    child: ClipRRect(
-                                      borderRadius: BorderRadius.circular(20),
-                                      child: stores.isEmpty
-                                          ? const Center(
-                                              child: Text(
-                                                  'No nearby stores found.'))
-                                          : FlutterMap(
-                                              mapController: _mapController,
-                                              options: MapOptions(
-                                                initialCenter: LatLng(
-                                                    widget.lat, widget.lng),
-                                                initialZoom: 14,
-                                              ),
-                                              children: [
-                                                TileLayer(
-                                                  urlTemplate:
-                                                      'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                                                  userAgentPackageName:
-                                                      'com.findr.findr_flutter',
-                                                ),
-                                                // Search radius circle (CustomPaint via CircleLayer)
-                                                CircleLayer(
-                                                  circles: [
-                                                    CircleMarker(
-                                                      point: LatLng(widget.lat,
-                                                          widget.lng),
-                                                      radius:
-                                                          searchRadiusMeters,
-                                                      useRadiusInMeter: true,
-                                                      color: Theme.of(context)
-                                                          .colorScheme
-                                                          .primary
-                                                          .withValues(
-                                                              alpha: 0.12),
-                                                      borderColor: Theme.of(
-                                                              context)
-                                                          .colorScheme
-                                                          .primary
-                                                          .withValues(
-                                                              alpha: 0.35),
-                                                      borderStrokeWidth: 1.5,
-                                                    ),
-                                                  ],
-                                                ),
-                                                MarkerLayer(
-                                                  markers: [
-                                                    Marker(
-                                                      point: LatLng(
-                                                          widget.lat,
-                                                          widget.lng),
-                                                      width: 24,
-                                                      height: 24,
-                                                      child: const Icon(
-                                                        Icons
-                                                            .person_pin_circle,
-                                                        color: Colors.blue,
-                                                        size: 24,
-                                                      ),
-                                                    ),
-                                                    ...stores.asMap().entries.map((entry) {
-                                                      final i = entry.key;
-                                                      final s = entry.value;
-                                                      final isBest =
-                                                          s.id ==
-                                                              result
-                                                                  .bestOptionId;
-                                                      final isSelected =
-                                                          s.id ==
-                                                              _selectedStoreId;
-                                                      return Marker(
-                                                        point: LatLng(
-                                                            s.lat, s.lng),
-                                                        width: 34,
-                                                        height: 34,
-                                                        child: _StoreMarkerBadge(
-                                                          index: i + 1,
-                                                          isBest: isBest,
-                                                          isSelected: isSelected,
-                                                          onTap: () => _onSelectStore(s),
-                                                        ),
-                                                      );
-                                                    }),
-                                                    if (selectedStore != null)
-                                                      Marker(
-                                                        point: LatLng(selectedStore.lat, selectedStore.lng),
-                                                        width: 250,
-                                                        height: 130,
-                                                        child: Align(
-                                                          alignment: Alignment.topCenter,
-                                                          child: _SelectedStorePopup(
-                                                            store: selectedStore,
-                                                            settings: settings,
-                                                            onClose: () => setState(() => _selectedStoreId = null),
-                                                            onDirections: () => _openDirections(selectedStore!),
-                                                          ),
-                                                        ),
-                                                      ),
-                                                  ],
-                                                ),
-                                              ],
-                                            ),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                              // Store list
-                              Expanded(
-                                flex: 1,
-                                child: Padding(
-                                  padding: const EdgeInsets.only(left: 8),
-                                  child: Card(
-                                    child: Column(
-                                      mainAxisSize: MainAxisSize.max,
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.stretch,
-                                      children: [
-                                        Padding(
-                                          padding: const EdgeInsets.symmetric(
-                                              horizontal: 16, vertical: 12),
-                                          child: Text(
-                                            'Nearby stores',
-                                            style: Theme.of(context)
-                                                .textTheme
-                                                .titleMedium
-                                                ?.copyWith(
-                                                    fontWeight:
-                                                        FontWeight.w600),
-                                          ),
-                                        ),
-                                        const Divider(height: 1),
-                                        if (stores.isEmpty)
-                                          const Padding(
-                                            padding: EdgeInsets.all(24),
-                                            child: Center(
-                                                child: Text(
-                                                    'No nearby stores found.')),
-                                          )
-                                        else
-                                          Expanded(
-                                            child: ListView.separated(
-                                              itemCount: stores.length,
-                                              padding: EdgeInsets.zero,
-                                              separatorBuilder: (_, __) =>
-                                                  const Divider(height: 1),
-                                              itemBuilder: (context, i) {
-                                                final s = stores[i];
-                                                final isBest = s.id ==
-                                                    result.bestOptionId;
-                                                return _StoreListTile(
-                                                  store: s,
-                                                  isBest: isBest,
-                                                  isSelected: s.id == _selectedStoreId,
-                                                  settings: settings,
-                                                  onTap: () =>
-                                                      _onSelectStore(s),
-                                                );
-                                              },
-                                            ),
-                                          ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
+                              TextSpan(
+                                text: query,
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.w700,
+                                    color: Colors.white),
                               ),
                             ],
                           ),
@@ -524,121 +526,383 @@ class _ResultsScreenState extends State<ResultsScreen> {
                       ],
                     ),
                   ),
-                ),
-              ],
-            ),
-          ],
-        ),
-    );
-  }
-}
-
-/// List tile with Hero for smooth transition to detail sheet.
-class _StoreListTile extends StatelessWidget {
-  const _StoreListTile({
-    required this.store,
-    required this.isBest,
-    required this.isSelected,
-    required this.settings,
-    required this.onTap,
-  });
-
-  final Store store;
-  final bool isBest;
-  final bool isSelected;
-  final SettingsProvider settings;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final bool showHighlight = isBest || isSelected;
-    return Container(
-      decoration: showHighlight
-          ? BoxDecoration(
-              color: isSelected
-                  ? theme.colorScheme.primary.withValues(alpha: 0.2)
-                  : theme.colorScheme.primaryContainer.withValues(alpha: 0.3),
-              border: Border(
-                left: BorderSide(
-                  color: LiquidGlassColors.primary,
-                  width: isSelected ? 5 : 4,
-                ),
-              ),
-            )
-          : null,
-      child: ListTile(
-        dense: true,
-        onTap: onTap,
-        leading: Hero(
-          tag: 'store_icon_${store.id}',
-          child: Icon(
-            isBest ? Icons.star : Icons.store_outlined,
-            color: isBest
-                ? Theme.of(context).colorScheme.primary
-                : null,
-            size: 22,
-          ),
-        ),
-        title: Row(
-          children: [
-            Expanded(
-              child: Hero(
-                tag: 'store_name_${store.id}',
-                child: Material(
-                  color: Colors.transparent,
-                  child: Text(
-                    store.name,
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                    ),
+                  IconButton(
+                    icon:
+                        const Icon(Icons.close, color: Colors.white54),
+                    onPressed: onNewSearch,
+                    tooltip: 'New search',
                   ),
-                ),
+                ],
               ),
-            ),
-            if (isSelected)
+              const SizedBox(height: 24),
+              // Mini search
               Container(
-                margin: const EdgeInsets.only(right: 6),
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 16, vertical: 12),
                 decoration: BoxDecoration(
-                  color: theme.colorScheme.primary.withValues(alpha: 0.18),
-                  borderRadius: BorderRadius.circular(999),
+                  color: Colors.white.withValues(alpha: 0.10),
+                  borderRadius: BorderRadius.circular(kRadiusMd),
+                  border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.10)),
                 ),
-                child: Text(
-                  'Selected',
-                  style: TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w700,
-                    color: theme.colorScheme.primary,
-                  ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.search,
+                        size: 16, color: Colors.white),
+                    const SizedBox(width: 8),
+                    Text(
+                      query,
+                      style: GoogleFonts.inter(
+                          fontSize: 14, color: Colors.white),
+                    ),
+                  ],
                 ),
               ),
-            if (isBest)
-              Chip(
-                label: const Text('Best', style: TextStyle(fontSize: 11)),
-                padding: EdgeInsets.zero,
-                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                backgroundColor:
-                    Theme.of(context).colorScheme.primaryContainer,
+              const SizedBox(height: 24),
+              // Results list
+              Expanded(
+                child: stores.isEmpty
+                    ? Center(
+                        child: Text(
+                          'No nearby stores found.',
+                          style: GoogleFonts.inter(
+                              color: Colors.white54, fontSize: 14),
+                        ),
+                      )
+                    : ListView.separated(
+                        itemCount: stores.length,
+                        separatorBuilder: (_, __) =>
+                            const SizedBox(height: 16),
+                        padding: const EdgeInsets.only(right: 8),
+                        itemBuilder: (context, i) {
+                          final s = stores[i];
+                          final isBest =
+                              s.id == result.bestOptionId;
+                          final style =
+                              _styleForIndex(i, isBest);
+                          return _ResultCard(
+                            store: s,
+                            style: style,
+                            settings: settings,
+                            isSelected:
+                                s.id == selectedStoreId,
+                            onTap: () => onSelectStore(s),
+                          );
+                        },
+                      ),
               ),
-          ],
-        ),
-        subtitle: Text(
-          '${formatDistance(store.distanceKm, useKm: settings.useKm)} away'
-          '${store.durationMinutes != null ? ' · ~${store.durationMinutes} min' : ''}',
-          style: TextStyle(
-            fontSize: 12,
-            color: isSelected
-                ? theme.colorScheme.onSurface
-                : theme.colorScheme.onSurfaceVariant,
+            ],
           ),
         ),
-        trailing: const Icon(Icons.chevron_right, size: 18),
       ),
     );
   }
 }
+
+// ---------------------------------------------------------------------------
+// Result card (colored)
+// ---------------------------------------------------------------------------
+
+class _ResultCard extends StatefulWidget {
+  const _ResultCard({
+    required this.store,
+    required this.style,
+    required this.settings,
+    required this.isSelected,
+    required this.onTap,
+  });
+
+  final Store store;
+  final _CardStyle style;
+  final SettingsProvider settings;
+  final bool isSelected;
+  final VoidCallback onTap;
+
+  @override
+  State<_ResultCard> createState() => _ResultCardState();
+}
+
+class _ResultCardState extends State<_ResultCard> {
+  bool _hovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final bg = _cardBg(widget.style);
+    final dark = _cardDarkText(widget.style);
+    final fg = dark ? SupplyMapColors.textBlack : Colors.white;
+    final isGlass = widget.style == _CardStyle.substitute;
+
+    return MouseRegion(
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit: (_) => setState(() => _hovered = false),
+      cursor: SystemMouseCursors.click,
+      child: GestureDetector(
+        onTap: widget.onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          curve: Curves.easeOutBack,
+          transform: Matrix4.diagonal3Values(
+              _hovered ? 1.02 : 1.0, _hovered ? 1.02 : 1.0, 1.0),
+          decoration: BoxDecoration(
+            color: bg,
+            borderRadius: BorderRadius.circular(kRadiusLg),
+            border: isGlass
+                ? Border.all(color: SupplyMapColors.glassBorder)
+                : (widget.isSelected
+                    ? Border.all(color: Colors.white, width: 2)
+                    : null),
+            boxShadow: _hovered
+                ? [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.3),
+                      blurRadius: 25,
+                      offset: const Offset(0, 10),
+                    ),
+                  ]
+                : null,
+          ),
+          padding: const EdgeInsets.all(20),
+          constraints: const BoxConstraints(minHeight: 140),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              // Header
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: dark
+                          ? Colors.white.withValues(alpha: 0.5)
+                          : Colors.black.withValues(alpha: 0.2),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text(
+                      _badgeLabel(widget.style),
+                      style: GoogleFonts.inter(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 0.5,
+                        color: dark ? Colors.black : Colors.white,
+                      ),
+                    ),
+                  ),
+                  if (widget.style == _CardStyle.bestMatch)
+                    Text(
+                      '98%',
+                      style: GoogleFonts.inter(
+                          fontSize: 16, color: fg),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              // Title
+              Text(
+                widget.store.name,
+                style: GoogleFonts.inter(
+                  fontSize: isGlass ? 16 : 22,
+                  fontWeight: FontWeight.w700,
+                  height: 1.1,
+                  letterSpacing: -0.5,
+                  color: fg.withValues(alpha: isGlass ? 0.9 : 1.0),
+                ),
+              ),
+              const SizedBox(height: 12),
+              // Meta
+              Row(
+                children: [
+                  Text(
+                    formatDistance(widget.store.distanceKm,
+                        useKm: widget.settings.useKm),
+                    style: GoogleFonts.inter(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                      color: fg.withValues(alpha: 0.9),
+                    ),
+                  ),
+                  _dot(fg),
+                  if (widget.store.durationMinutes != null) ...[
+                    Text(
+                      '~${widget.store.durationMinutes} min',
+                      style: GoogleFonts.inter(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                        color: fg.withValues(alpha: 0.9),
+                      ),
+                    ),
+                    _dot(fg),
+                  ],
+                  Text(
+                    widget.store.address.isEmpty
+                        ? 'In Stock'
+                        : widget.store.address
+                            .split(',')
+                            .first
+                            .trim(),
+                    style: GoogleFonts.inter(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                      color: fg.withValues(alpha: 0.9),
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _dot(Color c) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8),
+      child: Container(
+        width: 4,
+        height: 4,
+        decoration: BoxDecoration(
+          color: c,
+          shape: BoxShape.circle,
+        ),
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Map pin
+// ---------------------------------------------------------------------------
+
+class _MapPin extends StatefulWidget {
+  const _MapPin({
+    required this.index,
+    required this.color,
+    required this.isBest,
+    required this.isSelected,
+    required this.darkText,
+    required this.onTap,
+  });
+
+  final int index;
+  final Color color;
+  final bool isBest;
+  final bool isSelected;
+  final bool darkText;
+  final VoidCallback onTap;
+
+  @override
+  State<_MapPin> createState() => _MapPinState();
+}
+
+class _MapPinState extends State<_MapPin> {
+  bool _hovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final size = widget.isBest ? 50.0 : 40.0;
+    return MouseRegion(
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit: (_) => setState(() => _hovered = false),
+      cursor: SystemMouseCursors.click,
+      child: GestureDetector(
+        onTap: widget.onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          width: size,
+          height: size,
+          transform: Matrix4.diagonal3Values(
+              _hovered ? 1.1 : 1.0, _hovered ? 1.1 : 1.0, 1.0),
+          decoration: BoxDecoration(
+            color: widget.color,
+            shape: BoxShape.circle,
+            border: Border.all(
+                color: SupplyMapColors.darkBg, width: 4),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.5),
+                blurRadius: 12,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          alignment: Alignment.center,
+          child: Text(
+            '${widget.index}',
+            style: GoogleFonts.inter(
+              fontWeight: FontWeight.w800,
+              fontSize: widget.isBest ? 16 : 14,
+              color: widget.darkText
+                  ? Colors.black
+                  : Colors.white,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Map control button
+// ---------------------------------------------------------------------------
+
+class _MapControlBtn extends StatefulWidget {
+  const _MapControlBtn({
+    required this.icon,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final VoidCallback onTap;
+
+  @override
+  State<_MapControlBtn> createState() => _MapControlBtnState();
+}
+
+class _MapControlBtnState extends State<_MapControlBtn> {
+  bool _hovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return MouseRegion(
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit: (_) => setState(() => _hovered = false),
+      cursor: SystemMouseCursors.click,
+      child: GestureDetector(
+        onTap: widget.onTap,
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(12),
+          child: BackdropFilter(
+            filter: ui.ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+            child: Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                color: _hovered
+                    ? Colors.white.withValues(alpha: 0.2)
+                    : SupplyMapColors.glass,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                    color: SupplyMapColors.glassBorder),
+              ),
+              alignment: Alignment.center,
+              child: Icon(widget.icon,
+                  color: Colors.white, size: 20),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Selected store popup
+// ---------------------------------------------------------------------------
 
 class _SelectedStorePopup extends StatelessWidget {
   const _SelectedStorePopup({
@@ -655,130 +919,126 @@ class _SelectedStorePopup extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Material(
-          elevation: 8,
+        ClipRRect(
           borderRadius: BorderRadius.circular(12),
-          child: Container(
-            decoration: BoxDecoration(
-              color: theme.colorScheme.surface,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: theme.colorScheme.primary.withValues(alpha: 0.25)),
-            ),
-            padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Icon(Icons.store, size: 16, color: theme.colorScheme.primary),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        store.name,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+          child: BackdropFilter(
+            filter: ui.ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+            child: Container(
+              decoration: BoxDecoration(
+                color: SupplyMapColors.sidebarBg,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: SupplyMapColors.glassBorder),
+              ),
+              padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(Icons.store,
+                          size: 16, color: Colors.white),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          store.name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: GoogleFonts.inter(
+                            fontWeight: FontWeight.w700,
+                            fontSize: 13,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                      GestureDetector(
+                        onTap: onClose,
+                        child: const Icon(Icons.close,
+                            size: 16, color: Colors.white54),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    '${formatDistance(store.distanceKm, useKm: settings.useKm)} away'
+                    '${store.durationMinutes != null ? ' · ~${store.durationMinutes} min' : ''}',
+                    style: GoogleFonts.inter(
+                        fontSize: 12, color: Colors.white60),
+                  ),
+                  const SizedBox(height: 8),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: GestureDetector(
+                      onTap: onDirections,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: SupplyMapColors.blue,
+                          borderRadius:
+                              BorderRadius.circular(kRadiusPill),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.directions,
+                                size: 14, color: Colors.white),
+                            const SizedBox(width: 4),
+                            Text(
+                              'Directions',
+                              style: GoogleFonts.inter(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
-                    IconButton(
-                      onPressed: onClose,
-                      icon: const Icon(Icons.close, size: 16),
-                      splashRadius: 16,
-                      constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
-                      padding: EdgeInsets.zero,
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  '${formatDistance(store.distanceKm, useKm: settings.useKm)} away'
-                  '${store.durationMinutes != null ? ' · ~${store.durationMinutes} min' : ''}',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: theme.colorScheme.onSurfaceVariant,
                   ),
-                ),
-                const SizedBox(height: 8),
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: FilledButton.icon(
-                    onPressed: onDirections,
-                    icon: const Icon(Icons.directions, size: 16),
-                    label: const Text('Directions'),
-                    style: FilledButton.styleFrom(
-                      minimumSize: const Size(0, 34),
-                      padding: const EdgeInsets.symmetric(horizontal: 12),
-                    ),
-                  ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),
         CustomPaint(
           size: const Size(18, 8),
-          painter: _PopupArrowPainter(color: theme.colorScheme.surface),
+          painter: _PopupArrowPainter(color: SupplyMapColors.sidebarBg),
         ),
       ],
     );
   }
 }
 
-class _StoreMarkerBadge extends StatelessWidget {
-  const _StoreMarkerBadge({
-    required this.index,
-    required this.isBest,
-    required this.isSelected,
-    required this.onTap,
-  });
+// ---------------------------------------------------------------------------
+// Grid painter for map background
+// ---------------------------------------------------------------------------
 
-  final int index;
-  final bool isBest;
-  final bool isSelected;
-  final VoidCallback onTap;
+class _GridPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = Colors.white.withValues(alpha: 0.03)
+      ..strokeWidth = 1;
+    const step = 40.0;
+    for (double x = 0; x < size.width; x += step) {
+      canvas.drawLine(Offset(x, 0), Offset(x, size.height), paint);
+    }
+    for (double y = 0; y < size.height; y += step) {
+      canvas.drawLine(Offset(0, y), Offset(size.width, y), paint);
+    }
+  }
 
   @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final fill = isSelected
-        ? theme.colorScheme.primary
-        : (isBest ? Colors.green : Colors.orange);
-    return MouseRegion(
-      cursor: SystemMouseCursors.click,
-      child: GestureDetector(
-        onTap: onTap,
-        behavior: HitTestBehavior.opaque,
-        child: Container(
-          decoration: BoxDecoration(
-            color: fill,
-            shape: BoxShape.circle,
-            border: Border.all(color: Colors.white, width: 2),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.25),
-                blurRadius: 6,
-                offset: const Offset(0, 2),
-              ),
-            ],
-          ),
-          alignment: Alignment.center,
-          child: Text(
-            '$index',
-            style: TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.w700,
-              fontSize: isSelected ? 13 : 12,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
+
+// ---------------------------------------------------------------------------
+// Popup arrow painter
+// ---------------------------------------------------------------------------
 
 class _PopupArrowPainter extends CustomPainter {
   _PopupArrowPainter({required this.color});
@@ -792,12 +1052,37 @@ class _PopupArrowPainter extends CustomPainter {
       ..lineTo(size.width / 2, size.height)
       ..lineTo(size.width, 0)
       ..close();
-    final paint = Paint()..color = color;
-    canvas.drawPath(p, paint);
+    canvas.drawPath(p, Paint()..color = color);
   }
 
   @override
-  bool shouldRepaint(covariant _PopupArrowPainter oldDelegate) =>
-      oldDelegate.color != color;
+  bool shouldRepaint(covariant _PopupArrowPainter old) =>
+      old.color != color;
 }
 
+// ---------------------------------------------------------------------------
+// Helper
+// ---------------------------------------------------------------------------
+
+Widget _pillButton(String label, {required VoidCallback onTap}) {
+  return GestureDetector(
+    onTap: onTap,
+    child: Container(
+      padding:
+          const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+      decoration: BoxDecoration(
+        color: SupplyMapColors.glass,
+        borderRadius: BorderRadius.circular(kRadiusPill),
+        border: Border.all(color: SupplyMapColors.glassBorder),
+      ),
+      child: Text(
+        label,
+        style: GoogleFonts.inter(
+          fontSize: 14,
+          fontWeight: FontWeight.w500,
+          color: Colors.white,
+        ),
+      ),
+    ),
+  );
+}
