@@ -264,183 +264,300 @@ class _ResultsScreenState extends State<ResultsScreen> {
       }
     }
 
-    // Desktop / tablet: sidebar + map side-by-side
+    final isWide = MediaQuery.of(context).size.width >= 600;
+
+    final mapWidget = _buildMapArea(stores, result, searchRadiusMeters, selectedStore);
+
+    // Wide (web / tablet): sidebar + map side-by-side
+    if (isWide) {
+      return Scaffold(
+        backgroundColor: Colors.transparent,
+        body: Row(
+          children: [
+            _Sidebar(
+              query: widget.item,
+              stores: stores,
+              result: result,
+              settings: settings,
+              selectedStoreId: _selectedStoreId,
+              onSelectStore: _onSelectStore,
+              onDirections: _openDirections,
+              onNewSearch: () {
+                if (widget.onNewSearch != null) {
+                  widget.onNewSearch!();
+                } else {
+                  Navigator.of(context).pop();
+                }
+              },
+            ),
+            Expanded(child: mapWidget),
+          ],
+        ),
+      );
+    }
+
+    // Narrow (phone): map full-screen + draggable bottom sheet
     return Scaffold(
       backgroundColor: Colors.transparent,
-      body: Row(
+      body: Stack(
         children: [
-          // ── Sidebar ─────────────────────────────────────────────
-          _Sidebar(
-            query: widget.item,
-            stores: stores,
-            result: result,
-            settings: settings,
-            selectedStoreId: _selectedStoreId,
-            onSelectStore: _onSelectStore,
-            onDirections: _openDirections,
-            onNewSearch: () {
-              if (widget.onNewSearch != null) {
-                widget.onNewSearch!();
-              } else {
-                Navigator.of(context).pop();
-              }
-            },
-          ),
-          // ── Map area ────────────────────────────────────────────
-          Expanded(
-            child: Container(
-              color: SupplyMapColors.mapBg,
-              child: stores.isEmpty
-                  ? Center(
-                      child: Text(
-                        'No nearby stores found.',
-                        style: GoogleFonts.inter(
-                            color: Colors.white54, fontSize: 14),
-                      ),
-                    )
-                  : Stack(
-                      children: [
-                        // Grid background
-                        CustomPaint(
-                          painter: _GridPainter(),
-                          size: Size.infinite,
-                        ),
-                        FlutterMap(
-                          mapController: _mapController,
-                          options: MapOptions(
-                            initialCenter:
-                                LatLng(widget.lat, widget.lng),
-                            initialZoom: 14,
-                            backgroundColor: Colors.transparent,
-                          ),
-                          children: [
-                            TileLayer(
-                              urlTemplate:
-                                  'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                              userAgentPackageName:
-                                  'com.findr.findr_flutter',
-                            ),
-                            CircleLayer(
-                              circles: [
-                                CircleMarker(
-                                  point: LatLng(
-                                      widget.lat, widget.lng),
-                                  radius: searchRadiusMeters,
-                                  useRadiusInMeter: true,
-                                  color: SupplyMapColors.blue
-                                      .withValues(alpha: 0.10),
-                                  borderColor: SupplyMapColors.blue
-                                      .withValues(alpha: 0.30),
-                                  borderStrokeWidth: 1.5,
-                                ),
-                              ],
-                            ),
-                            MarkerLayer(
-                              markers: [
-                                Marker(
-                                  point: LatLng(
-                                      widget.lat, widget.lng),
-                                  width: 24,
-                                  height: 24,
-                                  child: const Icon(
-                                    Icons.person_pin_circle,
-                                    color: SupplyMapColors.blue,
-                                    size: 24,
-                                  ),
-                                ),
-                                ...stores.asMap().entries.map((entry) {
-                                  final i = entry.key;
-                                  final s = entry.value;
-                                  final isBest =
-                                      s.id == result.bestOptionId;
-                                  final style =
-                                      _styleForIndex(i, isBest);
-                                  final isSelected =
-                                      s.id == _selectedStoreId;
-                                  return Marker(
-                                    point: LatLng(s.lat, s.lng),
-                                    width: isSelected ? 50 : 40,
-                                    height: isSelected ? 50 : 40,
-                                    child: _MapPin(
-                                      index: i + 1,
-                                      color: _pinColor(style),
-                                      isBest: isBest,
-                                      isSelected: isSelected,
-                                      darkText:
-                                          _cardDarkText(style),
-                                      onTap: () =>
-                                          _onSelectStore(s),
-                                    ),
-                                  );
-                                }),
-                                if (selectedStore != null)
-                                  Marker(
-                                    point: LatLng(
-                                        selectedStore.lat,
-                                        selectedStore.lng),
-                                    width: 250,
-                                    height: 130,
-                                    child: Align(
-                                      alignment:
-                                          Alignment.topCenter,
-                                      child:
-                                          _SelectedStorePopup(
-                                        store: selectedStore,
-                                        settings: settings,
-                                        onClose: () => setState(
-                                            () => _selectedStoreId =
-                                                null),
-                                        onDirections: () =>
-                                            _openDirections(
-                                                selectedStore!),
-                                      ),
-                                    ),
-                                  ),
-                              ],
-                            ),
-                          ],
-                        ),
-                        // Map controls
-                        Positioned(
-                          bottom: 32,
-                          right: 32,
-                          child: Row(
-                            children: [
-                              _MapControlBtn(
-                                  icon: Icons.add,
-                                  onTap: () {
-                                    final cam =
-                                        _mapController.camera;
-                                    _mapController.move(
-                                        cam.center,
-                                        cam.zoom + 1);
-                                  }),
-                              const SizedBox(width: 12),
-                              _MapControlBtn(
-                                  icon: Icons.remove,
-                                  onTap: () {
-                                    final cam =
-                                        _mapController.camera;
-                                    _mapController.move(
-                                        cam.center,
-                                        cam.zoom - 1);
-                                  }),
-                              const SizedBox(width: 12),
-                              _MapControlBtn(
-                                  icon: Icons.navigation,
-                                  onTap: () {
-                                    _fitMapToClosestStores(
-                                        stores);
-                                  }),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
+          mapWidget,
+          // Back / new-search button
+          Positioned(
+            top: MediaQuery.of(context).padding.top + 8,
+            left: 12,
+            child: _MapControlBtn(
+              icon: Icons.arrow_back,
+              onTap: () {
+                if (widget.onNewSearch != null) {
+                  widget.onNewSearch!();
+                } else {
+                  Navigator.of(context).pop();
+                }
+              },
             ),
+          ),
+          // Draggable results sheet
+          DraggableScrollableSheet(
+            initialChildSize: 0.35,
+            minChildSize: 0.10,
+            maxChildSize: 0.85,
+            builder: (context, scrollController) {
+              return Container(
+                decoration: const BoxDecoration(
+                  color: SupplyMapColors.sidebarBg,
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+                  border: Border(
+                    top: BorderSide(color: SupplyMapColors.glassBorder),
+                  ),
+                ),
+                child: Column(
+                  children: [
+                    // Drag handle
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 10),
+                      child: Container(
+                        width: 40,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: Colors.white24,
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                    ),
+                    // Header
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Text.rich(
+                              TextSpan(
+                                text: 'Results for ',
+                                style: GoogleFonts.inter(
+                                  fontSize: 16,
+                                  color: Colors.white60,
+                                ),
+                                children: [
+                                  TextSpan(
+                                    text: widget.item,
+                                    style: const TextStyle(
+                                        fontWeight: FontWeight.w700,
+                                        color: Colors.white),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                          Text(
+                            '${stores.length} found',
+                            style: GoogleFonts.inter(
+                                fontSize: 13, color: Colors.white38),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    // List
+                    Expanded(
+                      child: stores.isEmpty
+                          ? Center(
+                              child: Text(
+                                'No nearby stores found.',
+                                style: GoogleFonts.inter(
+                                    color: Colors.white54, fontSize: 14),
+                              ),
+                            )
+                          : ListView.separated(
+                              controller: scrollController,
+                              padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+                              itemCount: stores.length,
+                              separatorBuilder: (_, __) =>
+                                  const SizedBox(height: 12),
+                              itemBuilder: (context, i) {
+                                final s = stores[i];
+                                final isBest = s.id == result.bestOptionId;
+                                final style = _styleForIndex(i, isBest);
+                                return _ResultCard(
+                                  store: s,
+                                  style: style,
+                                  settings: settings,
+                                  isSelected: s.id == _selectedStoreId,
+                                  onTap: () => _onSelectStore(s),
+                                );
+                              },
+                            ),
+                    ),
+                  ],
+                ),
+              );
+            },
           ),
         ],
       ),
+    );
+  }
+
+  // -----------------------------------------------------------------------
+  // Shared map area widget
+  // -----------------------------------------------------------------------
+  Widget _buildMapArea(
+    List<Store> stores,
+    SearchResult result,
+    double searchRadiusMeters,
+    Store? selectedStore,
+  ) {
+    final settings = context.watch<SettingsProvider>();
+    return Container(
+      color: SupplyMapColors.mapBg,
+      child: stores.isEmpty
+          ? Center(
+              child: Text(
+                'No nearby stores found.',
+                style:
+                    GoogleFonts.inter(color: Colors.white54, fontSize: 14),
+              ),
+            )
+          : Stack(
+              children: [
+                CustomPaint(
+                  painter: _GridPainter(),
+                  size: Size.infinite,
+                ),
+                FlutterMap(
+                  mapController: _mapController,
+                  options: MapOptions(
+                    initialCenter: LatLng(widget.lat, widget.lng),
+                    initialZoom: 14,
+                    backgroundColor: Colors.transparent,
+                  ),
+                  children: [
+                    TileLayer(
+                      urlTemplate:
+                          'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                      userAgentPackageName: 'com.findr.app',
+                    ),
+                    CircleLayer(
+                      circles: [
+                        CircleMarker(
+                          point: LatLng(widget.lat, widget.lng),
+                          radius: searchRadiusMeters,
+                          useRadiusInMeter: true,
+                          color:
+                              SupplyMapColors.blue.withValues(alpha: 0.10),
+                          borderColor:
+                              SupplyMapColors.blue.withValues(alpha: 0.30),
+                          borderStrokeWidth: 1.5,
+                        ),
+                      ],
+                    ),
+                    MarkerLayer(
+                      markers: [
+                        Marker(
+                          point: LatLng(widget.lat, widget.lng),
+                          width: 24,
+                          height: 24,
+                          child: const Icon(
+                            Icons.person_pin_circle,
+                            color: SupplyMapColors.blue,
+                            size: 24,
+                          ),
+                        ),
+                        ...stores.asMap().entries.map((entry) {
+                          final i = entry.key;
+                          final s = entry.value;
+                          final isBest = s.id == result.bestOptionId;
+                          final style = _styleForIndex(i, isBest);
+                          final isSelected = s.id == _selectedStoreId;
+                          return Marker(
+                            point: LatLng(s.lat, s.lng),
+                            width: isSelected ? 50 : 40,
+                            height: isSelected ? 50 : 40,
+                            child: _MapPin(
+                              index: i + 1,
+                              color: _pinColor(style),
+                              isBest: isBest,
+                              isSelected: isSelected,
+                              darkText: _cardDarkText(style),
+                              onTap: () => _onSelectStore(s),
+                            ),
+                          );
+                        }),
+                        if (selectedStore != null)
+                          Marker(
+                            point: LatLng(
+                                selectedStore.lat, selectedStore.lng),
+                            width: 250,
+                            height: 130,
+                            child: Align(
+                              alignment: Alignment.topCenter,
+                              child: _SelectedStorePopup(
+                                store: selectedStore,
+                                settings: settings,
+                                onClose: () => setState(
+                                    () => _selectedStoreId = null),
+                                onDirections: () =>
+                                    _openDirections(selectedStore),
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ],
+                ),
+                // Map controls
+                Positioned(
+                  bottom: 32,
+                  right: 16,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      _MapControlBtn(
+                          icon: Icons.add,
+                          onTap: () {
+                            final cam = _mapController.camera;
+                            _mapController.move(
+                                cam.center, cam.zoom + 1);
+                          }),
+                      const SizedBox(height: 8),
+                      _MapControlBtn(
+                          icon: Icons.remove,
+                          onTap: () {
+                            final cam = _mapController.camera;
+                            _mapController.move(
+                                cam.center, cam.zoom - 1);
+                          }),
+                      const SizedBox(height: 8),
+                      _MapControlBtn(
+                          icon: Icons.navigation,
+                          onTap: () {
+                            _fitMapToClosestStores(stores);
+                          }),
+                    ],
+                  ),
+                ),
+              ],
+            ),
     );
   }
 }

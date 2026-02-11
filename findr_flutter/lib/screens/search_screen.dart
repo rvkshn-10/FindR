@@ -192,37 +192,45 @@ class _SearchScreenState extends State<SearchScreen> {
                 const SizedBox(height: 48),
 
                 // ── Hero title ──────────────────────────────────────
-                ShaderMask(
-                  shaderCallback: (bounds) => const LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [Colors.white, Color(0xB3FFFFFF)],
-                  ).createShader(bounds),
-                  child: Text(
-                    'FindR',
-                    textAlign: TextAlign.center,
-                    style: GoogleFonts.inter(
-                      fontSize: 96,
-                      fontWeight: FontWeight.w800,
-                      height: 0.95,
-                      letterSpacing: -4,
-                      color: Colors.white, // masked by shader
+                Builder(builder: (context) {
+                  final isNarrow = MediaQuery.of(context).size.width < 600;
+                  return ShaderMask(
+                    shaderCallback: (bounds) => const LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [Colors.white, Color(0xB3FFFFFF)],
+                    ).createShader(bounds),
+                    child: Text(
+                      'FindR',
+                      textAlign: TextAlign.center,
+                      style: GoogleFonts.inter(
+                        fontSize: isNarrow ? 56 : 96,
+                        fontWeight: FontWeight.w800,
+                        height: 0.95,
+                        letterSpacing: isNarrow ? -2 : -4,
+                        color: Colors.white, // masked by shader
+                      ),
                     ),
-                  ),
-                ),
+                  );
+                }),
                 const SizedBox(height: 24),
 
                 // ── Subtitle ────────────────────────────────────────
-                Text(
-                  'Locate essentials instantly. AI-powered inventory\ntracking and convenience ranking.',
-                  textAlign: TextAlign.center,
-                  style: GoogleFonts.inter(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w400,
-                    color: Colors.white.withValues(alpha: 0.6),
-                    height: 1.4,
-                  ),
-                ),
+                Builder(builder: (context) {
+                  final isNarrow = MediaQuery.of(context).size.width < 600;
+                  return Text(
+                    isNarrow
+                        ? 'Locate essentials instantly.\nAI-powered inventory tracking.'
+                        : 'Locate essentials instantly. AI-powered inventory\ntracking and convenience ranking.',
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.inter(
+                      fontSize: isNarrow ? 15 : 18,
+                      fontWeight: FontWeight.w400,
+                      color: Colors.white.withValues(alpha: 0.6),
+                      height: 1.4,
+                    ),
+                  );
+                }),
                 const SizedBox(height: 36),
 
                 // ── Search bar (pill) ───────────────────────────────
