@@ -118,10 +118,12 @@ class _ResultsScreenState extends State<ResultsScreen> {
   String? _error;
   final MapController _mapController = MapController();
   String? _selectedStoreId;
+  late String _currentItem;
 
   @override
   void initState() {
     super.initState();
+    _currentItem = widget.item;
     _load();
   }
 
@@ -139,7 +141,7 @@ class _ResultsScreenState extends State<ResultsScreen> {
     try {
       final maxKm = milesToKmFn(widget.maxDistanceMiles);
       final result = await search(
-        item: widget.item,
+        item: _currentItem,
         lat: widget.lat,
         lng: widget.lng,
         maxDistanceKm: maxKm,
@@ -161,6 +163,15 @@ class _ResultsScreenState extends State<ResultsScreen> {
         _loading = false;
       });
     }
+  }
+
+  void _reSearch(String newItem) {
+    if (newItem.trim().isEmpty) return;
+    setState(() {
+      _currentItem = newItem.trim();
+      _selectedStoreId = null;
+    });
+    _load();
   }
 
   void _openDirections(Store store) {
@@ -278,13 +289,14 @@ class _ResultsScreenState extends State<ResultsScreen> {
           children: [
             Expanded(child: mapWidget),
             _Sidebar(
-              query: widget.item,
+              query: _currentItem,
               stores: stores,
               result: result,
               settings: settings,
               selectedStoreId: _selectedStoreId,
               onSelectStore: _onSelectStore,
               onDirections: _openDirections,
+              onReSearch: _reSearch,
               onNewSearch: () {
                 if (widget.onNewSearch != null) {
                   widget.onNewSearch!();
@@ -362,7 +374,7 @@ class _ResultsScreenState extends State<ResultsScreen> {
                                 ).copyWith(shadows: const <Shadow>[]),
                                 children: [
                                   TextSpan(
-                                    text: widget.item,
+                                    text: _currentItem,
                                     style: GoogleFonts.inter(
                                         fontWeight: FontWeight.w700,
                                         color: Colors.white)
@@ -572,7 +584,7 @@ class _ResultsScreenState extends State<ResultsScreen> {
 // Sidebar
 // ---------------------------------------------------------------------------
 
-class _Sidebar extends StatelessWidget {
+class _Sidebar extends StatefulWidget {
   const _Sidebar({
     required this.query,
     required this.stores,
@@ -581,6 +593,7 @@ class _Sidebar extends StatelessWidget {
     required this.selectedStoreId,
     required this.onSelectStore,
     required this.onDirections,
+    required this.onReSearch,
     required this.onNewSearch,
   });
 
@@ -591,11 +604,45 @@ class _Sidebar extends StatelessWidget {
   final String? selectedStoreId;
   final void Function(Store) onSelectStore;
   final void Function(Store) onDirections;
+  final void Function(String) onReSearch;
   final VoidCallback onNewSearch;
 
   @override
+  State<_Sidebar> createState() => _SidebarState();
+}
+
+class _SidebarState extends State<_Sidebar> {
+  late TextEditingController _searchController;
+
+  @override
+  void initState() {
+    super.initState();
+    _searchController = TextEditingController(text: widget.query);
+  }
+
+  @override
+  void didUpdateWidget(covariant _Sidebar oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.query != widget.query) {
+      _searchController.text = widget.query;
+    }
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  void _submitSearch() {
+    final text = _searchController.text.trim();
+    if (text.isNotEmpty) {
+      widget.onReSearch(text);
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    // BackdropFilter removed: can trigger text shadow blurRadius assertion on web when hovering.
     return Container(
           width: 440,
           decoration: const BoxDecoration(
@@ -635,7 +682,7 @@ class _Sidebar extends StatelessWidget {
                             ).copyWith(shadows: const <Shadow>[]),
                             children: [
                               TextSpan(
-                                text: query,
+                                text: widget.query,
                                 style: GoogleFonts.inter(
                                   fontWeight: FontWeight.w700,
                                   color: Colors.white,
@@ -650,16 +697,14 @@ class _Sidebar extends StatelessWidget {
                   IconButton(
                     icon:
                         const Icon(Icons.close, color: Colors.white54),
-                    onPressed: onNewSearch,
-                    tooltip: '', // Avoid tooltip to prevent text-shadow assertion on hover
+                    onPressed: widget.onNewSearch,
+                    tooltip: '',
                   ),
                 ],
               ),
               const SizedBox(height: 24),
-              // Mini search
+              // Search bar
               Container(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 16, vertical: 12),
                 decoration: BoxDecoration(
                   color: Colors.white.withValues(alpha: 0.10),
                   borderRadius: BorderRadius.circular(kRadiusMd),
@@ -668,14 +713,45 @@ class _Sidebar extends StatelessWidget {
                 ),
                 child: Row(
                   children: [
-                    const Icon(Icons.search,
-                        size: 16, color: Colors.white),
-                    const SizedBox(width: 8),
-                    Text(
-                      query,
-                      style: GoogleFonts.inter(
-                          fontSize: 14, color: Colors.white)
-                          .copyWith(shadows: const <Shadow>[]),
+                    const Padding(
+                      padding: EdgeInsets.only(left: 12),
+                      child: Icon(Icons.search,
+                          size: 16, color: Colors.white),
+                    ),
+                    Expanded(
+                      child: TextField(
+                        controller: _searchController,
+                        style: GoogleFonts.inter(
+                            fontSize: 14, color: Colors.white)
+                            .copyWith(shadows: const <Shadow>[]),
+                        decoration: InputDecoration(
+                          hintText: 'Search for something else…',
+                          hintStyle: GoogleFonts.inter(
+                              fontSize: 14, color: Colors.white38)
+                              .copyWith(shadows: const <Shadow>[]),
+                          border: InputBorder.none,
+                          enabledBorder: InputBorder.none,
+                          focusedBorder: InputBorder.none,
+                          contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 12),
+                          filled: false,
+                        ),
+                        textInputAction: TextInputAction.search,
+                        onSubmitted: (_) => _submitSearch(),
+                      ),
+                    ),
+                    GestureDetector(
+                      onTap: _submitSearch,
+                      child: Container(
+                        margin: const EdgeInsets.only(right: 6),
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: SupplyMapColors.blue,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Icon(Icons.arrow_forward,
+                            color: Colors.white, size: 16),
+                      ),
                     ),
                   ],
                 ),
@@ -683,7 +759,7 @@ class _Sidebar extends StatelessWidget {
               const SizedBox(height: 24),
               // Results list
               Expanded(
-                child: stores.isEmpty
+                child: widget.stores.isEmpty
                     ? Center(
                         child: Text(
                           'No nearby stores found.',
@@ -693,23 +769,23 @@ class _Sidebar extends StatelessWidget {
                         ),
                       )
                     : ListView.separated(
-                        itemCount: stores.length,
+                        itemCount: widget.stores.length,
                         separatorBuilder: (_, __) =>
                             const SizedBox(height: 16),
                         padding: const EdgeInsets.only(right: 8),
                         itemBuilder: (context, i) {
-                          final s = stores[i];
+                          final s = widget.stores[i];
                           final isBest =
-                              s.id == result.bestOptionId;
+                              s.id == widget.result.bestOptionId;
                           final style =
                               _styleForIndex(i, isBest);
                           return _SafeResultCard(
                             store: s,
                             style: style,
-                            settings: settings,
+                            settings: widget.settings,
                             isSelected:
-                                s.id == selectedStoreId,
-                            onTap: () => onSelectStore(s),
+                                s.id == widget.selectedStoreId,
+                            onTap: () => widget.onSelectStore(s),
                           );
                         },
                       ),
