@@ -21,8 +21,29 @@ bool _passesFilters(OverpassStore s, SearchFilters? filters) {
   return true;
 }
 
-/// Runs search: Overpass → filters → distance → OSRM road distances → build Store list.
-Future<SearchResult> search({
+/// Build a SearchResult from a list of Store candidates.
+SearchResult _buildResult(List<Store> candidates, double lat, double lng) {
+  final stores = candidates.take(_maxStores).toList();
+  if (stores.isEmpty) {
+    return const SearchResult(
+      stores: [],
+      bestOptionId: '',
+      summary: 'No nearby stores found.',
+      alternatives: ['Try a different item or increase max distance'],
+    );
+  }
+  final best = stores.first;
+  final summary = '${best.name} is the closest option (${formatDistance(best.distanceKm)} away).';
+  return SearchResult(
+    stores: stores,
+    bestOptionId: best.id,
+    summary: summary,
+  );
+}
+
+/// Phase 1: Fetch from Overpass, filter, return haversine-sorted results.
+/// This is the fast path — no OSRM call.
+Future<SearchResult> searchFast({
   required String item,
   required double lat,
   required double lng,
@@ -41,8 +62,8 @@ Future<SearchResult> search({
       alternatives: ['Try again in a moment or try a different location.'],
     );
   }
-  var filtered = overpassStores.where((s) => _passesFilters(s, filters)).toList();
-  var candidates = filtered
+  final filtered = overpassStores.where((s) => _passesFilters(s, filters)).toList();
+  final candidates = filtered
       .where((s) => s.distanceKm <= maxDistanceKm)
       .map((s) => Store(
             id: s.id,
@@ -55,20 +76,20 @@ Future<SearchResult> search({
       .toList()
     ..sort((a, b) => a.distanceKm.compareTo(b.distanceKm));
 
-  if (candidates.isEmpty) {
-    final alternatives = <String>[
-      'Try a different item or increase max distance',
-      if (filters?.hasFilters == true) 'Try loosening or clearing filters',
-    ];
-    return SearchResult(
-      stores: [],
-      bestOptionId: '',
-      summary: 'No nearby stores found.',
-      alternatives: alternatives,
-    );
-  }
+  return _buildResult(candidates, lat, lng);
+}
 
-  final forRoad = candidates.take(_maxStoresForRoad).toList();
+/// Phase 2: Take the fast results and enrich with OSRM road distances.
+/// Returns an updated SearchResult with road distances and durations.
+Future<SearchResult> enrichWithRoadDistances({
+  required SearchResult fastResult,
+  required double lat,
+  required double lng,
+  double maxDistanceKm = 8.0,
+}) async {
+  if (fastResult.stores.isEmpty) return fastResult;
+
+  final forRoad = fastResult.stores.take(_maxStoresForRoad).toList();
   final dests = forRoad.map((s) => MapEntry(s.lat, s.lng)).toList();
   final roadResults = await getRoadDistancesOsrm(lat, lng, dests);
 
@@ -86,37 +107,43 @@ Future<SearchResult> search({
           roadKm >= straightKm * 0.5 &&
           roadKm <= straightKm * 15 &&
           roadKm <= maxDistanceKm;
-      if (useRoad) {
-        withRoad.add(Store(
-          id: s.id,
-          name: s.name,
-          lat: s.lat,
-          lng: s.lng,
-          address: s.address,
-          distanceKm: roadKm,
-          durationMinutes: useRoad ? durMin : null,
-        ));
-      }
+      withRoad.add(Store(
+        id: s.id,
+        name: s.name,
+        lat: s.lat,
+        lng: s.lng,
+        address: s.address,
+        distanceKm: useRoad ? roadKm : s.distanceKm,
+        durationMinutes: useRoad ? durMin : null,
+      ));
     }
     withRoad.sort((a, b) => a.distanceKm.compareTo(b.distanceKm));
-    candidates = withRoad;
+    return _buildResult(withRoad, lat, lng);
   }
 
-  final stores = candidates.take(_maxStores).toList();
-  if (stores.isEmpty) {
-    return const SearchResult(
-      stores: [],
-      bestOptionId: '',
-      summary: 'No nearby stores found.',
-      alternatives: ['Try a different item or increase max distance'],
-    );
-  }
+  // OSRM failed — return fast results as-is.
+  return fastResult;
+}
 
-  final best = stores.first;
-  final summary = '${best.name} is the closest option (${formatDistance(best.distanceKm)} away).';
-  return SearchResult(
-    stores: stores,
-    bestOptionId: best.id,
-    summary: summary,
+/// Full search (backward compatible) — runs both phases sequentially.
+Future<SearchResult> search({
+  required String item,
+  required double lat,
+  required double lng,
+  double maxDistanceKm = 8.0,
+  SearchFilters? filters,
+}) async {
+  final fast = await searchFast(
+    item: item,
+    lat: lat,
+    lng: lng,
+    maxDistanceKm: maxDistanceKm,
+    filters: filters,
+  );
+  return enrichWithRoadDistances(
+    fastResult: fast,
+    lat: lat,
+    lng: lng,
+    maxDistanceKm: maxDistanceKm,
   );
 }

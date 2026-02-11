@@ -140,7 +140,9 @@ class _ResultsScreenState extends State<ResultsScreen> {
     });
     try {
       final maxKm = milesToKmFn(widget.maxDistanceMiles);
-      final result = await search(
+
+      // Phase 1: Show haversine results immediately (fast).
+      final fastResult = await searchFast(
         item: _currentItem,
         lat: widget.lat,
         lng: widget.lng,
@@ -149,13 +151,27 @@ class _ResultsScreenState extends State<ResultsScreen> {
       );
       if (!mounted) return;
       setState(() {
-        _result = result;
+        _result = fastResult;
         _loading = false;
       });
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
-        _fitMapToClosestStores(result.stores);
+        _fitMapToClosestStores(fastResult.stores);
       });
+
+      // Phase 2: Enrich with road distances in background.
+      if (fastResult.stores.isNotEmpty) {
+        final enriched = await enrichWithRoadDistances(
+          fastResult: fastResult,
+          lat: widget.lat,
+          lng: widget.lng,
+          maxDistanceKm: maxKm,
+        );
+        if (!mounted) return;
+        setState(() {
+          _result = enriched;
+        });
+      }
     } catch (e) {
       if (!mounted) return;
       setState(() {

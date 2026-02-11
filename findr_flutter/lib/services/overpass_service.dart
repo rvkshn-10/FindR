@@ -8,7 +8,7 @@ const _overpassEndpoints = [
   'https://overpass.kumi.systems/api/interpreter',
 ];
 const _defaultRadiusM = 5000;
-const _timeout = Duration(seconds: 25);
+const _timeout = Duration(seconds: 12);
 
 class OverpassStore {
   final String id;
@@ -111,26 +111,42 @@ Future<List<OverpassStore>> _fetchFromEndpoint(
   return stores;
 }
 
+/// Race all Overpass endpoints in parallel and return the first success.
 Future<List<OverpassStore>> fetchNearbyStores(
   double lat,
   double lng, {
   int radiusM = _defaultRadiusM,
 }) async {
   final query = '''
-[out:json][timeout:15];
+[out:json][timeout:10];
 (
   nwr["shop"](around:$radiusM,$lat,$lng);
   nwr["amenity"~"marketplace|pharmacy|fuel"](around:$radiusM,$lat,$lng);
 );
 out center;
 ''';
+
+  // Fire all endpoints in parallel, return the first successful result.
+  final futures = _overpassEndpoints.map(
+    (url) => _fetchFromEndpoint(url, query, lat, lng),
+  );
+
+  // Use Future.any to get the first one that completes successfully.
+  // If all fail, we need to catch and throw.
   Object? lastError;
+  try {
+    return await Future.any(futures);
+  } catch (e) {
+    lastError = e;
+  }
+
+  // Future.any throws if the first future to complete throws, but others
+  // may still succeed. Fall back to sequential if Future.any fails fast.
   for (final baseUrl in _overpassEndpoints) {
     try {
       return await _fetchFromEndpoint(baseUrl, query, lat, lng);
     } catch (e) {
       lastError = e;
-      // Try next endpoint
     }
   }
   throw lastError ?? Exception('Overpass failed');
