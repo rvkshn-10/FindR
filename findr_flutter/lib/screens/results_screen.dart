@@ -268,12 +268,13 @@ class _ResultsScreenState extends State<ResultsScreen> {
 
     final mapWidget = _buildMapArea(stores, result, searchRadiusMeters, selectedStore);
 
-    // Wide (web / tablet): sidebar + map side-by-side
+    // Wide (web / tablet): map left + store list (sidebar) right
     if (isWide) {
       return Scaffold(
         backgroundColor: Colors.transparent,
         body: Row(
           children: [
+            Expanded(child: mapWidget),
             _Sidebar(
               query: widget.item,
               stores: stores,
@@ -290,7 +291,6 @@ class _ResultsScreenState extends State<ResultsScreen> {
                 }
               },
             ),
-            Expanded(child: mapWidget),
           ],
         ),
       );
