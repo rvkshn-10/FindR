@@ -53,6 +53,12 @@ ThemeData get _supplyMapTheme {
       shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(kRadiusMd)),
     ),
+    tooltipTheme: TooltipThemeData(
+      textStyle: GoogleFonts.inter(
+        color: Colors.white,
+        fontSize: 12,
+      ).copyWith(shadows: const <Shadow>[]),
+    ),
   );
 }
 
