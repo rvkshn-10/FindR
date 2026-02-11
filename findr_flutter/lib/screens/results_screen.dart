@@ -264,7 +264,7 @@ class _ResultsScreenState extends State<ResultsScreen> {
       }
     }
 
-    final isWide = MediaQuery.of(context).size.width >= 600;
+    final isWide = MediaQuery.of(context).size.width >= 500;
 
     final mapWidget = _buildMapArea(stores, result, searchRadiusMeters, selectedStore);
 
@@ -357,13 +357,14 @@ class _ResultsScreenState extends State<ResultsScreen> {
                                 style: GoogleFonts.inter(
                                   fontSize: 16,
                                   color: Colors.white60,
-                                ),
+                                ).copyWith(shadows: const <Shadow>[]),
                                 children: [
                                   TextSpan(
                                     text: widget.item,
-                                    style: const TextStyle(
+                                    style: GoogleFonts.inter(
                                         fontWeight: FontWeight.w700,
-                                        color: Colors.white),
+                                        color: Colors.white)
+                                        .copyWith(shadows: const <Shadow>[]),
                                   ),
                                 ],
                               ),
@@ -372,7 +373,8 @@ class _ResultsScreenState extends State<ResultsScreen> {
                           Text(
                             '${stores.length} found',
                             style: GoogleFonts.inter(
-                                fontSize: 13, color: Colors.white38),
+                                fontSize: 13, color: Colors.white38)
+                                .copyWith(shadows: const <Shadow>[]),
                           ),
                         ],
                       ),
@@ -385,7 +387,8 @@ class _ResultsScreenState extends State<ResultsScreen> {
                               child: Text(
                                 'No nearby stores found.',
                                 style: GoogleFonts.inter(
-                                    color: Colors.white54, fontSize: 14),
+                                    color: Colors.white54, fontSize: 14)
+                                    .copyWith(shadows: const <Shadow>[]),
                               ),
                             )
                           : ListView.separated(
@@ -620,7 +623,7 @@ class _Sidebar extends StatelessWidget {
                             fontWeight: FontWeight.w700,
                             color: Colors.white,
                             letterSpacing: -0.5,
-                          ),
+                          ).copyWith(shadows: const <Shadow>[]),
                         ),
                         const SizedBox(height: 4),
                         Text.rich(
@@ -629,13 +632,14 @@ class _Sidebar extends StatelessWidget {
                             style: GoogleFonts.inter(
                               fontSize: 14,
                               color: Colors.white60,
-                            ),
+                            ).copyWith(shadows: const <Shadow>[]),
                             children: [
                               TextSpan(
                                 text: query,
-                                style: const TextStyle(
-                                    fontWeight: FontWeight.w700,
-                                    color: Colors.white),
+                                style: GoogleFonts.inter(
+                                  fontWeight: FontWeight.w700,
+                                  color: Colors.white,
+                                ).copyWith(shadows: const <Shadow>[]),
                               ),
                             ],
                           ),
@@ -670,7 +674,8 @@ class _Sidebar extends StatelessWidget {
                     Text(
                       query,
                       style: GoogleFonts.inter(
-                          fontSize: 14, color: Colors.white),
+                          fontSize: 14, color: Colors.white)
+                          .copyWith(shadows: const <Shadow>[]),
                     ),
                   ],
                 ),
@@ -683,7 +688,8 @@ class _Sidebar extends StatelessWidget {
                         child: Text(
                           'No nearby stores found.',
                           style: GoogleFonts.inter(
-                              color: Colors.white54, fontSize: 14),
+                              color: Colors.white54, fontSize: 14)
+                              .copyWith(shadows: const <Shadow>[]),
                         ),
                       )
                     : ListView.separated(
@@ -804,14 +810,15 @@ class _ResultCardState extends State<_ResultCard> {
                         fontWeight: FontWeight.w700,
                         letterSpacing: 0.5,
                         color: dark ? Colors.black : Colors.white,
-                      ),
+                      ).copyWith(shadows: const <Shadow>[]),
                     ),
                   ),
                   if (widget.style == _CardStyle.bestMatch)
                     Text(
                       '98%',
                       style: GoogleFonts.inter(
-                          fontSize: 16, color: fg),
+                          fontSize: 16, color: fg)
+                          .copyWith(shadows: const <Shadow>[]),
                     ),
                 ],
               ),
@@ -825,7 +832,7 @@ class _ResultCardState extends State<_ResultCard> {
                   height: 1.1,
                   letterSpacing: -0.5,
                   color: fg.withValues(alpha: isGlass ? 0.9 : 1.0),
-                ),
+                ).copyWith(shadows: const <Shadow>[]),
               ),
               const SizedBox(height: 12),
               // Meta
@@ -838,7 +845,7 @@ class _ResultCardState extends State<_ResultCard> {
                       fontSize: 13,
                       fontWeight: FontWeight.w500,
                       color: fg.withValues(alpha: 0.9),
-                    ),
+                    ).copyWith(shadows: const <Shadow>[]),
                   ),
                   _dot(fg),
                   if (widget.store.durationMinutes != null) ...[
@@ -848,7 +855,7 @@ class _ResultCardState extends State<_ResultCard> {
                         fontSize: 13,
                         fontWeight: FontWeight.w500,
                         color: fg.withValues(alpha: 0.9),
-                      ),
+                      ).copyWith(shadows: const <Shadow>[]),
                     ),
                     _dot(fg),
                   ],
@@ -863,7 +870,7 @@ class _ResultCardState extends State<_ResultCard> {
                       fontSize: 13,
                       fontWeight: FontWeight.w500,
                       color: fg.withValues(alpha: 0.9),
-                    ),
+                    ).copyWith(shadows: const <Shadow>[]),
                     overflow: TextOverflow.ellipsis,
                   ),
                 ],
@@ -955,7 +962,7 @@ class _MapPinState extends State<_MapPin> {
               color: widget.darkText
                   ? Colors.black
                   : Colors.white,
-            ),
+            ).copyWith(shadows: const <Shadow>[]),
           ),
         ),
       ),
@@ -1067,7 +1074,7 @@ class _SelectedStorePopup extends StatelessWidget {
                             fontWeight: FontWeight.w700,
                             fontSize: 13,
                             color: Colors.white,
-                          ),
+                          ).copyWith(shadows: const <Shadow>[]),
                         ),
                       ),
                       GestureDetector(
@@ -1082,7 +1089,8 @@ class _SelectedStorePopup extends StatelessWidget {
                     '${formatDistance(store.distanceKm, useKm: settings.useKm)} away'
                     '${store.durationMinutes != null ? ' · ~${store.durationMinutes} min' : ''}',
                     style: GoogleFonts.inter(
-                        fontSize: 12, color: Colors.white60),
+                        fontSize: 12, color: Colors.white60)
+                        .copyWith(shadows: const <Shadow>[]),
                   ),
                   const SizedBox(height: 8),
                   Align(
@@ -1109,7 +1117,7 @@ class _SelectedStorePopup extends StatelessWidget {
                                 fontSize: 12,
                                 fontWeight: FontWeight.w600,
                                 color: Colors.white,
-                              ),
+                              ).copyWith(shadows: const <Shadow>[]),
                             ),
                           ],
                         ),
