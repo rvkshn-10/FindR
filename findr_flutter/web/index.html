@@ -34,6 +34,24 @@
       opacity: 1;
     }
   </style>
+  <!-- Nuke any old service workers (e.g. from a previous Next.js deploy) -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.getRegistrations().then(function (registrations) {
+        for (var i = 0; i < registrations.length; i++) {
+          registrations[i].unregister();
+        }
+      });
+      // Also clear old caches
+      if ('caches' in window) {
+        caches.keys().then(function (names) {
+          for (var i = 0; i < names.length; i++) {
+            caches.delete(names[i]);
+          }
+        });
+      }
+    }
+  </script>
   <!-- Firebase (required for web when using Firebase) -->
   <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
   <script src="flutter_bootstrap.js" async></script>
