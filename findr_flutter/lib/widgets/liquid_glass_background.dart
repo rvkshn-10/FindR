@@ -82,12 +82,20 @@ class BackgroundEffectNotifier extends ChangeNotifier {
   /// Running elapsed seconds (set by the background ticker).
   double elapsed = 0.0;
 
+  /// Raw mouse position reported by child widgets.
+  Offset mousePosition = Offset.zero;
+
   /// Call this on each keystroke to push a ripple.
   void keystroke() {
     ripples.add(_Ripple(born: elapsed));
     // Boost energy (capped at 1.0).
     typingEnergy = (typingEnergy + 0.35).clamp(0.0, 1.0);
     notifyListeners();
+  }
+
+  /// Report the current mouse position (called from child MouseRegion).
+  void updateMouse(Offset position) {
+    mousePosition = position;
   }
 
   /// Tick: decay energy and prune dead ripples.
@@ -149,8 +157,7 @@ class GradientBackground extends StatefulWidget {
 
 class _GradientBackgroundState extends State<GradientBackground>
     with SingleTickerProviderStateMixin {
-  // ── Mouse tracking ──
-  Offset _rawMouse = Offset.zero;
+  // ── Smoothed mouse for rendering ──
   Offset _smoothMouse = Offset.zero;
   Offset _parallax = Offset.zero;
 
@@ -176,11 +183,14 @@ class _GradientBackgroundState extends State<GradientBackground>
   void _onTick(Duration elapsed) {
     final secs = elapsed.inMicroseconds / 1e6;
 
-    // Smooth mouse lerp.
+    // Read raw mouse from the notifier (updated by child MouseRegion).
+    final rawMouse = _effectNotifier.mousePosition;
+
+    // Smooth mouse lerp toward raw position.
     const smoothing = 0.08;
     _smoothMouse = Offset(
-      _smoothMouse.dx + (_rawMouse.dx - _smoothMouse.dx) * smoothing,
-      _smoothMouse.dy + (_rawMouse.dy - _smoothMouse.dy) * smoothing,
+      _smoothMouse.dx + (rawMouse.dx - _smoothMouse.dx) * smoothing,
+      _smoothMouse.dy + (rawMouse.dy - _smoothMouse.dy) * smoothing,
     );
 
     final size = context.size;
@@ -197,52 +207,50 @@ class _GradientBackgroundState extends State<GradientBackground>
     setState(() {});
   }
 
-  void _onPointerEvent(PointerEvent event) {
-    _rawMouse = event.localPosition;
-  }
-
   @override
   Widget build(BuildContext context) {
     return _BackgroundEffectScope(
       notifier: _effectNotifier,
-      child: Listener(
-        onPointerHover: _onPointerEvent,
-        onPointerMove: _onPointerEvent,
-        behavior: HitTestBehavior.translucent,
-        child: Container(
-          color: SupplyMapColors.bodyBg,
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              // Warm, subtle radial gradient blobs
-              CustomPaint(
-                painter: _GradientBlobPainter(),
-                size: Size.infinite,
+      child: Container(
+        color: SupplyMapColors.bodyBg,
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            // Warm, subtle radial gradient blobs
+            CustomPaint(
+              painter: _GradientBlobPainter(),
+              size: Size.infinite,
+            ),
+            // Topographic contour lines – parallax + typing breathe
+            CustomPaint(
+              painter: _TopoPainter(
+                parallax: _parallax,
+                breatheScale: _effectNotifier.typingEnergy,
               ),
-              // Topographic contour lines – parallax + typing breathe
-              CustomPaint(
-                painter: _TopoPainter(
-                  parallax: _parallax,
-                  breatheScale: _effectNotifier.typingEnergy,
-                ),
-                size: Size.infinite,
+              size: Size.infinite,
+            ),
+            // Keystroke pulse rings
+            CustomPaint(
+              painter: _KeystrokePulsePainter(
+                ripples: _effectNotifier.ripples,
+                elapsed: _effectNotifier.elapsed,
               ),
-              // Keystroke pulse rings
-              CustomPaint(
-                painter: _KeystrokePulsePainter(
-                  ripples: _effectNotifier.ripples,
-                  elapsed: _effectNotifier.elapsed,
-                ),
-                size: Size.infinite,
-              ),
-              // Green radial glow – follows cursor smoothly
-              CustomPaint(
-                painter: _CursorGlowPainter(mousePos: _smoothMouse),
-                size: Size.infinite,
-              ),
-              widget.child,
-            ],
-          ),
+              size: Size.infinite,
+            ),
+            // Green radial glow – follows cursor smoothly
+            CustomPaint(
+              painter: _CursorGlowPainter(mousePos: _smoothMouse),
+              size: Size.infinite,
+            ),
+            // Child wrapped in MouseRegion so mouse tracking happens at
+            // the same layer as the content the user actually interacts with.
+            MouseRegion(
+              onHover: (event) =>
+                  _effectNotifier.updateMouse(event.localPosition),
+              onExit: (_) {}, // keep tracking even after exit
+              child: widget.child,
+            ),
+          ],
         ),
       ),
     );
