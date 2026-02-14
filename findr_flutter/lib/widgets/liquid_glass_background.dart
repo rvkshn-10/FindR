@@ -1,3 +1,4 @@
+import 'dart:async' show Timer;
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
@@ -80,8 +81,9 @@ class _GradientBackgroundState extends State<GradientBackground>
     with SingleTickerProviderStateMixin {
   Offset? _mousePos;
 
-  // Typing energy: jumps up on keystroke, decays back to 0.
+  // Typing energy: builds up with keystrokes, decays when idle.
   late final AnimationController _breathe;
+  Timer? _decayTimer;
 
   @override
   void initState() {
@@ -94,13 +96,24 @@ class _GradientBackgroundState extends State<GradientBackground>
 
   @override
   void dispose() {
+    _decayTimer?.cancel();
     _breathe.dispose();
     super.dispose();
   }
 
   void _keystroke() {
-    // Jump to full energy (1.0) and decay back to 0.
-    _breathe.reverse(from: 1.0);
+    // Each keystroke nudges the energy up a bit (capped at 1.0).
+    // When typing stops, it decays back to 0.
+    final target = (_breathe.value + 0.15).clamp(0.0, 1.0);
+    _breathe.animateTo(target, duration: const Duration(milliseconds: 200));
+
+    // Schedule decay: after a pause, animate back to 0.
+    _decayTimer?.cancel();
+    _decayTimer = Timer(const Duration(milliseconds: 600), () {
+      if (mounted) {
+        _breathe.animateTo(0.0, duration: const Duration(milliseconds: 1200));
+      }
+    });
   }
 
   @override
