@@ -129,11 +129,18 @@ class GradientBackground extends StatefulWidget {
   final Widget child;
 
   /// Retrieve the [BackgroundEffectNotifier] from the nearest ancestor.
-  static BackgroundEffectNotifier of(BuildContext context) {
+  /// Returns null if not found (e.g. standalone SearchScreen without shell).
+  static BackgroundEffectNotifier? maybeOf(BuildContext context) {
     final scope =
-        context.dependOnInheritedWidgetOfExactType<_BackgroundEffectScope>();
-    assert(scope != null, 'No GradientBackground found in widget tree');
-    return scope!.notifier;
+        context.getInheritedWidgetOfExactType<_BackgroundEffectScope>();
+    return scope?.notifier;
+  }
+
+  /// Retrieve the [BackgroundEffectNotifier] from the nearest ancestor.
+  static BackgroundEffectNotifier of(BuildContext context) {
+    final notifier = maybeOf(context);
+    assert(notifier != null, 'No GradientBackground found in widget tree');
+    return notifier!;
   }
 
   @override
@@ -190,7 +197,7 @@ class _GradientBackgroundState extends State<GradientBackground>
     setState(() {});
   }
 
-  void _onHover(PointerEvent event) {
+  void _onPointerEvent(PointerEvent event) {
     _rawMouse = event.localPosition;
   }
 
@@ -198,8 +205,10 @@ class _GradientBackgroundState extends State<GradientBackground>
   Widget build(BuildContext context) {
     return _BackgroundEffectScope(
       notifier: _effectNotifier,
-      child: MouseRegion(
-        onHover: _onHover,
+      child: Listener(
+        onPointerHover: _onPointerEvent,
+        onPointerMove: _onPointerEvent,
+        behavior: HitTestBehavior.translucent,
         child: Container(
           color: SupplyMapColors.bodyBg,
           child: Stack(
@@ -315,7 +324,7 @@ class _TopoPainter extends CustomPainter {
       final ry = baseRy * ringBreathe;
 
       // Parallax: outer rings shift MORE than inner rings.
-      final parallaxStrength = 8.0 + i * 4.0;
+      final parallaxStrength = 15.0 + i * 8.0;
       final cx = baseCx + parallax.dx * parallaxStrength;
       final cy = baseCy + parallax.dy * parallaxStrength;
 
@@ -385,11 +394,11 @@ class _KeystrokePulsePainter extends CustomPainter {
 
       final t = age / _Ripple.lifespan; // 0..1 progress
       final radius = 30 + maxRadius * Curves.easeOutCubic.transform(t);
-      final opacity = (1.0 - Curves.easeInQuad.transform(t)) * 0.18;
+      final opacity = (1.0 - Curves.easeInQuad.transform(t)) * 0.35;
 
       final paint = Paint()
         ..style = PaintingStyle.stroke
-        ..strokeWidth = 2.0 * (1.0 - t * 0.7) // thins as it expands
+        ..strokeWidth = 2.5 * (1.0 - t * 0.5) // thins as it expands
         ..color = SupplyMapColors.accentGreen.withValues(alpha: opacity);
 
       canvas.drawCircle(center, radius, paint);
@@ -416,11 +425,11 @@ class _CursorGlowPainter extends CustomPainter {
         ? Offset(size.width * 0.5, size.height * 0.55)
         : mousePos;
 
-    const radius = 300.0;
+    const radius = 350.0;
     final paint = Paint()
       ..shader = RadialGradient(
         colors: [
-          SupplyMapColors.accentGreen.withValues(alpha: 0.10),
+          SupplyMapColors.accentGreen.withValues(alpha: 0.22),
           SupplyMapColors.accentGreen.withValues(alpha: 0.0),
         ],
         stops: const [0.0, 1.0],
