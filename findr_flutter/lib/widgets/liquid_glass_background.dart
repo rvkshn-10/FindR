@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+import 'package:flutter/gestures.dart' show PointerHoverEvent, PointerMoveEvent;
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart' show Ticker;
 
@@ -89,7 +90,7 @@ class BackgroundEffectNotifier extends ChangeNotifier {
   void keystroke() {
     ripples.add(_Ripple(born: elapsed));
     // Boost energy (capped at 1.0).
-    typingEnergy = (typingEnergy + 0.35).clamp(0.0, 1.0);
+    typingEnergy = (typingEnergy + 0.45).clamp(0.0, 1.0);
     notifyListeners();
   }
 
@@ -101,8 +102,8 @@ class BackgroundEffectNotifier extends ChangeNotifier {
   /// Tick: decay energy and prune dead ripples.
   void tick(double elapsedSeconds) {
     elapsed = elapsedSeconds;
-    // Decay typing energy smoothly.
-    typingEnergy = (typingEnergy - 0.012).clamp(0.0, 1.0);
+    // Decay typing energy smoothly (slow enough to see the effect).
+    typingEnergy = (typingEnergy - 0.008).clamp(0.0, 1.0);
     // Remove expired ripples.
     ripples.removeWhere(
         (r) => (elapsedSeconds - r.born) > _Ripple.lifespan);
@@ -159,6 +160,7 @@ class _GradientBackgroundState extends State<GradientBackground>
     with SingleTickerProviderStateMixin {
   // ── Smoothed mouse for rendering ──
   Offset _smoothMouse = Offset.zero;
+  bool _mouseInitialized = false;
   Offset _parallax = Offset.zero;
 
   // ── Keystroke effects ──
@@ -171,23 +173,42 @@ class _GradientBackgroundState extends State<GradientBackground>
     super.initState();
     _effectNotifier = BackgroundEffectNotifier();
     _ticker = createTicker(_onTick)..start();
+    // Global pointer listener: catches ALL mouse events regardless of
+    // which widget the pointer is over. This bypasses any hit-test issues.
+    WidgetsBinding.instance.pointerRouter
+        .addGlobalRoute(_handleGlobalPointer);
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.pointerRouter
+        .removeGlobalRoute(_handleGlobalPointer);
     _ticker.dispose();
     _effectNotifier.dispose();
     super.dispose();
   }
 
+  void _handleGlobalPointer(PointerEvent event) {
+    // Track hover (no buttons) and move (button down) events.
+    if (event is PointerHoverEvent || event is PointerMoveEvent) {
+      _effectNotifier.mousePosition = event.position;
+    }
+  }
+
   void _onTick(Duration elapsed) {
     final secs = elapsed.inMicroseconds / 1e6;
 
-    // Read raw mouse from the notifier (updated by child MouseRegion).
+    // Read raw mouse from the notifier (updated by global listener).
     final rawMouse = _effectNotifier.mousePosition;
 
+    // On the very first real mouse event, snap (don't lerp from 0,0).
+    if (!_mouseInitialized && rawMouse != Offset.zero) {
+      _smoothMouse = rawMouse;
+      _mouseInitialized = true;
+    }
+
     // Smooth mouse lerp toward raw position.
-    const smoothing = 0.08;
+    const smoothing = 0.10;
     _smoothMouse = Offset(
       _smoothMouse.dx + (rawMouse.dx - _smoothMouse.dx) * smoothing,
       _smoothMouse.dy + (rawMouse.dy - _smoothMouse.dy) * smoothing,
@@ -242,14 +263,7 @@ class _GradientBackgroundState extends State<GradientBackground>
               painter: _CursorGlowPainter(mousePos: _smoothMouse),
               size: Size.infinite,
             ),
-            // Child wrapped in MouseRegion so mouse tracking happens at
-            // the same layer as the content the user actually interacts with.
-            MouseRegion(
-              onHover: (event) =>
-                  _effectNotifier.updateMouse(event.localPosition),
-              onExit: (_) {}, // keep tracking even after exit
-              child: widget.child,
-            ),
+            widget.child,
           ],
         ),
       ),
@@ -318,34 +332,43 @@ class _TopoPainter extends CustomPainter {
     // Use a seeded random for deterministic wobble across frames.
     final rng = math.Random(42);
 
-    // Breathing: rings scale 1.0 → 1.08 with typing energy.
-    final breathe = 1.0 + breatheScale * 0.08;
+    // Breathing: rings scale up noticeably with typing energy.
+    // Inner rings expand less, outer rings expand a lot more.
+    final breathe = 1.0 + breatheScale * 0.15;
 
     // Draw 10 concentric contour rings, each slightly irregular.
     for (int i = 1; i <= 10; i++) {
       final baseRx = 55.0 * i + rng.nextDouble() * 12;
       final baseRy = 40.0 * i + rng.nextDouble() * 12;
 
-      // Apply breathe scaling (outer rings breathe more).
-      final ringBreathe = breathe + breatheScale * 0.02 * i;
+      // Apply breathe scaling (outer rings breathe significantly more).
+      final ringBreathe = breathe + breatheScale * 0.04 * i;
       final rx = baseRx * ringBreathe;
       final ry = baseRy * ringBreathe;
 
       // Parallax: outer rings shift MORE than inner rings.
-      final parallaxStrength = 15.0 + i * 8.0;
+      // Strength is large so the effect is clearly visible.
+      final parallaxStrength = 20.0 + i * 12.0;
       final cx = baseCx + parallax.dx * parallaxStrength;
       final cy = baseCy + parallax.dy * parallaxStrength;
 
-      // Alpha increases slightly when typing (lines glow a bit).
+      // Alpha increases when typing (lines glow noticeably).
       final baseAlpha = (i > 6)
           ? (0.5 - (i - 6) * 0.08)
           : 0.5;
-      final alpha = (baseAlpha + breatheScale * 0.15).clamp(0.0, 0.8);
+      final alpha = (baseAlpha + breatheScale * 0.3).clamp(0.0, 0.9);
+
+      // Blend color toward green accent when typing.
+      final lineColor = Color.lerp(
+        SupplyMapColors.borderStrong,
+        SupplyMapColors.accentGreen,
+        breatheScale * 0.4,
+      )!;
 
       final paint = Paint()
         ..style = PaintingStyle.stroke
-        ..strokeWidth = 1.2 + breatheScale * 0.6 // thickens slightly
-        ..color = SupplyMapColors.borderStrong.withValues(alpha: alpha);
+        ..strokeWidth = 1.2 + breatheScale * 1.2 // noticeably thicker
+        ..color = lineColor.withValues(alpha: alpha);
 
       final path = Path();
 
