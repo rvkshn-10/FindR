@@ -91,21 +91,25 @@ class FindRApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider(
-      create: (_) => SettingsProvider(),
-      child: MaterialApp(
-        title: 'FindR',
-        theme: _supplyMapTheme,
-        builder: (context, child) {
-          // Force no text shadows app-wide to avoid blurRadius assertion on hover.
-          final theme = Theme.of(context);
-          return DefaultTextStyle(
-            style: _noTextShadow(theme.textTheme.bodyLarge!),
-            child: child ?? const SizedBox.shrink(),
-          );
-        },
-        home: const SupplyMapShell(),
-        debugShowCheckedModeBanner: false,
+    // Wrap EVERYTHING with a MouseRegion at the absolute root level.
+    // This guarantees mouse events are captured regardless of child widgets.
+    return MouseRegion(
+      onHover: (event) => globalMousePosition.value = event.position,
+      child: ChangeNotifierProvider(
+        create: (_) => SettingsProvider(),
+        child: MaterialApp(
+          title: 'FindR',
+          theme: _supplyMapTheme,
+          builder: (context, child) {
+            final theme = Theme.of(context);
+            return DefaultTextStyle(
+              style: _noTextShadow(theme.textTheme.bodyLarge!),
+              child: child ?? const SizedBox.shrink(),
+            );
+          },
+          home: const SupplyMapShell(),
+          debugShowCheckedModeBanner: false,
+        ),
       ),
     );
   }
