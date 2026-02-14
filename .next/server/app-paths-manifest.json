@@ -1,0 +1,8 @@
+{
+  "/page": "app/page.js",
+  "/api/supply-map/map-key/route": "app/api/supply-map/map-key/route.js",
+  "/api/supply-map/search/route": "app/api/supply-map/search/route.js",
+  "/supply-map/settings/page": "app/supply-map/settings/page.js",
+  "/supply-map/page": "app/supply-map/page.js",
+  "/supply-map/results/page": "app/supply-map/results/page.js"
+}

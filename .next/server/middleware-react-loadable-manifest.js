@@ -1,0 +1,1 @@
+self.__REACT_LOADABLE_MANIFEST="{\"app/supply-map/results/page.tsx -> @/components/supply-map/MapView\":{\"id\":\"app/supply-map/results/page.tsx -> @/components/supply-map/MapView\",\"files\":[\"static/css/_app-pages-browser_components_supply-map_MapView_tsx.css\",\"static/chunks/_app-pages-browser_components_supply-map_MapView_tsx.js\"]}}"

@@ -61,38 +61,105 @@ typedef LiquidGlassColors = SupplyMapColors;
 // Gradient background (purple, red, blue radial blobs)
 // ---------------------------------------------------------------------------
 
-class GradientBackground extends StatelessWidget {
+class GradientBackground extends StatefulWidget {
   const GradientBackground({super.key, required this.child});
 
   final Widget child;
 
   @override
+  State<GradientBackground> createState() => _GradientBackgroundState();
+}
+
+class _GradientBackgroundState extends State<GradientBackground>
+    with SingleTickerProviderStateMixin {
+  // Raw mouse position (updated instantly on move).
+  Offset _rawMouse = Offset.zero;
+  // Smoothed position that lerps toward _rawMouse each tick.
+  Offset _smoothMouse = Offset.zero;
+  // Normalized mouse offset (-1..1 from center) for parallax.
+  Offset _parallax = Offset.zero;
+
+  late final AnimationController _ticker;
+
+  @override
+  void initState() {
+    super.initState();
+    _ticker = AnimationController.unbounded(vsync: this)
+      ..addListener(_onTick);
+    // Start the ticker so we get smooth interpolation.
+    _ticker.animateWith(_ForeverSimulation());
+  }
+
+  @override
+  void dispose() {
+    _ticker.dispose();
+    super.dispose();
+  }
+
+  void _onTick() {
+    // Lerp the smooth position toward the raw position for a fluid feel.
+    const smoothing = 0.08; // lower = smoother / laggier
+    _smoothMouse = Offset(
+      _smoothMouse.dx + (_rawMouse.dx - _smoothMouse.dx) * smoothing,
+      _smoothMouse.dy + (_rawMouse.dy - _smoothMouse.dy) * smoothing,
+    );
+
+    final size = context.size;
+    if (size != null && size.width > 0 && size.height > 0) {
+      _parallax = Offset(
+        (_smoothMouse.dx - size.width / 2) / (size.width / 2),
+        (_smoothMouse.dy - size.height / 2) / (size.height / 2),
+      );
+    }
+    setState(() {});
+  }
+
+  void _onHover(PointerEvent event) {
+    _rawMouse = event.localPosition;
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return Container(
-      color: SupplyMapColors.bodyBg,
-      child: Stack(
-        fit: StackFit.expand,
-        children: [
-          // Warm, subtle radial gradient blobs
-          CustomPaint(
-            painter: _GradientBlobPainter(),
-            size: Size.infinite,
-          ),
-          // Topographic contour lines (map-themed texture)
-          CustomPaint(
-            painter: _TopoPainter(),
-            size: Size.infinite,
-          ),
-          // Green radial glow behind the search bar area
-          CustomPaint(
-            painter: _SearchGlowPainter(),
-            size: Size.infinite,
-          ),
-          child,
-        ],
+    return MouseRegion(
+      onHover: _onHover,
+      child: Container(
+        color: SupplyMapColors.bodyBg,
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            // Warm, subtle radial gradient blobs
+            CustomPaint(
+              painter: _GradientBlobPainter(),
+              size: Size.infinite,
+            ),
+            // Topographic contour lines – shift with mouse (parallax)
+            CustomPaint(
+              painter: _TopoPainter(parallax: _parallax),
+              size: Size.infinite,
+            ),
+            // Green radial glow – follows cursor smoothly
+            CustomPaint(
+              painter: _CursorGlowPainter(mousePos: _smoothMouse),
+              size: Size.infinite,
+            ),
+            widget.child,
+          ],
+        ),
       ),
     );
   }
+}
+
+/// A simulation that never stops, used to keep the ticker running.
+class _ForeverSimulation extends Simulation {
+  _ForeverSimulation();
+
+  @override
+  double x(double time) => time;
+  @override
+  double dx(double time) => 1.0;
+  @override
+  bool isDone(double time) => false;
 }
 
 class _GradientBlobPainter extends CustomPainter {
@@ -139,16 +206,21 @@ class _GradientBlobPainter extends CustomPainter {
 // ---------------------------------------------------------------------------
 
 class _TopoPainter extends CustomPainter {
+  _TopoPainter({required this.parallax});
+
+  /// Normalized (-1..1) mouse offset from screen center.
+  final Offset parallax;
+
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.0
-      ..color = SupplyMapColors.borderSubtle.withValues(alpha: 0.45);
+      ..strokeWidth = 1.2
+      ..color = SupplyMapColors.borderStrong.withValues(alpha: 0.5);
 
-    // Center is offset slightly from screen center for an organic feel.
-    final cx = size.width * 0.45;
-    final cy = size.height * 0.48;
+    // Base center, offset slightly from screen center for organic feel.
+    final baseCx = size.width * 0.45;
+    final baseCy = size.height * 0.48;
 
     // Use a seeded random for deterministic wobble across frames.
     final rng = math.Random(42);
@@ -158,20 +230,23 @@ class _TopoPainter extends CustomPainter {
       final rx = 55.0 * i + rng.nextDouble() * 12;
       final ry = 40.0 * i + rng.nextDouble() * 12;
 
+      // Parallax: outer rings shift MORE than inner rings.
+      final parallaxStrength = 8.0 + i * 4.0;
+      final cx = baseCx + parallax.dx * parallaxStrength;
+      final cy = baseCy + parallax.dy * parallaxStrength;
+
       final path = Path();
 
       // Build the ring from 64 sample points with small noise offsets.
       const segments = 64;
       for (int s = 0; s <= segments; s++) {
         final angle = (s / segments) * 2 * math.pi;
-        // Per-point noise: unique per ring (i) and per segment (s).
         final noise = 1.0 + (rng.nextDouble() - 0.5) * 0.12;
         final x = cx + rx * noise * math.cos(angle);
         final y = cy + ry * noise * math.sin(angle);
         if (s == 0) {
           path.moveTo(x, y);
         } else {
-          // Smooth with quadratic bezier toward the previous mid-point.
           final prevAngle = ((s - 1) / segments) * 2 * math.pi;
           final prevNoise = 1.0 + (rng.nextDouble() - 0.5) * 0.10;
           final cpx = cx + rx * prevNoise * math.cos((prevAngle + angle) / 2);
@@ -185,29 +260,38 @@ class _TopoPainter extends CustomPainter {
 
       // Fade outer rings slightly more.
       if (i > 6) {
-        paint.color = SupplyMapColors.borderSubtle
-            .withValues(alpha: 0.45 - (i - 6) * 0.07);
+        paint.color = SupplyMapColors.borderStrong
+            .withValues(alpha: 0.5 - (i - 6) * 0.08);
       }
     }
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+  bool shouldRepaint(covariant _TopoPainter oldDelegate) =>
+      oldDelegate.parallax != parallax;
 }
 
 // ---------------------------------------------------------------------------
-// Radial glow painter (soft green halo behind the search bar)
+// Cursor-following glow painter (green halo tracks mouse smoothly)
 // ---------------------------------------------------------------------------
 
-class _SearchGlowPainter extends CustomPainter {
+class _CursorGlowPainter extends CustomPainter {
+  _CursorGlowPainter({required this.mousePos});
+
+  final Offset mousePos;
+
   @override
   void paint(Canvas canvas, Size size) {
-    final center = Offset(size.width * 0.5, size.height * 0.55);
-    const radius = 320.0;
+    // If mouse hasn't entered yet, default to center-ish (search bar area).
+    final center = (mousePos == Offset.zero)
+        ? Offset(size.width * 0.5, size.height * 0.55)
+        : mousePos;
+
+    const radius = 300.0;
     final paint = Paint()
       ..shader = RadialGradient(
         colors: [
-          SupplyMapColors.accentGreen.withValues(alpha: 0.07),
+          SupplyMapColors.accentGreen.withValues(alpha: 0.10),
           SupplyMapColors.accentGreen.withValues(alpha: 0.0),
         ],
         stops: const [0.0, 1.0],
@@ -217,7 +301,8 @@ class _SearchGlowPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+  bool shouldRepaint(covariant _CursorGlowPainter oldDelegate) =>
+      oldDelegate.mousePos != mousePos;
 }
 
 // ---------------------------------------------------------------------------

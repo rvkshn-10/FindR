@@ -25,3 +25,4 @@
 # Misc
 *.pem
 *.log
+node_modules
