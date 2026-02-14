@@ -334,9 +334,6 @@ class _SearchScreenState extends State<SearchScreen> {
               ),
               textInputAction: TextInputAction.search,
               onSubmitted: (_) => _submit(),
-              onChanged: (_) {
-                GradientBackground.maybeOf(context)?.keystroke();
-              },
               enabled: !_loading,
             ),
           ),

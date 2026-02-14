@@ -97,16 +97,11 @@ class FindRApp extends StatelessWidget {
         title: 'FindR',
         theme: _supplyMapTheme,
         builder: (context, child) {
+          // Force no text shadows app-wide to avoid blurRadius assertion on hover.
           final theme = Theme.of(context);
-          // MouseRegion here: inside MaterialApp's builder so it has
-          // proper constraints, but wraps ALL page content.
-          return MouseRegion(
-            onHover: (event) =>
-                globalMousePosition.value = event.position,
-            child: DefaultTextStyle(
-              style: _noTextShadow(theme.textTheme.bodyLarge!),
-              child: child ?? const SizedBox.shrink(),
-            ),
+          return DefaultTextStyle(
+            style: _noTextShadow(theme.textTheme.bodyLarge!),
+            child: child ?? const SizedBox.shrink(),
           );
         },
         home: const SupplyMapShell(),
