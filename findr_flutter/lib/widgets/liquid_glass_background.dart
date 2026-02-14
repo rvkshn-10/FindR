@@ -61,10 +61,17 @@ typedef LiquidGlassColors = SupplyMapColors;
 // Gradient background (static warm blobs + topo lines + glow)
 // ---------------------------------------------------------------------------
 
-class GradientBackground extends StatelessWidget {
+class GradientBackground extends StatefulWidget {
   const GradientBackground({super.key, required this.child});
 
   final Widget child;
+
+  @override
+  State<GradientBackground> createState() => _GradientBackgroundState();
+}
+
+class _GradientBackgroundState extends State<GradientBackground> {
+  Offset? _mousePos;
 
   @override
   Widget build(BuildContext context) {
@@ -83,12 +90,16 @@ class GradientBackground extends StatelessWidget {
             painter: _TopoPainter(),
             size: Size.infinite,
           ),
-          // Green radial glow behind the search bar area
+          // Green radial glow – follows mouse
           CustomPaint(
-            painter: _SearchGlowPainter(),
+            painter: _SearchGlowPainter(mousePos: _mousePos),
             size: Size.infinite,
           ),
-          child,
+          // Child wrapped in MouseRegion to track cursor
+          MouseRegion(
+            onHover: (e) => setState(() => _mousePos = e.localPosition),
+            child: widget.child,
+          ),
         ],
       ),
     );
@@ -190,14 +201,19 @@ class _TopoPainter extends CustomPainter {
 // ---------------------------------------------------------------------------
 
 class _SearchGlowPainter extends CustomPainter {
+  _SearchGlowPainter({this.mousePos});
+
+  final Offset? mousePos;
+
   @override
   void paint(Canvas canvas, Size size) {
-    final center = Offset(size.width * 0.5, size.height * 0.55);
+    // Follow mouse if available, otherwise default to center.
+    final center = mousePos ?? Offset(size.width * 0.5, size.height * 0.55);
     const radius = 350.0;
     final paint = Paint()
       ..shader = RadialGradient(
         colors: [
-          SupplyMapColors.accentGreen.withValues(alpha: 0.12),
+          SupplyMapColors.accentGreen.withValues(alpha: 0.18),
           SupplyMapColors.accentGreen.withValues(alpha: 0.0),
         ],
         stops: const [0.0, 1.0],
@@ -207,7 +223,8 @@ class _SearchGlowPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+  bool shouldRepaint(covariant _SearchGlowPainter oldDelegate) =>
+      oldDelegate.mousePos != mousePos;
 }
 
 // ---------------------------------------------------------------------------
