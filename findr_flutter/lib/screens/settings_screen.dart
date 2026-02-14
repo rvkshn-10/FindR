@@ -6,6 +6,18 @@ import '../widgets/liquid_glass_background.dart';
 
 const _currencies = ['USD', 'EUR', 'GBP', 'CAD', 'MXN'];
 
+TextStyle _outfit({
+  double fontSize = 14,
+  FontWeight fontWeight = FontWeight.w400,
+  Color? color,
+}) {
+  return GoogleFonts.outfit(
+    fontSize: fontSize,
+    fontWeight: fontWeight,
+    color: color,
+  ).copyWith(shadows: const <Shadow>[]);
+}
+
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
 
@@ -16,10 +28,12 @@ class SettingsScreen extends StatelessWidget {
       backgroundColor: SupplyMapColors.bodyBg,
       appBar: AppBar(
         backgroundColor: SupplyMapColors.bodyBg,
-        foregroundColor: Colors.white,
+        foregroundColor: SupplyMapColors.textBlack,
         title: Text('Settings',
-            style: GoogleFonts.inter(fontWeight: FontWeight.w700)
-                .copyWith(shadows: const <Shadow>[])),
+            style: _outfit(
+                fontSize: 17,
+                fontWeight: FontWeight.w700,
+                color: SupplyMapColors.textBlack)),
         elevation: 0,
       ),
       body: ListView(
@@ -32,16 +46,16 @@ class SettingsScreen extends StatelessWidget {
               children: [
                 Row(
                   children: [
-                    const Icon(Icons.straighten,
+                    Icon(Icons.straighten,
                         color: SupplyMapColors.blue, size: 20),
                     const SizedBox(width: 12),
                     Text(
                       'Distance unit',
-                      style: GoogleFonts.inter(
+                      style: _outfit(
                         fontSize: 15,
                         fontWeight: FontWeight.w600,
-                        color: Colors.white,
-                      ).copyWith(shadows: const <Shadow>[]),
+                        color: SupplyMapColors.textBlack,
+                      ),
                     ),
                   ],
                 ),
@@ -58,19 +72,19 @@ class SettingsScreen extends StatelessWidget {
                   label: 'Kilometers (km)',
                   onChanged: (v) => settings.setDistanceUnit(v!),
                 ),
-                const Divider(color: Colors.white24, height: 32),
+                Divider(color: SupplyMapColors.borderSubtle, height: 32),
                 Row(
                   children: [
-                    const Icon(Icons.attach_money,
-                        color: SupplyMapColors.green, size: 20),
+                    Icon(Icons.attach_money,
+                        color: SupplyMapColors.accentGreen, size: 20),
                     const SizedBox(width: 12),
                     Text(
                       'Currency',
-                      style: GoogleFonts.inter(
+                      style: _outfit(
                         fontSize: 15,
                         fontWeight: FontWeight.w600,
-                        color: Colors.white,
-                      ).copyWith(shadows: const <Shadow>[]),
+                        color: SupplyMapColors.textBlack,
+                      ),
                     ),
                   ],
                 ),
@@ -78,18 +92,17 @@ class SettingsScreen extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 12),
                   decoration: BoxDecoration(
-                    color: SupplyMapColors.glass,
+                    color: SupplyMapColors.bodyBg,
                     borderRadius: BorderRadius.circular(kRadiusSm),
-                    border: Border.all(color: SupplyMapColors.glassBorder),
+                    border: Border.all(color: SupplyMapColors.borderSubtle),
                   ),
                   child: DropdownButtonHideUnderline(
                     child: DropdownButton<String>(
                       value: settings.currency,
-                      dropdownColor: SupplyMapColors.darkBg,
+                      dropdownColor: SupplyMapColors.sidebarBg,
                       isExpanded: true,
-                      style: GoogleFonts.inter(
-                          color: Colors.white, fontSize: 14)
-                          .copyWith(shadows: const <Shadow>[]),
+                      style: _outfit(
+                          color: SupplyMapColors.textBlack, fontSize: 14),
                       items: _currencies
                           .map((c) => DropdownMenuItem(
                               value: c, child: Text(c)))
@@ -139,12 +152,12 @@ class _RadioOption<T> extends StatelessWidget {
                 shape: BoxShape.circle,
                 border: Border.all(
                   color: selected
-                      ? SupplyMapColors.blue
-                      : Colors.white38,
+                      ? SupplyMapColors.accentGreen
+                      : SupplyMapColors.borderStrong,
                   width: 2,
                 ),
                 color: selected
-                    ? SupplyMapColors.blue
+                    ? SupplyMapColors.accentGreen
                     : Colors.transparent,
               ),
               child: selected
@@ -155,10 +168,10 @@ class _RadioOption<T> extends StatelessWidget {
             const SizedBox(width: 12),
             Text(
               label,
-              style: GoogleFonts.inter(
+              style: _outfit(
                 fontSize: 14,
-                color: Colors.white,
-              ).copyWith(shadows: const <Shadow>[]),
+                color: SupplyMapColors.textBlack,
+              ),
             ),
           ],
         ),

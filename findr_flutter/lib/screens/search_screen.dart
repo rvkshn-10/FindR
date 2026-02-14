@@ -8,6 +8,23 @@ import 'results_screen.dart';
 import 'settings_screen.dart';
 import 'supply_map_shell.dart';
 
+// Shared font helper for Outfit
+TextStyle _outfit({
+  double fontSize = 14,
+  FontWeight fontWeight = FontWeight.w400,
+  Color? color,
+  double? letterSpacing,
+  double? height,
+}) {
+  return GoogleFonts.outfit(
+    fontSize: fontSize,
+    fontWeight: fontWeight,
+    color: color,
+    letterSpacing: letterSpacing,
+    height: height,
+  ).copyWith(shadows: const <Shadow>[]);
+}
+
 // Suggestion pills shown below the search bar (label → search term).
 const _kSuggestions = <String, String>{
   'Medical Supplies': 'N95 Masks',
@@ -173,12 +190,28 @@ class _SearchScreenState extends State<SearchScreen> {
             Positioned(
               top: 16,
               right: 16,
-              child: IconButton(
-                icon: const Icon(Icons.settings,
-                    color: SupplyMapColors.textWhite, size: 26),
-                onPressed: () => Navigator.of(context).push(
-                  MaterialPageRoute(
-                      builder: (_) => const SettingsScreen()),
+              child: Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: SupplyMapColors.borderSubtle),
+                  boxShadow: const [
+                    BoxShadow(
+                      color: Color(0x081A1918),
+                      blurRadius: 6,
+                      offset: Offset(0, 1),
+                    ),
+                  ],
+                ),
+                child: IconButton(
+                  icon: Icon(Icons.settings,
+                      color: SupplyMapColors.textSecondary, size: 20),
+                  onPressed: () => Navigator.of(context).push(
+                    MaterialPageRoute(
+                        builder: (_) => const SettingsScreen()),
+                  ),
                 ),
               ),
             ),
@@ -194,22 +227,15 @@ class _SearchScreenState extends State<SearchScreen> {
                 // ── Hero title ──────────────────────────────────────
                 Builder(builder: (context) {
                   final isNarrow = MediaQuery.of(context).size.width < 600;
-                  return ShaderMask(
-                    shaderCallback: (bounds) => const LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: [Colors.white, Color(0xB3FFFFFF)],
-                    ).createShader(bounds),
-                    child: Text(
-                      'FindR',
-                      textAlign: TextAlign.center,
-                      style: GoogleFonts.inter(
-                        fontSize: isNarrow ? 56 : 96,
-                        fontWeight: FontWeight.w800,
-                        height: 0.95,
-                        letterSpacing: isNarrow ? -2 : -4,
-                        color: Colors.white, // masked by shader
-                      ).copyWith(shadows: const <Shadow>[]),
+                  return Text(
+                    'FindR',
+                    textAlign: TextAlign.center,
+                    style: _outfit(
+                      fontSize: isNarrow ? 56 : 96,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: isNarrow ? -2 : -4,
+                      height: 0.95,
+                      color: SupplyMapColors.textBlack,
                     ),
                   );
                 }),
@@ -223,12 +249,11 @@ class _SearchScreenState extends State<SearchScreen> {
                         ? 'Locate essentials instantly.\nAI-powered inventory tracking.'
                         : 'Locate essentials instantly. AI-powered inventory\ntracking and convenience ranking.',
                     textAlign: TextAlign.center,
-                    style: GoogleFonts.inter(
+                    style: _outfit(
                       fontSize: isNarrow ? 15 : 18,
-                      fontWeight: FontWeight.w400,
-                      color: Colors.white.withValues(alpha: 0.6),
-                      height: 1.4,
-                    ).copyWith(shadows: const <Shadow>[]),
+                      color: SupplyMapColors.textSecondary,
+                      height: 1.5,
+                    ),
                   );
                 }),
                 const SizedBox(height: 36),
@@ -268,39 +293,38 @@ class _SearchScreenState extends State<SearchScreen> {
     return Container(
       constraints: const BoxConstraints(maxWidth: 700),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.9),
+        color: Colors.white,
         borderRadius: BorderRadius.circular(kRadiusPill),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.5)),
-        boxShadow: [
+        border: Border.all(color: SupplyMapColors.borderSubtle),
+        boxShadow: const [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.3),
-            blurRadius: 40,
-            offset: const Offset(0, 20),
+            color: Color(0x121A1918),
+            blurRadius: 24,
+            offset: Offset(0, 4),
           ),
         ],
       ),
       padding: const EdgeInsets.all(8),
       child: Row(
         children: [
-          const Padding(
-            padding: EdgeInsets.only(left: 12),
-            child: Icon(Icons.search, color: Color(0xFF666666), size: 24),
+          Padding(
+            padding: const EdgeInsets.only(left: 12),
+            child: Icon(Icons.search, color: SupplyMapColors.textTertiary, size: 22),
           ),
           Expanded(
             child: TextField(
               controller: _itemController,
-              style: GoogleFonts.inter(
-                fontSize: 18,
+              style: _outfit(
+                fontSize: 17,
                 fontWeight: FontWeight.w500,
                 color: SupplyMapColors.textBlack,
-              ).copyWith(shadows: const <Shadow>[]),
+              ),
               decoration: InputDecoration(
                 hintText: "What are you looking for? e.g. 'AA Batteries'",
-                hintStyle: GoogleFonts.inter(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w500,
-                  color: const Color(0xFF999999),
-                ).copyWith(shadows: const <Shadow>[]),
+                hintStyle: _outfit(
+                  fontSize: 17,
+                  color: SupplyMapColors.textTertiary,
+                ),
                 border: InputBorder.none,
                 enabledBorder: InputBorder.none,
                 focusedBorder: InputBorder.none,
@@ -333,27 +357,30 @@ class _SearchScreenState extends State<SearchScreen> {
             mainAxisSize: MainAxisSize.min,
             children: [
               SizedBox(
-                width: 20,
-                height: 20,
+                width: 18,
+                height: 18,
                 child: Checkbox(
                   value: _useMyLocation,
                   onChanged:
                       _loading ? null : (v) => setState(() => _useMyLocation = v ?? true),
-                  side: const BorderSide(color: Colors.white54),
-                  checkColor: SupplyMapColors.bodyBg,
+                  side: BorderSide(color: SupplyMapColors.borderStrong),
+                  checkColor: Colors.white,
                   fillColor: WidgetStateProperty.resolveWith((s) =>
                       s.contains(WidgetState.selected)
-                          ? SupplyMapColors.blue
+                          ? SupplyMapColors.accentGreen
                           : Colors.transparent),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(4)),
                 ),
               ),
               const SizedBox(width: 8),
               Text(
                 'Use my location',
-                style: GoogleFonts.inter(
+                style: _outfit(
                   fontSize: 13,
-                  color: Colors.white70,
-                ).copyWith(shadows: const <Shadow>[]),
+                  fontWeight: FontWeight.w500,
+                  color: SupplyMapColors.textSecondary,
+                ),
               ),
             ],
           ),
@@ -361,27 +388,25 @@ class _SearchScreenState extends State<SearchScreen> {
             const SizedBox(height: 8),
             Container(
               decoration: BoxDecoration(
-                color: SupplyMapColors.glass,
+                color: Colors.white,
                 borderRadius: BorderRadius.circular(kRadiusMd),
-                border: Border.all(color: SupplyMapColors.glassBorder),
+                border: Border.all(color: SupplyMapColors.borderSubtle),
               ),
               child: TextField(
                 controller: _locationController,
-                style: GoogleFonts.inter(
-                    fontSize: 14, color: SupplyMapColors.textWhite)
-                    .copyWith(shadows: const <Shadow>[]),
+                style: _outfit(
+                    fontSize: 14, color: SupplyMapColors.textBlack),
                 decoration: InputDecoration(
                   hintText: 'City or address',
-                  hintStyle: GoogleFonts.inter(
-                      fontSize: 14, color: Colors.white54)
-                      .copyWith(shadows: const <Shadow>[]),
+                  hintStyle: _outfit(
+                      fontSize: 14, color: SupplyMapColors.textTertiary),
                   border: InputBorder.none,
                   enabledBorder: InputBorder.none,
                   focusedBorder: InputBorder.none,
                   contentPadding: const EdgeInsets.symmetric(
                       horizontal: 16, vertical: 12),
-                  prefixIcon: const Icon(Icons.place_outlined,
-                      color: Colors.white54, size: 18),
+                  prefixIcon: Icon(Icons.place_outlined,
+                      color: SupplyMapColors.textTertiary, size: 18),
                   filled: false,
                 ),
                 textInputAction: TextInputAction.search,
@@ -407,24 +432,19 @@ class _SearchButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: loading ? Colors.grey : SupplyMapColors.textBlack,
+      color: loading
+          ? SupplyMapColors.borderStrong
+          : SupplyMapColors.accentGreen,
       shape: const CircleBorder(),
       child: InkWell(
         onTap: onPressed,
         customBorder: const CircleBorder(),
-        hoverColor: SupplyMapColors.red,
-        child: SizedBox(
-          width: 56,
-          height: 56,
+        hoverColor: const Color(0xFF2D7048),
+        child: const SizedBox(
+          width: 48,
+          height: 48,
           child: Center(
-            child: loading
-                ? const SizedBox(
-                    width: 22,
-                    height: 22,
-                    child: CircularProgressIndicator(
-                        strokeWidth: 2, color: Colors.white),
-                  )
-                : const Icon(Icons.arrow_forward, color: Colors.white, size: 24),
+            child: Icon(Icons.arrow_forward, color: Colors.white, size: 20),
           ),
         ),
       ),
@@ -461,18 +481,18 @@ class _SuggestionPillState extends State<_SuggestionPill> {
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
           decoration: BoxDecoration(
             color: _hovered
-                ? Colors.white.withValues(alpha: 0.25)
+                ? SupplyMapColors.borderSubtle
                 : SupplyMapColors.glass,
             borderRadius: BorderRadius.circular(kRadiusPill),
-            border: Border.all(color: SupplyMapColors.glassBorder),
+            border: Border.all(color: SupplyMapColors.borderSubtle),
           ),
           child: Text(
             widget.label,
-            style: GoogleFonts.inter(
+            style: _outfit(
               fontSize: 14,
               fontWeight: FontWeight.w500,
-              color: Colors.white,
-            ).copyWith(shadows: const <Shadow>[]),
+              color: SupplyMapColors.textBlack,
+            ),
           ),
         ),
       ),

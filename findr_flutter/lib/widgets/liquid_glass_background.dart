@@ -1,5 +1,4 @@
 import 'dart:math' as math;
-import 'dart:ui';
 import 'package:flutter/material.dart';
 
 // ---------------------------------------------------------------------------
@@ -9,35 +8,48 @@ import 'package:flutter/material.dart';
 class SupplyMapColors {
   SupplyMapColors._();
 
-  // Core palette
-  static const Color red = Color(0xFFFF453A);
-  static const Color yellow = Color(0xFFFFE681);
-  static const Color purple = Color(0xFFC282FF);
-  static const Color blue = Color(0xFF78B6FF);
-  static const Color green = Color(0xFFC9F269);
+  // Core accent palette (warm, nature-inspired)
+  static const Color red = Color(0xFFE85D4A);
+  static const Color yellow = Color(0xFFF2D96B);
+  static const Color purple = Color(0xFF9B7FD4);
+  static const Color blue = Color(0xFF6BA3E8);
+  static const Color green = Color(0xFF3D8A5A);
 
-  // Backgrounds
-  static const Color darkBg = Color(0xFF0A0A0A);
-  static const Color bodyBg = Color(0xFF05050C);
+  // Backgrounds (warm cream)
+  static const Color darkBg = Color(0xFFEDECEA); // muted surface
+  static const Color bodyBg = Color(0xFFF5F4F1); // warm cream primary
 
-  // Glass
-  static const Color glass = Color(0x26FFFFFF); // rgba(255,255,255,0.15)
-  static const Color glassBorder = Color(0x33FFFFFF); // rgba(255,255,255,0.2)
+  // Glass → now soft white / muted fills
+  static const Color glass = Color(0xFFEDECEA); // bg-muted
+  static const Color glassBorder = Color(0xFFE5E4E1); // border-subtle
 
   // Text
-  static const Color textWhite = Color(0xFFFFFFFF);
-  static const Color textBlack = Color(0xFF1C1C1E);
+  static const Color textWhite = Color(0xFF1A1918); // now dark for light bg
+  static const Color textBlack = Color(0xFF1A1918);
 
-  // Sidebar
-  static const Color sidebarBg = Color(0xB314141A); // rgba(20,20,25,0.7)
+  // Secondary / tertiary text
+  static const Color textSecondary = Color(0xFF6D6C6A);
+  static const Color textTertiary = Color(0xFF9C9B99);
+
+  // Sidebar (white surface)
+  static const Color sidebarBg = Color(0xFFFFFFFF);
 
   // Map area
-  static const Color mapBg = Color(0xFF15151A);
+  static const Color mapBg = Color(0xFFE8E7E4);
+
+  // Borders
+  static const Color borderSubtle = Color(0xFFE5E4E1);
+  static const Color borderStrong = Color(0xFFD1D0CD);
+
+  // Accent helpers
+  static const Color accentGreen = Color(0xFF3D8A5A);
+  static const Color accentLightGreen = Color(0xFFC8F0D8);
+  static const Color accentWarm = Color(0xFFD89575);
 }
 
-// Radii
-const double kRadiusLg = 24;
-const double kRadiusMd = 16;
+// Radii (generous, soft, friendly)
+const double kRadiusLg = 16;
+const double kRadiusMd = 12;
 const double kRadiusSm = 8;
 const double kRadiusPill = 999;
 const double kBlurStrength = 30;
@@ -61,7 +73,7 @@ class GradientBackground extends StatelessWidget {
       child: Stack(
         fit: StackFit.expand,
         children: [
-          // The three radial gradient blobs
+          // Warm, subtle radial gradient blobs
           CustomPaint(
             painter: _GradientBlobPainter(),
             size: Size.infinite,
@@ -76,26 +88,26 @@ class GradientBackground extends StatelessWidget {
 class _GradientBlobPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
-    // Purple blob – top-left
+    // Green blob – top-left
     _drawBlob(
       canvas,
       Offset(size.width * 0.1, size.height * 0.1),
       math.max(size.width, size.height) * 0.4,
-      SupplyMapColors.purple.withValues(alpha: 0.30),
+      SupplyMapColors.accentGreen.withValues(alpha: 0.08),
     );
-    // Red blob – bottom-right
+    // Warm coral blob – bottom-right
     _drawBlob(
       canvas,
       Offset(size.width * 0.9, size.height * 0.8),
       math.max(size.width, size.height) * 0.4,
-      SupplyMapColors.red.withValues(alpha: 0.20),
+      SupplyMapColors.accentWarm.withValues(alpha: 0.08),
     );
     // Blue blob – center
     _drawBlob(
       canvas,
       Offset(size.width * 0.5, size.height * 0.5),
       math.max(size.width, size.height) * 0.6,
-      SupplyMapColors.blue.withValues(alpha: 0.15),
+      SupplyMapColors.blue.withValues(alpha: 0.06),
     );
   }
 
@@ -134,22 +146,23 @@ class GlassPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(borderRadius),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: kBlurStrength, sigmaY: kBlurStrength),
-        child: Container(
-          padding: padding,
-          decoration: BoxDecoration(
-            color: color ?? SupplyMapColors.glass,
-            borderRadius: BorderRadius.circular(borderRadius),
-            border: border
-                ? Border.all(color: SupplyMapColors.glassBorder, width: 1)
-                : null,
+    return Container(
+      padding: padding,
+      decoration: BoxDecoration(
+        color: color ?? SupplyMapColors.sidebarBg,
+        borderRadius: BorderRadius.circular(borderRadius),
+        border: border
+            ? Border.all(color: SupplyMapColors.borderSubtle, width: 1)
+            : null,
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x081A1918),
+            blurRadius: 12,
+            offset: Offset(0, 2),
           ),
-          child: child,
-        ),
+        ],
       ),
+      child: child,
     );
   }
 }

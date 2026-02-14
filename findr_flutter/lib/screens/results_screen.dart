@@ -43,14 +43,14 @@ Color _cardBg(_CardStyle s) {
     case _CardStyle.convenient:
       return SupplyMapColors.yellow;
     case _CardStyle.available:
-      return SupplyMapColors.green;
+      return SupplyMapColors.accentLightGreen;
     case _CardStyle.substitute:
       return SupplyMapColors.glass;
   }
 }
 
 bool _cardDarkText(_CardStyle s) {
-  return s == _CardStyle.convenient || s == _CardStyle.available;
+  return s == _CardStyle.convenient || s == _CardStyle.available || s == _CardStyle.substitute;
 }
 
 String _badgeLabel(_CardStyle s) {
@@ -78,10 +78,27 @@ Color _pinColor(_CardStyle s) {
     case _CardStyle.convenient:
       return SupplyMapColors.yellow;
     case _CardStyle.available:
-      return SupplyMapColors.green;
+      return SupplyMapColors.accentGreen;
     case _CardStyle.substitute:
-      return Colors.white;
+      return SupplyMapColors.borderStrong;
   }
+}
+
+// Shared font helper for Outfit
+TextStyle _outfit({
+  double fontSize = 14,
+  FontWeight fontWeight = FontWeight.w400,
+  Color? color,
+  double? letterSpacing,
+  double? height,
+}) {
+  return GoogleFonts.outfit(
+    fontSize: fontSize,
+    fontWeight: fontWeight,
+    color: color,
+    letterSpacing: letterSpacing,
+    height: height,
+  ).copyWith(shadows: const <Shadow>[]);
 }
 
 // ---------------------------------------------------------------------------
@@ -233,13 +250,12 @@ class _ResultsScreenState extends State<ResultsScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const CircularProgressIndicator(color: Colors.white),
+              CircularProgressIndicator(color: SupplyMapColors.accentGreen),
               const SizedBox(height: 16),
               Text(
                 'Finding nearby stores…',
-                style: GoogleFonts.inter(
-                    fontSize: 14, color: Colors.white70)
-                    .copyWith(shadows: const <Shadow>[]),
+                style: _outfit(
+                    fontSize: 14, color: SupplyMapColors.textSecondary),
               ),
             ],
           ),
@@ -259,9 +275,8 @@ class _ResultsScreenState extends State<ResultsScreen> {
               children: [
                 Text(
                   _error!,
-                  style: GoogleFonts.inter(
-                      color: SupplyMapColors.red, fontSize: 14)
-                      .copyWith(shadows: const <Shadow>[]),
+                  style: _outfit(
+                      color: SupplyMapColors.red, fontSize: 14),
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 16),
@@ -354,12 +369,19 @@ class _ResultsScreenState extends State<ResultsScreen> {
             maxChildSize: 0.85,
             builder: (context, scrollController) {
               return Container(
-                decoration: const BoxDecoration(
+                decoration: BoxDecoration(
                   color: SupplyMapColors.sidebarBg,
-                  borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+                  borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
                   border: Border(
-                    top: BorderSide(color: SupplyMapColors.glassBorder),
+                    top: BorderSide(color: SupplyMapColors.borderSubtle),
                   ),
+                  boxShadow: const [
+                    BoxShadow(
+                      color: Color(0x121A1918),
+                      blurRadius: 24,
+                      offset: Offset(0, -4),
+                    ),
+                  ],
                 ),
                 child: Column(
                   children: [
@@ -370,7 +392,7 @@ class _ResultsScreenState extends State<ResultsScreen> {
                         width: 40,
                         height: 4,
                         decoration: BoxDecoration(
-                          color: Colors.white24,
+                          color: SupplyMapColors.borderStrong,
                           borderRadius: BorderRadius.circular(2),
                         ),
                       ),
@@ -384,17 +406,16 @@ class _ResultsScreenState extends State<ResultsScreen> {
                             child: Text.rich(
                               TextSpan(
                                 text: 'Results for ',
-                                style: GoogleFonts.inter(
+                                style: _outfit(
                                   fontSize: 16,
-                                  color: Colors.white60,
-                                ).copyWith(shadows: const <Shadow>[]),
+                                  color: SupplyMapColors.textSecondary,
+                                ),
                                 children: [
                                   TextSpan(
                                     text: _currentItem,
-                                    style: GoogleFonts.inter(
+                                    style: _outfit(
                                         fontWeight: FontWeight.w700,
-                                        color: Colors.white)
-                                        .copyWith(shadows: const <Shadow>[]),
+                                        color: SupplyMapColors.textBlack),
                                   ),
                                 ],
                               ),
@@ -402,9 +423,8 @@ class _ResultsScreenState extends State<ResultsScreen> {
                           ),
                           Text(
                             '${stores.length} found',
-                            style: GoogleFonts.inter(
-                                fontSize: 13, color: Colors.white38)
-                                .copyWith(shadows: const <Shadow>[]),
+                            style: _outfit(
+                                fontSize: 13, color: SupplyMapColors.textTertiary),
                           ),
                         ],
                       ),
@@ -416,9 +436,8 @@ class _ResultsScreenState extends State<ResultsScreen> {
                           ? Center(
                               child: Text(
                                 'No nearby stores found.',
-                                style: GoogleFonts.inter(
-                                    color: Colors.white54, fontSize: 14)
-                                    .copyWith(shadows: const <Shadow>[]),
+                                style: _outfit(
+                                    color: SupplyMapColors.textTertiary, fontSize: 14),
                               ),
                             )
                           : ListView.separated(
@@ -467,9 +486,7 @@ class _ResultsScreenState extends State<ResultsScreen> {
           ? Center(
               child: Text(
                 'No nearby stores found.',
-                style:
-                    GoogleFonts.inter(color: Colors.white54, fontSize: 14)
-                        .copyWith(shadows: const <Shadow>[]),
+                style: _outfit(color: SupplyMapColors.textTertiary, fontSize: 14),
               ),
             )
           : Stack(
@@ -498,9 +515,9 @@ class _ResultsScreenState extends State<ResultsScreen> {
                           radius: searchRadiusMeters,
                           useRadiusInMeter: true,
                           color:
-                              SupplyMapColors.blue.withValues(alpha: 0.10),
+                              SupplyMapColors.blue.withValues(alpha: 0.08),
                           borderColor:
-                              SupplyMapColors.blue.withValues(alpha: 0.30),
+                              SupplyMapColors.blue.withValues(alpha: 0.20),
                           borderStrokeWidth: 1.5,
                         ),
                       ],
@@ -511,10 +528,14 @@ class _ResultsScreenState extends State<ResultsScreen> {
                           point: LatLng(widget.lat, widget.lng),
                           width: 24,
                           height: 24,
-                          child: const Icon(
-                            Icons.person_pin_circle,
-                            color: SupplyMapColors.blue,
-                            size: 24,
+                          child: Container(
+                            width: 16,
+                            height: 16,
+                            decoration: BoxDecoration(
+                              color: SupplyMapColors.blue,
+                              shape: BoxShape.circle,
+                              border: Border.all(color: Colors.white, width: 3),
+                            ),
                           ),
                         ),
                         ...stores.asMap().entries.map((entry) {
@@ -661,11 +682,11 @@ class _SidebarState extends State<_Sidebar> {
   Widget build(BuildContext context) {
     return Container(
           width: 440,
-          decoration: const BoxDecoration(
+          decoration: BoxDecoration(
             color: SupplyMapColors.sidebarBg,
             border: Border(
-              right: BorderSide(
-                  color: SupplyMapColors.glassBorder, width: 1),
+              left: BorderSide(
+                  color: SupplyMapColors.borderSubtle, width: 1),
             ),
           ),
           padding: const EdgeInsets.all(24),
@@ -681,28 +702,28 @@ class _SidebarState extends State<_Sidebar> {
                       children: [
                         Text(
                           'Results',
-                          style: GoogleFonts.inter(
-                            fontSize: 32,
+                          style: _outfit(
+                            fontSize: 28,
                             fontWeight: FontWeight.w700,
-                            color: Colors.white,
+                            color: SupplyMapColors.textBlack,
                             letterSpacing: -0.5,
-                          ).copyWith(shadows: const <Shadow>[]),
+                          ),
                         ),
                         const SizedBox(height: 4),
                         Text.rich(
                           TextSpan(
                             text: 'Searching for ',
-                            style: GoogleFonts.inter(
+                            style: _outfit(
                               fontSize: 14,
-                              color: Colors.white60,
-                            ).copyWith(shadows: const <Shadow>[]),
+                              color: SupplyMapColors.textSecondary,
+                            ),
                             children: [
                               TextSpan(
                                 text: widget.query,
-                                style: GoogleFonts.inter(
+                                style: _outfit(
                                   fontWeight: FontWeight.w700,
-                                  color: Colors.white,
-                                ).copyWith(shadows: const <Shadow>[]),
+                                  color: SupplyMapColors.textBlack,
+                                ),
                               ),
                             ],
                           ),
@@ -710,41 +731,48 @@ class _SidebarState extends State<_Sidebar> {
                       ],
                     ),
                   ),
-                  IconButton(
-                    icon:
-                        const Icon(Icons.close, color: Colors.white54),
-                    onPressed: widget.onNewSearch,
-                    tooltip: '',
+                  Container(
+                    width: 36,
+                    height: 36,
+                    decoration: BoxDecoration(
+                      color: SupplyMapColors.glass,
+                      shape: BoxShape.circle,
+                    ),
+                    child: IconButton(
+                      icon: Icon(Icons.close,
+                          color: SupplyMapColors.textSecondary, size: 16),
+                      onPressed: widget.onNewSearch,
+                      tooltip: '',
+                      padding: EdgeInsets.zero,
+                    ),
                   ),
                 ],
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 20),
               // Search bar
               Container(
+                height: 44,
                 decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.10),
+                  color: SupplyMapColors.bodyBg,
                   borderRadius: BorderRadius.circular(kRadiusMd),
-                  border: Border.all(
-                      color: Colors.white.withValues(alpha: 0.10)),
+                  border: Border.all(color: SupplyMapColors.borderSubtle),
                 ),
                 child: Row(
                   children: [
-                    const Padding(
-                      padding: EdgeInsets.only(left: 12),
+                    Padding(
+                      padding: const EdgeInsets.only(left: 12),
                       child: Icon(Icons.search,
-                          size: 16, color: Colors.white),
+                          size: 16, color: SupplyMapColors.textTertiary),
                     ),
                     Expanded(
                       child: TextField(
                         controller: _searchController,
-                        style: GoogleFonts.inter(
-                            fontSize: 14, color: Colors.white)
-                            .copyWith(shadows: const <Shadow>[]),
+                        style: _outfit(
+                            fontSize: 14, color: SupplyMapColors.textBlack),
                         decoration: InputDecoration(
                           hintText: 'Search for something else…',
-                          hintStyle: GoogleFonts.inter(
-                              fontSize: 14, color: Colors.white38)
-                              .copyWith(shadows: const <Shadow>[]),
+                          hintStyle: _outfit(
+                              fontSize: 14, color: SupplyMapColors.textTertiary),
                           border: InputBorder.none,
                           enabledBorder: InputBorder.none,
                           focusedBorder: InputBorder.none,
@@ -762,32 +790,31 @@ class _SidebarState extends State<_Sidebar> {
                         margin: const EdgeInsets.only(right: 6),
                         padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
-                          color: SupplyMapColors.blue,
+                          color: SupplyMapColors.accentGreen,
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: const Icon(Icons.arrow_forward,
-                            color: Colors.white, size: 16),
+                            color: Colors.white, size: 14),
                       ),
                     ),
                   ],
                 ),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 20),
               // Results list
               Expanded(
                 child: widget.stores.isEmpty
                     ? Center(
                         child: Text(
                           'No nearby stores found.',
-                          style: GoogleFonts.inter(
-                              color: Colors.white54, fontSize: 14)
-                              .copyWith(shadows: const <Shadow>[]),
+                          style: _outfit(
+                              color: SupplyMapColors.textTertiary, fontSize: 14),
                         ),
                       )
                     : ListView.separated(
                         itemCount: widget.stores.length,
                         separatorBuilder: (_, __) =>
-                            const SizedBox(height: 16),
+                            const SizedBox(height: 14),
                         padding: const EdgeInsets.only(right: 8),
                         itemBuilder: (context, i) {
                           final s = widget.stores[i];
@@ -930,29 +957,28 @@ class _ResultCardState extends State<_ResultCard> {
                 children: [
                   Container(
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 8, vertical: 4),
+                        horizontal: 10, vertical: 4),
                     decoration: BoxDecoration(
                       color: dark
-                          ? Colors.white.withValues(alpha: 0.5)
-                          : Colors.black.withValues(alpha: 0.2),
+                          ? Colors.white.withValues(alpha: 0.6)
+                          : Colors.black.withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(6),
                     ),
                     child: Text(
                       _badgeLabel(widget.style),
-                      style: GoogleFonts.inter(
-                        fontSize: 10,
+                      style: _outfit(
+                        fontSize: 11,
                         fontWeight: FontWeight.w700,
                         letterSpacing: 0.5,
-                        color: dark ? Colors.black : Colors.white,
-                      ).copyWith(shadows: const <Shadow>[]),
+                        color: dark ? SupplyMapColors.textBlack : Colors.white,
+                      ),
                     ),
                   ),
                   if (widget.style == _CardStyle.bestMatch)
                     Text(
                       '98%',
-                      style: GoogleFonts.inter(
-                          fontSize: 16, color: fg)
-                          .copyWith(shadows: const <Shadow>[]),
+                      style: _outfit(
+                          fontSize: 16, fontWeight: FontWeight.w600, color: fg),
                     ),
                 ],
               ),
@@ -960,13 +986,13 @@ class _ResultCardState extends State<_ResultCard> {
               // Title
               Text(
                 widget.store.name,
-                style: GoogleFonts.inter(
+                style: _outfit(
                   fontSize: isGlass ? 16 : 22,
                   fontWeight: FontWeight.w700,
                   height: 1.1,
                   letterSpacing: -0.5,
                   color: fg.withValues(alpha: isGlass ? 0.9 : 1.0),
-                ).copyWith(shadows: const <Shadow>[]),
+                ),
               ),
               const SizedBox(height: 12),
               // Meta
@@ -975,21 +1001,21 @@ class _ResultCardState extends State<_ResultCard> {
                   Text(
                     formatDistance(widget.store.distanceKm,
                         useKm: widget.settings.useKm),
-                    style: GoogleFonts.inter(
+                    style: _outfit(
                       fontSize: 13,
                       fontWeight: FontWeight.w500,
-                      color: fg.withValues(alpha: 0.9),
-                    ).copyWith(shadows: const <Shadow>[]),
+                      color: fg.withValues(alpha: 0.85),
+                    ),
                   ),
                   _dot(fg),
                   if (widget.store.durationMinutes != null) ...[
                     Text(
                       '~${widget.store.durationMinutes} min',
-                      style: GoogleFonts.inter(
+                      style: _outfit(
                         fontSize: 13,
                         fontWeight: FontWeight.w500,
-                        color: fg.withValues(alpha: 0.9),
-                      ).copyWith(shadows: const <Shadow>[]),
+                        color: fg.withValues(alpha: 0.85),
+                      ),
                     ),
                     _dot(fg),
                   ],
@@ -1000,11 +1026,11 @@ class _ResultCardState extends State<_ResultCard> {
                             .split(',')
                             .first
                             .trim(),
-                    style: GoogleFonts.inter(
+                    style: _outfit(
                       fontSize: 13,
                       fontWeight: FontWeight.w500,
-                      color: fg.withValues(alpha: 0.9),
-                    ).copyWith(shadows: const <Shadow>[]),
+                      color: fg.withValues(alpha: 0.85),
+                    ),
                     overflow: TextOverflow.ellipsis,
                   ),
                 ],
@@ -1079,25 +1105,25 @@ class _MapPinState extends State<_MapPin> {
             color: widget.color,
             shape: BoxShape.circle,
             border: Border.all(
-                color: SupplyMapColors.darkBg, width: 4),
+                color: Colors.white, width: 3),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withValues(alpha: 0.5),
-                blurRadius: 12,
-                offset: const Offset(0, 4),
+                color: Colors.black.withValues(alpha: 0.15),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
               ),
             ],
           ),
           alignment: Alignment.center,
           child: Text(
             '${widget.index}',
-            style: GoogleFonts.inter(
+            style: _outfit(
               fontWeight: FontWeight.w800,
-              fontSize: widget.isBest ? 16 : 14,
+              fontSize: widget.isBest ? 16 : 13,
               color: widget.darkText
-                  ? Colors.black
+                  ? SupplyMapColors.textBlack
                   : Colors.white,
-            ).copyWith(shadows: const <Shadow>[]),
+            ),
           ),
         ),
       ),
@@ -1134,19 +1160,26 @@ class _MapControlBtnState extends State<_MapControlBtn> {
       child: GestureDetector(
         onTap: widget.onTap,
         child: Container(
-          width: 48,
-          height: 48,
+          width: 44,
+          height: 44,
           decoration: BoxDecoration(
             color: _hovered
-                ? Colors.white.withValues(alpha: 0.2)
-                : SupplyMapColors.glass,
+                ? SupplyMapColors.borderSubtle
+                : Colors.white,
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
-                color: SupplyMapColors.glassBorder),
+                color: SupplyMapColors.borderSubtle),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x081A1918),
+                blurRadius: 6,
+                offset: Offset(0, 1),
+              ),
+            ],
           ),
           alignment: Alignment.center,
           child: Icon(widget.icon,
-              color: Colors.white, size: 20),
+              color: SupplyMapColors.textBlack, size: 18),
         ),
       ),
     );
@@ -1179,33 +1212,40 @@ class _SelectedStorePopup extends StatelessWidget {
               decoration: BoxDecoration(
                 color: SupplyMapColors.sidebarBg,
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: SupplyMapColors.glassBorder),
+                border: Border.all(color: SupplyMapColors.borderSubtle),
+                boxShadow: const [
+                  BoxShadow(
+                    color: Color(0x151A1918),
+                    blurRadius: 16,
+                    offset: Offset(0, 4),
+                  ),
+                ],
               ),
-              padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+              padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
                     children: [
-                      const Icon(Icons.store,
-                          size: 16, color: Colors.white),
+                      Icon(Icons.store,
+                          size: 16, color: SupplyMapColors.accentGreen),
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
                           store.name,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: GoogleFonts.inter(
+                          style: _outfit(
                             fontWeight: FontWeight.w700,
-                            fontSize: 13,
-                            color: Colors.white,
-                          ).copyWith(shadows: const <Shadow>[]),
+                            fontSize: 14,
+                            color: SupplyMapColors.textBlack,
+                          ),
                         ),
                       ),
                       GestureDetector(
                         onTap: onClose,
-                        child: const Icon(Icons.close,
-                            size: 16, color: Colors.white54),
+                        child: Icon(Icons.close,
+                            size: 14, color: SupplyMapColors.textTertiary),
                       ),
                     ],
                   ),
@@ -1213,39 +1253,37 @@ class _SelectedStorePopup extends StatelessWidget {
                   Text(
                     '${formatDistance(store.distanceKm, useKm: settings.useKm)} away'
                     '${store.durationMinutes != null ? ' · ~${store.durationMinutes} min' : ''}',
-                    style: GoogleFonts.inter(
-                        fontSize: 12, color: Colors.white60)
-                        .copyWith(shadows: const <Shadow>[]),
+                    style: _outfit(
+                        fontSize: 12, color: SupplyMapColors.textSecondary),
                   ),
                   const SizedBox(height: 8),
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: GestureDetector(
-                      onTap: onDirections,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 12, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: SupplyMapColors.blue,
-                          borderRadius:
-                              BorderRadius.circular(kRadiusPill),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Icon(Icons.directions,
-                                size: 14, color: Colors.white),
-                            const SizedBox(width: 4),
-                            Text(
-                              'Directions',
-                              style: GoogleFonts.inter(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                                color: Colors.white,
-                              ).copyWith(shadows: const <Shadow>[]),
+                  GestureDetector(
+                    onTap: onDirections,
+                    child: Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: SupplyMapColors.accentGreen,
+                        borderRadius:
+                            BorderRadius.circular(kRadiusPill),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.navigation,
+                              size: 12, color: Colors.white),
+                          const SizedBox(width: 6),
+                          Text(
+                            'Directions',
+                            style: _outfit(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.white,
                             ),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
                     ),
                   ),
@@ -1269,7 +1307,7 @@ class _GridPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = Colors.white.withValues(alpha: 0.03)
+      ..color = SupplyMapColors.borderSubtle.withValues(alpha: 0.3)
       ..strokeWidth = 1;
     const step = 40.0;
     for (double x = 0; x < size.width; x += step) {
@@ -1321,15 +1359,15 @@ Widget _pillButton(String label, {required VoidCallback onTap}) {
       decoration: BoxDecoration(
         color: SupplyMapColors.glass,
         borderRadius: BorderRadius.circular(kRadiusPill),
-        border: Border.all(color: SupplyMapColors.glassBorder),
+        border: Border.all(color: SupplyMapColors.borderSubtle),
       ),
       child: Text(
         label,
-        style: GoogleFonts.inter(
+        style: _outfit(
           fontSize: 14,
           fontWeight: FontWeight.w500,
-          color: Colors.white,
-        ).copyWith(shadows: const <Shadow>[]),
+          color: SupplyMapColors.textBlack,
+        ),
       ),
     ),
   );

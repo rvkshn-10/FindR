@@ -26,9 +26,9 @@ TextStyle _noTextShadow(TextStyle s) {
   return s.copyWith(shadows: const <Shadow>[]);
 }
 
-/// Dark theme that matches the HTML hackathon design.
+/// Warm, cream-toned light theme (Scandinavian minimal).
 ThemeData get _supplyMapTheme {
-  final base = GoogleFonts.interTextTheme(ThemeData.dark().textTheme);
+  final base = GoogleFonts.outfitTextTheme(ThemeData.light().textTheme);
   final textTheme = TextTheme(
     displayLarge: _noTextShadow(base.displayLarge!),
     displayMedium: _noTextShadow(base.displayMedium!),
@@ -48,38 +48,38 @@ ThemeData get _supplyMapTheme {
   );
   return ThemeData(
     useMaterial3: true,
-    brightness: Brightness.dark,
+    brightness: Brightness.light,
     scaffoldBackgroundColor: SupplyMapColors.bodyBg,
-    colorScheme: const ColorScheme.dark(
-      primary: SupplyMapColors.blue,
+    colorScheme: const ColorScheme.light(
+      primary: SupplyMapColors.accentGreen,
       secondary: SupplyMapColors.purple,
       error: SupplyMapColors.red,
-      surface: SupplyMapColors.darkBg,
-      onSurface: SupplyMapColors.textWhite,
+      surface: SupplyMapColors.sidebarBg,
+      onSurface: SupplyMapColors.textBlack,
     ),
     textTheme: textTheme,
     appBarTheme: AppBarTheme(
       backgroundColor: SupplyMapColors.bodyBg,
-      foregroundColor: SupplyMapColors.textWhite,
+      foregroundColor: SupplyMapColors.textBlack,
       elevation: 0,
       scrolledUnderElevation: 0,
-      titleTextStyle: _noTextShadow(GoogleFonts.inter(
+      titleTextStyle: _noTextShadow(GoogleFonts.outfit(
         fontSize: 17,
         fontWeight: FontWeight.w700,
-        color: SupplyMapColors.textWhite,
+        color: SupplyMapColors.textBlack,
       )),
     ),
     snackBarTheme: SnackBarThemeData(
       backgroundColor: SupplyMapColors.sidebarBg,
-      contentTextStyle:
-          _noTextShadow(GoogleFonts.inter(color: Colors.white, fontSize: 14)),
+      contentTextStyle: _noTextShadow(
+          GoogleFonts.outfit(color: SupplyMapColors.textBlack, fontSize: 14)),
       behavior: SnackBarBehavior.floating,
       shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(kRadiusMd)),
     ),
     tooltipTheme: TooltipThemeData(
-      textStyle: _noTextShadow(GoogleFonts.inter(
-        color: Colors.white,
+      textStyle: _noTextShadow(GoogleFonts.outfit(
+        color: SupplyMapColors.textBlack,
         fontSize: 12,
       )),
     ),
@@ -94,7 +94,7 @@ class FindRApp extends StatelessWidget {
     return ChangeNotifierProvider(
       create: (_) => SettingsProvider(),
       child: MaterialApp(
-        title: 'FindR – Supply Map',
+        title: 'FindR',
         theme: _supplyMapTheme,
         builder: (context, child) {
           // Force no text shadows app-wide to avoid blurRadius assertion on hover.
