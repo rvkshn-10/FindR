@@ -132,7 +132,10 @@ class _GradientBackgroundState extends State<GradientBackground>
                 size: Size.infinite,
               ),
               CustomPaint(
-                painter: _TopoPainter(breathe: energy),
+                painter: _TopoPainter(
+                  breathe: energy,
+                  mousePos: _mousePos,
+                ),
                 size: Size.infinite,
               ),
               CustomPaint(
@@ -192,16 +195,27 @@ class _GradientBlobPainter extends CustomPainter {
 // ---------------------------------------------------------------------------
 
 class _TopoPainter extends CustomPainter {
-  _TopoPainter({this.breathe = 0.0});
+  _TopoPainter({this.breathe = 0.0, this.mousePos});
 
   /// 0 = resting, 1 = fully expanded (keystroke pulse).
   final double breathe;
 
+  /// Current mouse position (null = no mouse yet).
+  final Offset? mousePos;
+
   @override
   void paint(Canvas canvas, Size size) {
-    final cx = size.width * 0.45;
-    final cy = size.height * 0.48;
+    final baseCx = size.width * 0.45;
+    final baseCy = size.height * 0.48;
     final rng = math.Random(42);
+
+    // Parallax: how far the mouse is from center, normalized to -1..1.
+    double px = 0.0;
+    double py = 0.0;
+    if (mousePos != null && size.width > 0 && size.height > 0) {
+      px = (mousePos!.dx - size.width / 2) / (size.width / 2);
+      py = (mousePos!.dy - size.height / 2) / (size.height / 2);
+    }
 
     for (int i = 1; i <= 10; i++) {
       final baseRx = 55.0 * i + rng.nextDouble() * 12;
@@ -211,6 +225,11 @@ class _TopoPainter extends CustomPainter {
       final scale = 1.0 + breathe * (0.10 + 0.03 * i);
       final rx = baseRx * scale;
       final ry = baseRy * scale;
+
+      // Parallax shift: outer rings move more than inner.
+      final strength = 15.0 + i * 8.0;
+      final cx = baseCx + px * strength;
+      final cy = baseCy + py * strength;
 
       // Lines get thicker and slightly greener when typing.
       final baseAlpha = (i > 6) ? (0.5 - (i - 6) * 0.08) : 0.5;
@@ -252,7 +271,7 @@ class _TopoPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _TopoPainter oldDelegate) =>
-      oldDelegate.breathe != breathe;
+      oldDelegate.breathe != breathe || oldDelegate.mousePos != mousePos;
 }
 
 // ---------------------------------------------------------------------------
