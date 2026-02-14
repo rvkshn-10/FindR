@@ -66,42 +66,74 @@ class GradientBackground extends StatefulWidget {
 
   final Widget child;
 
+  /// Call this from child widgets to trigger a typing pulse.
+  /// Usage: GradientBackground.onKeystroke(context)
+  static void onKeystroke(BuildContext context) {
+    context.findAncestorStateOfType<_GradientBackgroundState>()?._keystroke();
+  }
+
   @override
   State<GradientBackground> createState() => _GradientBackgroundState();
 }
 
-class _GradientBackgroundState extends State<GradientBackground> {
+class _GradientBackgroundState extends State<GradientBackground>
+    with SingleTickerProviderStateMixin {
   Offset? _mousePos;
+
+  // Typing energy: jumps up on keystroke, decays back to 0.
+  late final AnimationController _breathe;
+
+  @override
+  void initState() {
+    super.initState();
+    _breathe = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 800),
+    );
+  }
+
+  @override
+  void dispose() {
+    _breathe.dispose();
+    super.dispose();
+  }
+
+  void _keystroke() {
+    // Jump to full energy (1.0) and decay back to 0.
+    _breathe.reverse(from: 1.0);
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      color: SupplyMapColors.bodyBg,
-      child: Stack(
-        fit: StackFit.expand,
-        children: [
-          // Warm, subtle radial gradient blobs
-          CustomPaint(
-            painter: _GradientBlobPainter(),
-            size: Size.infinite,
+    return AnimatedBuilder(
+      animation: _breathe,
+      builder: (context, _) {
+        final energy = _breathe.value;
+        return Container(
+          color: SupplyMapColors.bodyBg,
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              CustomPaint(
+                painter: _GradientBlobPainter(),
+                size: Size.infinite,
+              ),
+              CustomPaint(
+                painter: _TopoPainter(breathe: energy),
+                size: Size.infinite,
+              ),
+              CustomPaint(
+                painter: _SearchGlowPainter(mousePos: _mousePos),
+                size: Size.infinite,
+              ),
+              MouseRegion(
+                onHover: (e) => setState(() => _mousePos = e.localPosition),
+                child: widget.child,
+              ),
+            ],
           ),
-          // Topographic contour lines (map-themed texture)
-          CustomPaint(
-            painter: _TopoPainter(),
-            size: Size.infinite,
-          ),
-          // Green radial glow – follows mouse
-          CustomPaint(
-            painter: _SearchGlowPainter(mousePos: _mousePos),
-            size: Size.infinite,
-          ),
-          // Child wrapped in MouseRegion to track cursor
-          MouseRegion(
-            onHover: (e) => setState(() => _mousePos = e.localPosition),
-            child: widget.child,
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 }
@@ -147,21 +179,39 @@ class _GradientBlobPainter extends CustomPainter {
 // ---------------------------------------------------------------------------
 
 class _TopoPainter extends CustomPainter {
+  _TopoPainter({this.breathe = 0.0});
+
+  /// 0 = resting, 1 = fully expanded (keystroke pulse).
+  final double breathe;
+
   @override
   void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.2
-      ..color = SupplyMapColors.borderStrong.withValues(alpha: 0.5);
-
     final cx = size.width * 0.45;
     final cy = size.height * 0.48;
-
     final rng = math.Random(42);
 
     for (int i = 1; i <= 10; i++) {
-      final rx = 55.0 * i + rng.nextDouble() * 12;
-      final ry = 40.0 * i + rng.nextDouble() * 12;
+      final baseRx = 55.0 * i + rng.nextDouble() * 12;
+      final baseRy = 40.0 * i + rng.nextDouble() * 12;
+
+      // Scale up when typing – outer rings expand more.
+      final scale = 1.0 + breathe * (0.10 + 0.03 * i);
+      final rx = baseRx * scale;
+      final ry = baseRy * scale;
+
+      // Lines get thicker and slightly greener when typing.
+      final baseAlpha = (i > 6) ? (0.5 - (i - 6) * 0.08) : 0.5;
+      final alpha = (baseAlpha + breathe * 0.25).clamp(0.0, 0.85);
+      final color = Color.lerp(
+        SupplyMapColors.borderStrong,
+        SupplyMapColors.accentGreen,
+        breathe * 0.35,
+      )!;
+
+      final paint = Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.2 + breathe * 1.0
+        ..color = color.withValues(alpha: alpha);
 
       final path = Path();
 
@@ -184,16 +234,12 @@ class _TopoPainter extends CustomPainter {
 
       path.close();
       canvas.drawPath(path, paint);
-
-      if (i > 6) {
-        paint.color = SupplyMapColors.borderStrong
-            .withValues(alpha: 0.5 - (i - 6) * 0.08);
-      }
     }
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+  bool shouldRepaint(covariant _TopoPainter oldDelegate) =>
+      oldDelegate.breathe != breathe;
 }
 
 // ---------------------------------------------------------------------------
