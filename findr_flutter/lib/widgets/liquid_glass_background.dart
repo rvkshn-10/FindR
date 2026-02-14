@@ -78,6 +78,16 @@ class GradientBackground extends StatelessWidget {
             painter: _GradientBlobPainter(),
             size: Size.infinite,
           ),
+          // Topographic contour lines (map-themed texture)
+          CustomPaint(
+            painter: _TopoPainter(),
+            size: Size.infinite,
+          ),
+          // Green radial glow behind the search bar area
+          CustomPaint(
+            painter: _SearchGlowPainter(),
+            size: Size.infinite,
+          ),
           child,
         ],
       ),
@@ -117,6 +127,92 @@ class _GradientBlobPainter extends CustomPainter {
         colors: [color, color.withValues(alpha: 0)],
         stops: const [0.0, 1.0],
       ).createShader(Rect.fromCircle(center: center, radius: radius));
+    canvas.drawCircle(center, radius, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+// ---------------------------------------------------------------------------
+// Topographic contour line painter (map-themed background texture)
+// ---------------------------------------------------------------------------
+
+class _TopoPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.0
+      ..color = SupplyMapColors.borderSubtle.withValues(alpha: 0.45);
+
+    // Center is offset slightly from screen center for an organic feel.
+    final cx = size.width * 0.45;
+    final cy = size.height * 0.48;
+
+    // Use a seeded random for deterministic wobble across frames.
+    final rng = math.Random(42);
+
+    // Draw 10 concentric contour rings, each slightly irregular.
+    for (int i = 1; i <= 10; i++) {
+      final rx = 55.0 * i + rng.nextDouble() * 12;
+      final ry = 40.0 * i + rng.nextDouble() * 12;
+
+      final path = Path();
+
+      // Build the ring from 64 sample points with small noise offsets.
+      const segments = 64;
+      for (int s = 0; s <= segments; s++) {
+        final angle = (s / segments) * 2 * math.pi;
+        // Per-point noise: unique per ring (i) and per segment (s).
+        final noise = 1.0 + (rng.nextDouble() - 0.5) * 0.12;
+        final x = cx + rx * noise * math.cos(angle);
+        final y = cy + ry * noise * math.sin(angle);
+        if (s == 0) {
+          path.moveTo(x, y);
+        } else {
+          // Smooth with quadratic bezier toward the previous mid-point.
+          final prevAngle = ((s - 1) / segments) * 2 * math.pi;
+          final prevNoise = 1.0 + (rng.nextDouble() - 0.5) * 0.10;
+          final cpx = cx + rx * prevNoise * math.cos((prevAngle + angle) / 2);
+          final cpy = cy + ry * prevNoise * math.sin((prevAngle + angle) / 2);
+          path.quadraticBezierTo(cpx, cpy, x, y);
+        }
+      }
+
+      path.close();
+      canvas.drawPath(path, paint);
+
+      // Fade outer rings slightly more.
+      if (i > 6) {
+        paint.color = SupplyMapColors.borderSubtle
+            .withValues(alpha: 0.45 - (i - 6) * 0.07);
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+// ---------------------------------------------------------------------------
+// Radial glow painter (soft green halo behind the search bar)
+// ---------------------------------------------------------------------------
+
+class _SearchGlowPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = Offset(size.width * 0.5, size.height * 0.55);
+    const radius = 320.0;
+    final paint = Paint()
+      ..shader = RadialGradient(
+        colors: [
+          SupplyMapColors.accentGreen.withValues(alpha: 0.07),
+          SupplyMapColors.accentGreen.withValues(alpha: 0.0),
+        ],
+        stops: const [0.0, 1.0],
+      ).createShader(Rect.fromCircle(center: center, radius: radius));
+
     canvas.drawCircle(center, radius, paint);
   }
 
