@@ -91,25 +91,26 @@ class FindRApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Wrap EVERYTHING with a MouseRegion at the absolute root level.
-    // This guarantees mouse events are captured regardless of child widgets.
-    return MouseRegion(
-      onHover: (event) => globalMousePosition.value = event.position,
-      child: ChangeNotifierProvider(
-        create: (_) => SettingsProvider(),
-        child: MaterialApp(
-          title: 'FindR',
-          theme: _supplyMapTheme,
-          builder: (context, child) {
-            final theme = Theme.of(context);
-            return DefaultTextStyle(
+    return ChangeNotifierProvider(
+      create: (_) => SettingsProvider(),
+      child: MaterialApp(
+        title: 'FindR',
+        theme: _supplyMapTheme,
+        builder: (context, child) {
+          final theme = Theme.of(context);
+          // MouseRegion here: inside MaterialApp's builder so it has
+          // proper constraints, but wraps ALL page content.
+          return MouseRegion(
+            onHover: (event) =>
+                globalMousePosition.value = event.position,
+            child: DefaultTextStyle(
               style: _noTextShadow(theme.textTheme.bodyLarge!),
               child: child ?? const SizedBox.shrink(),
-            );
-          },
-          home: const SupplyMapShell(),
-          debugShowCheckedModeBanner: false,
-        ),
+            ),
+          );
+        },
+        home: const SupplyMapShell(),
+        debugShowCheckedModeBanner: false,
       ),
     );
   }
