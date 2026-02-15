@@ -228,7 +228,7 @@ class _GradientBlobPainter extends CustomPainter {
 }
 
 // ---------------------------------------------------------------------------
-// Dense topographic lines with string-vibration on mouse proximity
+// Concentric topographic contour rings with string-vibration on hover
 // ---------------------------------------------------------------------------
 
 class _TopoStringPainter extends CustomPainter {
@@ -244,107 +244,135 @@ class _TopoStringPainter extends CustomPainter {
   final double breathe;
   final int timeMs;
 
-  // How many horizontal lines to draw.
-  static const int _lineCount = 50;
   // Radius around cursor that triggers vibration.
-  static const double _influenceRadius = 180.0;
+  static const double _influenceRadius = 160.0;
+  // Number of contour rings.
+  static const int _ringCount = 14;
+  // Points per ring.
+  static const int _segments = 80;
 
   @override
   void paint(Canvas canvas, Size size) {
     if (size.isEmpty) return;
-    final rng = math.Random(7);
-    final w = size.width;
-    final h = size.height;
-    final spacing = h / (_lineCount + 1);
-    final time = timeMs / 1000.0; // seconds
+    final rng = math.Random(42);
+    final cx = size.width * 0.45;
+    final cy = size.height * 0.48;
+    final time = timeMs / 1000.0;
 
-    for (int i = 0; i < _lineCount; i++) {
-      final baseY = spacing * (i + 1);
-      // Each line has a unique subtle vertical wobble (static topo character).
-      final seed = rng.nextDouble() * 1000;
-      final amplitude = 2.0 + rng.nextDouble() * 3.0; // gentle base wave
+    for (int i = 1; i <= _ringCount; i++) {
+      final baseRx = 50.0 * i + rng.nextDouble() * 14;
+      final baseRy = 36.0 * i + rng.nextDouble() * 14;
 
-      // Color: alternate subtle greens / warm greys for topo feel.
-      final hue = rng.nextDouble();
-      final baseColor = Color.lerp(
+      // Scale up when typing – outer rings expand more.
+      final scale = 1.0 + breathe * (0.08 + 0.025 * i);
+      final rx = baseRx * scale;
+      final ry = baseRy * scale;
+
+      // Color: subtle grey -> slightly green when typing.
+      final baseAlpha = (i > 8) ? (0.45 - (i - 8) * 0.06) : 0.45;
+      final alpha = (baseAlpha + breathe * 0.2).clamp(0.0, 0.75);
+      final color = Color.lerp(
         SupplyMapColors.borderStrong,
         SupplyMapColors.accentGreen,
-        0.1 + hue * 0.15 + breathe * 0.3,
+        breathe * 0.35,
       )!;
-      final alpha = (0.25 + rng.nextDouble() * 0.2 + breathe * 0.15)
-          .clamp(0.0, 0.7);
 
       final paint = Paint()
         ..style = PaintingStyle.stroke
-        ..strokeWidth = 0.8 + breathe * 0.4
-        ..color = baseColor.withValues(alpha: alpha);
+        ..strokeWidth = 1.2 + breathe * 0.8
+        ..color = color.withValues(alpha: alpha);
 
       final path = Path();
-      const segments = 120;
 
-      for (int s = 0; s <= segments; s++) {
-        final t = s / segments;
-        final x = t * w;
-
-        // Base topographic wave (static, unique per line).
-        double y = baseY +
-            math.sin(t * 6.0 + seed) * amplitude +
-            math.cos(t * 3.2 + seed * 0.7) * amplitude * 0.6;
-
-        // Breathing pulse from typing.
-        if (breathe > 0) {
-          y += math.sin(t * 10.0 + time * 4.0) * breathe * 4.0;
-        }
+      for (int s = 0; s <= _segments; s++) {
+        final angle = (s / _segments) * 2 * math.pi;
+        // Static organic noise per point (consistent across frames).
+        final noise = 1.0 + (rng.nextDouble() - 0.5) * 0.12;
+        double x = cx + rx * noise * math.cos(angle);
+        double y = cy + ry * noise * math.sin(angle);
 
         // ── String vibration from mouse proximity ──
-        // Check current mouse position.
-        double vibration = 0;
+        double vibDx = 0;
+        double vibDy = 0;
+
+        // Current mouse position.
         if (mousePos != null) {
-          vibration = _calcVibration(
-            x, y, mousePos!, time, 1.0, _influenceRadius,
-          );
-        }
-        // Check trail for lingering vibration (decays over time).
-        for (final sample in trail) {
-          final age = (timeMs - sample.time) / 1000.0; // seconds since sample
-          final decay = (1.0 - age / 1.5).clamp(0.0, 1.0);
-          if (decay > 0.01) {
-            vibration += _calcVibration(
-              x, y, sample.pos, time, decay * 0.6, _influenceRadius,
-            );
+          final v = _calcVibration(x, y, mousePos!, time, 1.0);
+          // Displace radially outward from the ring center.
+          final ax = x - cx;
+          final ay = y - cy;
+          final len = math.sqrt(ax * ax + ay * ay);
+          if (len > 0) {
+            vibDx += v * (ax / len);
+            vibDy += v * (ay / len);
           }
         }
 
-        y += vibration;
+        // Trail: lingering vibration from recent mouse positions.
+        for (final sample in trail) {
+          final age = (timeMs - sample.time) / 1000.0;
+          final decay = (1.0 - age / 1.5).clamp(0.0, 1.0);
+          if (decay > 0.01) {
+            final v = _calcVibration(x, y, sample.pos, time, decay * 0.5);
+            final ax = x - cx;
+            final ay = y - cy;
+            final len = math.sqrt(ax * ax + ay * ay);
+            if (len > 0) {
+              vibDx += v * (ax / len);
+              vibDy += v * (ay / len);
+            }
+          }
+        }
+
+        // Typing breath wave.
+        if (breathe > 0) {
+          final ax = x - cx;
+          final ay = y - cy;
+          final len = math.sqrt(ax * ax + ay * ay);
+          if (len > 0) {
+            final pulse = math.sin(angle * 3 + time * 4.0) * breathe * 3.0;
+            vibDx += pulse * (ax / len);
+            vibDy += pulse * (ay / len);
+          }
+        }
+
+        x += vibDx;
+        y += vibDy;
 
         if (s == 0) {
           path.moveTo(x, y);
         } else {
-          path.lineTo(x, y);
+          // Use quadratic curves for smooth contours.
+          final prevAngle = ((s - 1) / _segments) * 2 * math.pi;
+          final prevNoise = 1.0 + (rng.nextDouble() - 0.5) * 0.10;
+          final midAngle = (prevAngle + angle) / 2;
+          final cpx = cx + rx * prevNoise * math.cos(midAngle);
+          final cpy = cy + ry * prevNoise * math.sin(midAngle);
+          path.quadraticBezierTo(cpx + vibDx * 0.5, cpy + vibDy * 0.5, x, y);
         }
       }
 
+      path.close();
       canvas.drawPath(path, paint);
     }
   }
 
-  /// Calculate vibration displacement at point (px, py) from a source.
+  /// Vibration displacement at (px, py) from a mouse source.
+  /// Returns a signed amplitude – caller decides the direction.
   double _calcVibration(
-    double px, double py, Offset source,
-    double time, double strength, double radius,
+    double px, double py, Offset source, double time, double strength,
   ) {
     final dx = px - source.dx;
     final dy = py - source.dy;
     final dist = math.sqrt(dx * dx + dy * dy);
-    if (dist > radius) return 0;
+    if (dist > _influenceRadius) return 0;
 
-    // Proximity factor: strongest at cursor, fades to zero at radius.
-    final proximity = 1.0 - (dist / radius);
-    // Damped sinusoidal oscillation (like a plucked string).
-    final freq = 14.0 + dist * 0.05; // higher freq further from center
-    final phase = dist * 0.04; // wave ripples outward
-    final vibAmp = proximity * proximity * 18.0 * strength;
-    return math.sin(time * freq - phase) * vibAmp;
+    final proximity = 1.0 - (dist / _influenceRadius);
+    // Damped sinusoidal – like a plucked string.
+    final freq = 16.0 + dist * 0.04;
+    final phase = dist * 0.05;
+    final amp = proximity * proximity * 14.0 * strength;
+    return math.sin(time * freq - phase) * amp;
   }
 
   @override
