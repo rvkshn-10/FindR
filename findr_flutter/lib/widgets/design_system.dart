@@ -56,8 +56,16 @@ const double kRadiusSm = 8;
 const double kRadiusPill = 999;
 
 // ---------------------------------------------------------------------------
-// Gradient background – dense topo lines with string-vibration on hover
+// Gradient background – topo contour rings with ripple wave on hover/click
 // ---------------------------------------------------------------------------
+
+/// A ripple expanding outward from a point.
+class _Ripple {
+  final Offset center;
+  final int birthMs;
+  final double strength; // 1.0 = hover, 3.0 = click
+  const _Ripple(this.center, this.birthMs, this.strength);
+}
 
 class GradientBackground extends StatefulWidget {
   const GradientBackground({super.key, required this.child});
@@ -76,9 +84,9 @@ class GradientBackground extends StatefulWidget {
 class _GradientBackgroundState extends State<GradientBackground>
     with SingleTickerProviderStateMixin {
   Offset? _mousePos;
-  // Trail of recent mouse positions to create a wake of vibration.
-  final List<_MouseSample> _trail = [];
+  final List<_Ripple> _ripples = [];
   DateTime _lastMouseUpdate = DateTime(0);
+  DateTime _lastRippleEmit = DateTime(0);
 
   late final AnimationController _anim;
   Timer? _decayTimer;
@@ -89,18 +97,16 @@ class _GradientBackgroundState extends State<GradientBackground>
   @override
   void initState() {
     super.initState();
-    // Continuous ticker for the vibration animation.
+    // Continuous ticker drives ripple animation.
     _anim = AnimationController.unbounded(vsync: this)
       ..repeat(min: 0, max: 1, period: const Duration(seconds: 1));
     _anim.addListener(_tick);
   }
 
   void _tick() {
-    // Prune old trail samples (keep last 1.5s).
+    // Prune ripples older than 1.5s.
     final now = DateTime.now().millisecondsSinceEpoch;
-    _trail.removeWhere((s) => now - s.time > 1500);
-    // We rely on the ticker to drive repaints – no extra setState needed
-    // because AnimatedBuilder already rebuilds on each tick.
+    _ripples.removeWhere((r) => now - r.birthMs > 1500);
   }
 
   @override
@@ -120,7 +126,6 @@ class _GradientBackgroundState extends State<GradientBackground>
   }
 
   void _startDecay() {
-    // Gradually decay _breathe back to 0.
     const step = Duration(milliseconds: 50);
     _decayTimer?.cancel();
     _decayTimer = Timer.periodic(step, (t) {
@@ -148,11 +153,10 @@ class _GradientBackgroundState extends State<GradientBackground>
                 painter: _GradientBlobPainter(),
                 size: Size.infinite,
               ),
-              // Dense topo lines with vibration
+              // Concentric topo rings with ripple displacement
               CustomPaint(
-                painter: _TopoStringPainter(
-                  mousePos: _mousePos,
-                  trail: List.of(_trail),
+                painter: _TopoRipplePainter(
+                  ripples: List.of(_ripples),
                   breathe: _breathe,
                   timeMs: now,
                 ),
@@ -163,22 +167,40 @@ class _GradientBackgroundState extends State<GradientBackground>
                 painter: _CursorGlowPainter(mousePos: _mousePos),
                 size: Size.infinite,
               ),
-              MouseRegion(
-                onHover: (e) {
+              // Input layer: hover emits gentle ripples, click emits big one
+              Listener(
+                behavior: HitTestBehavior.translucent,
+                onPointerDown: (e) {
                   if (e.kind == PointerDeviceKind.mouse) {
-                    final now = DateTime.now();
-                    if (now.difference(_lastMouseUpdate).inMilliseconds < 16) {
-                      return;
-                    }
-                    _lastMouseUpdate = now;
-                    _mousePos = e.localPosition;
-                    _trail.add(_MouseSample(
+                    _ripples.add(_Ripple(
                       e.localPosition,
-                      now.millisecondsSinceEpoch,
+                      DateTime.now().millisecondsSinceEpoch,
+                      3.0,
                     ));
                   }
                 },
-                child: widget.child,
+                child: MouseRegion(
+                  onHover: (e) {
+                    if (e.kind == PointerDeviceKind.mouse) {
+                      final now = DateTime.now();
+                      // Throttle mouse position updates (~60fps).
+                      if (now.difference(_lastMouseUpdate).inMilliseconds >= 16) {
+                        _lastMouseUpdate = now;
+                        _mousePos = e.localPosition;
+                      }
+                      // Emit a hover ripple every ~120ms.
+                      if (now.difference(_lastRippleEmit).inMilliseconds >= 120) {
+                        _lastRippleEmit = now;
+                        _ripples.add(_Ripple(
+                          e.localPosition,
+                          now.millisecondsSinceEpoch,
+                          1.0,
+                        ));
+                      }
+                    }
+                  },
+                  child: widget.child,
+                ),
               ),
             ],
           ),
@@ -186,12 +208,6 @@ class _GradientBackgroundState extends State<GradientBackground>
       },
     );
   }
-}
-
-class _MouseSample {
-  final Offset pos;
-  final int time;
-  const _MouseSample(this.pos, this.time);
 }
 
 // ---------------------------------------------------------------------------
@@ -228,28 +244,27 @@ class _GradientBlobPainter extends CustomPainter {
 }
 
 // ---------------------------------------------------------------------------
-// Concentric topographic contour rings with string-vibration on hover
+// Concentric topo contour rings with smooth ripple-wave displacement
 // ---------------------------------------------------------------------------
 
-class _TopoStringPainter extends CustomPainter {
-  _TopoStringPainter({
-    this.mousePos,
-    required this.trail,
+class _TopoRipplePainter extends CustomPainter {
+  _TopoRipplePainter({
+    required this.ripples,
     this.breathe = 0.0,
     required this.timeMs,
   });
 
-  final Offset? mousePos;
-  final List<_MouseSample> trail;
+  final List<_Ripple> ripples;
   final double breathe;
   final int timeMs;
 
-  // Radius around cursor that triggers vibration.
-  static const double _influenceRadius = 160.0;
-  // Number of contour rings.
   static const int _ringCount = 14;
-  // Points per ring.
   static const int _segments = 80;
+
+  // Ripple physics.
+  static const double _rippleSpeed = 400.0; // px per second
+  static const double _rippleLifespan = 1.2; // seconds
+  static const double _rippleSpread = 2200.0; // bell-curve width (squared)
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -286,69 +301,67 @@ class _TopoStringPainter extends CustomPainter {
 
       for (int s = 0; s <= _segments; s++) {
         final angle = (s / _segments) * 2 * math.pi;
-        // Static organic noise per point (consistent across frames).
         final noise = 1.0 + (rng.nextDouble() - 0.5) * 0.12;
         double x = cx + rx * noise * math.cos(angle);
         double y = cy + ry * noise * math.sin(angle);
 
-        // ── String vibration from mouse proximity ──
-        double vibDx = 0;
-        double vibDy = 0;
+        // ── Ripple displacement ──
+        double dispDx = 0;
+        double dispDy = 0;
 
-        // Current mouse position.
-        if (mousePos != null) {
-          final v = _calcVibration(x, y, mousePos!, time, 1.0);
-          // Displace radially outward from the ring center.
-          final ax = x - cx;
-          final ay = y - cy;
-          final len = math.sqrt(ax * ax + ay * ay);
-          if (len > 0) {
-            vibDx += v * (ax / len);
-            vibDy += v * (ay / len);
-          }
-        }
+        // Radial unit vector (outward from ring center).
+        final ax = x - cx;
+        final ay = y - cy;
+        final len = math.sqrt(ax * ax + ay * ay);
+        final nx = len > 0 ? ax / len : 0.0;
+        final ny = len > 0 ? ay / len : 0.0;
 
-        // Trail: lingering vibration from recent mouse positions.
-        for (final sample in trail) {
-          final age = (timeMs - sample.time) / 1000.0;
-          final decay = (1.0 - age / 1.5).clamp(0.0, 1.0);
-          if (decay > 0.01) {
-            final v = _calcVibration(x, y, sample.pos, time, decay * 0.5);
-            final ax = x - cx;
-            final ay = y - cy;
-            final len = math.sqrt(ax * ax + ay * ay);
-            if (len > 0) {
-              vibDx += v * (ax / len);
-              vibDy += v * (ay / len);
-            }
-          }
+        for (final ripple in ripples) {
+          final age = (timeMs - ripple.birthMs) / 1000.0;
+          if (age > _rippleLifespan || age < 0) continue;
+
+          // Expanding wavefront radius.
+          final wavefront = age * _rippleSpeed;
+
+          // Distance from this point to ripple center.
+          final rdx = x - ripple.center.dx;
+          final rdy = y - ripple.center.dy;
+          final dist = math.sqrt(rdx * rdx + rdy * rdy);
+
+          // Bell curve: peaks when dist == wavefront, drops off on both sides.
+          final delta = dist - wavefront;
+          final bell = math.exp(-(delta * delta) / _rippleSpread);
+
+          // Fade out as ripple ages.
+          final fade = 1.0 - (age / _rippleLifespan);
+
+          // Displacement magnitude.
+          final disp = ripple.strength * bell * fade * 12.0;
+
+          // Push radially outward from ring center.
+          dispDx += disp * nx;
+          dispDy += disp * ny;
         }
 
         // Typing breath wave.
         if (breathe > 0) {
-          final ax = x - cx;
-          final ay = y - cy;
-          final len = math.sqrt(ax * ax + ay * ay);
-          if (len > 0) {
-            final pulse = math.sin(angle * 3 + time * 4.0) * breathe * 3.0;
-            vibDx += pulse * (ax / len);
-            vibDy += pulse * (ay / len);
-          }
+          final pulse = math.sin(angle * 3 + time * 4.0) * breathe * 3.0;
+          dispDx += pulse * nx;
+          dispDy += pulse * ny;
         }
 
-        x += vibDx;
-        y += vibDy;
+        x += dispDx;
+        y += dispDy;
 
         if (s == 0) {
           path.moveTo(x, y);
         } else {
-          // Use quadratic curves for smooth contours.
           final prevAngle = ((s - 1) / _segments) * 2 * math.pi;
           final prevNoise = 1.0 + (rng.nextDouble() - 0.5) * 0.10;
           final midAngle = (prevAngle + angle) / 2;
-          final cpx = cx + rx * prevNoise * math.cos(midAngle);
-          final cpy = cy + ry * prevNoise * math.sin(midAngle);
-          path.quadraticBezierTo(cpx + vibDx * 0.5, cpy + vibDy * 0.5, x, y);
+          final cpx = cx + rx * prevNoise * math.cos(midAngle) + dispDx * 0.5;
+          final cpy = cy + ry * prevNoise * math.sin(midAngle) + dispDy * 0.5;
+          path.quadraticBezierTo(cpx, cpy, x, y);
         }
       }
 
@@ -357,26 +370,8 @@ class _TopoStringPainter extends CustomPainter {
     }
   }
 
-  /// Vibration displacement at (px, py) from a mouse source.
-  /// Returns a signed amplitude – caller decides the direction.
-  double _calcVibration(
-    double px, double py, Offset source, double time, double strength,
-  ) {
-    final dx = px - source.dx;
-    final dy = py - source.dy;
-    final dist = math.sqrt(dx * dx + dy * dy);
-    if (dist > _influenceRadius) return 0;
-
-    final proximity = 1.0 - (dist / _influenceRadius);
-    // Damped sinusoidal – like a plucked string.
-    final freq = 16.0 + dist * 0.04;
-    final phase = dist * 0.05;
-    final amp = proximity * proximity * 14.0 * strength;
-    return math.sin(time * freq - phase) * amp;
-  }
-
   @override
-  bool shouldRepaint(covariant _TopoStringPainter old) => true; // ticking
+  bool shouldRepaint(covariant _TopoRipplePainter old) => true; // ticking
 }
 
 // ---------------------------------------------------------------------------
