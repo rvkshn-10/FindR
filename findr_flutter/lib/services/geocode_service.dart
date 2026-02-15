@@ -1,8 +1,6 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-
-const _nominatimBase = 'https://nominatim.openstreetmap.org/search';
-const _userAgent = 'FindR/1.0 (Flutter; contact via project repo)';
+import '../config.dart';
 
 class GeocodeResult {
   final double lat;
@@ -17,7 +15,7 @@ class GeocodeResult {
 }
 
 Future<GeocodeResult?> geocode(String query) async {
-  final uri = Uri.parse(_nominatimBase).replace(
+  final uri = Uri.parse(kNominatimBase).replace(
     queryParameters: {
       'q': query,
       'format': 'json',
@@ -25,10 +23,9 @@ Future<GeocodeResult?> geocode(String query) async {
       'addressdetails': '0',
     },
   );
-  final res = await http.get(
-    uri,
-    headers: {'User-Agent': _userAgent},
-  );
+  final res = await http
+      .get(uri, headers: {'User-Agent': kHttpUserAgent})
+      .timeout(kGeocodeTimeout);
   if (res.statusCode != 200) return null;
   final list = jsonDecode(res.body) as List<dynamic>?;
   if (list == null || list.isEmpty) return null;

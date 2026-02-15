@@ -2,13 +2,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'distance_util.dart';
 
-/// Primary and fallback Overpass API endpoints (public instances).
-const _overpassEndpoints = [
-  'https://overpass-api.de/api/interpreter',
-  'https://overpass.kumi.systems/api/interpreter',
-];
-const _defaultRadiusM = 5000;
-const _timeout = Duration(seconds: 12);
+import '../config.dart';
 
 class OverpassStore {
   final String id;
@@ -76,7 +70,7 @@ Future<List<OverpassStore>> _fetchFromEndpoint(
         body: query,
         headers: {'Content-Type': 'text/plain'},
       )
-      .timeout(_timeout);
+      .timeout(kOverpassTimeout);
   if (res.statusCode != 200) {
     throw Exception('Overpass failed: ${res.statusCode}');
   }
@@ -127,7 +121,7 @@ Future<List<OverpassStore>> _fetchFromEndpoint(
 Future<List<OverpassStore>> fetchNearbyStores(
   double lat,
   double lng, {
-  int radiusM = _defaultRadiusM,
+  int radiusM = kDefaultOverpassRadiusM,
 }) async {
   final query = '''
 [out:json][timeout:10];
@@ -139,7 +133,7 @@ out center;
 ''';
 
   // Fire all endpoints in parallel, return the first successful result.
-  final futures = _overpassEndpoints.map(
+  final futures = kOverpassEndpoints.map(
     (url) => _fetchFromEndpoint(url, query, lat, lng),
   );
 
@@ -154,7 +148,7 @@ out center;
 
   // Future.any throws if the first future to complete throws, but others
   // may still succeed. Fall back to sequential if Future.any fails fast.
-  for (final baseUrl in _overpassEndpoints) {
+  for (final baseUrl in kOverpassEndpoints) {
     try {
       return await _fetchFromEndpoint(baseUrl, query, lat, lng);
     } catch (e) {

@@ -77,6 +77,7 @@ class GradientBackground extends StatefulWidget {
 class _GradientBackgroundState extends State<GradientBackground>
     with SingleTickerProviderStateMixin {
   Offset? _mousePos;
+  DateTime _lastMouseUpdate = DateTime(0);
 
   // Typing energy: builds up with keystrokes, decays when idle.
   late final AnimationController _breathe;
@@ -144,6 +145,12 @@ class _GradientBackgroundState extends State<GradientBackground>
                   // Only track on devices with a mouse; on touch devices
                   // the glow stays centered and topo lines stay static.
                   if (e.kind == PointerDeviceKind.mouse) {
+                    // Throttle to ~60 fps (skip if < 16ms since last call).
+                    final now = DateTime.now();
+                    if (now.difference(_lastMouseUpdate).inMilliseconds < 16) {
+                      return;
+                    }
+                    _lastMouseUpdate = now;
                     setState(() => _mousePos = e.localPosition);
                   }
                 },

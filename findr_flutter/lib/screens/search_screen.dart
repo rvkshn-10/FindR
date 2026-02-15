@@ -8,8 +8,8 @@ import '../services/store_filters.dart';
 import '../widgets/design_system.dart';
 import '../widgets/settings_panel.dart';
 import '../version.dart';
-import 'results_screen.dart';
 import 'app_shell.dart';
+import 'results_screen.dart';
 
 // Shared font helper for Outfit
 TextStyle _outfit({
@@ -37,6 +37,7 @@ const _kDefaultSuggestions = <String>[
 ];
 
 const _kRecentSearchesKey = 'recent_searches';
+const _kRadiusKey = 'search_radius_miles';
 const _kMaxRecent = 8;
 
 class SearchScreen extends StatefulWidget {
@@ -57,8 +58,9 @@ class _SearchScreenState extends State<SearchScreen> {
   final _itemController = TextEditingController();
   final _locationController = TextEditingController();
   bool _useMyLocation = true;
-  final double _maxDistanceMiles = 5;
+  double _maxDistanceMiles = 5;
   bool _loading = false;
+  bool _geocoding = false;
   bool _settingsOpen = false;
   bool _filtersExpanded = false;
   String? _qualityTier; // null = All
@@ -70,6 +72,20 @@ class _SearchScreenState extends State<SearchScreen> {
   void initState() {
     super.initState();
     _loadRecentSearches();
+    _loadRadius();
+  }
+
+  Future<void> _loadRadius() async {
+    final prefs = await SharedPreferences.getInstance();
+    final saved = prefs.getDouble(_kRadiusKey);
+    if (saved != null && mounted) {
+      setState(() => _maxDistanceMiles = saved.clamp(1, 25));
+    }
+  }
+
+  Future<void> _saveRadius(double value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setDouble(_kRadiusKey, value);
   }
 
   Future<void> _loadRecentSearches() async {
@@ -137,7 +153,8 @@ class _SearchScreenState extends State<SearchScreen> {
         lat = pos.latitude;
         lng = pos.longitude;
       } else {
-        final loc = _locationController.text.trim();
+        var loc = _locationController.text.trim();
+        if (loc.length > 200) loc = loc.substring(0, 200);
         if (loc.isEmpty) {
           setState(() => _loading = false);
           if (mounted) {
@@ -149,7 +166,9 @@ class _SearchScreenState extends State<SearchScreen> {
           }
           return;
         }
+        setState(() => _geocoding = true);
         final result = await geocode(loc);
+        if (mounted) setState(() => _geocoding = false);
         if (result == null) {
           setState(() => _loading = false);
           if (mounted) {
@@ -201,7 +220,7 @@ class _SearchScreenState extends State<SearchScreen> {
         );
       }
     } finally {
-      if (mounted) setState(() => _loading = false);
+      if (mounted) setState(() { _loading = false; _geocoding = false; });
     }
   }
 
@@ -263,6 +282,7 @@ class _SearchScreenState extends State<SearchScreen> {
                 child: IconButton(
                   icon: const Icon(Icons.settings,
                       color: SupplyMapColors.textSecondary, size: 20),
+                  tooltip: 'Settings',
                   onPressed: () =>
                       setState(() => _settingsOpen = !_settingsOpen),
                 ),
@@ -317,6 +337,10 @@ class _SearchScreenState extends State<SearchScreen> {
                 // ── Location toggle (below search bar) ──────────────
                 const SizedBox(height: 12),
                 _buildLocationToggle(),
+
+                // ── Distance slider ──────────────────────────────
+                const SizedBox(height: 12),
+                _buildDistanceSlider(),
 
                 // ── Filters toggle ───────────────────────────────
                 const SizedBox(height: 12),
@@ -511,11 +535,81 @@ class _SearchScreenState extends State<SearchScreen> {
                 enabled: !_loading,
               ),
             ),
+            if (_geocoding)
+              Padding(
+                padding: const EdgeInsets.only(top: 6, left: 4),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const SizedBox(
+                      width: 10,
+                      height: 10,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 1.5,
+                        color: SupplyMapColors.accentGreen,
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      'Locating…',
+                      style: _outfit(
+                        fontSize: 11,
+                        color: SupplyMapColors.textTertiary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
           ],
         ],
       ),
     );
   }
+  // ── Distance slider ─────────────────────────────────────────────────────
+  Widget _buildDistanceSlider() {
+    return Container(
+      constraints: const BoxConstraints(maxWidth: 700),
+      child: Row(
+        children: [
+          Icon(Icons.near_me, size: 14, color: SupplyMapColors.textTertiary),
+          const SizedBox(width: 6),
+          Text(
+            'Radius: ${_maxDistanceMiles.round()} mi',
+            style: _outfit(
+              fontSize: 13,
+              fontWeight: FontWeight.w500,
+              color: SupplyMapColors.textSecondary,
+            ),
+          ),
+          Expanded(
+            child: SliderTheme(
+              data: SliderThemeData(
+                activeTrackColor: SupplyMapColors.accentGreen,
+                inactiveTrackColor: SupplyMapColors.borderSubtle,
+                thumbColor: SupplyMapColors.accentGreen,
+                overlayColor: SupplyMapColors.accentGreen.withValues(alpha: 0.12),
+                trackHeight: 3,
+                thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 7),
+              ),
+              child: Slider(
+                value: _maxDistanceMiles,
+                min: 1,
+                max: 25,
+                divisions: 24,
+                onChanged: _loading
+                    ? null
+                    : (v) {
+                        setState(() => _maxDistanceMiles = v);
+                        _saveRadius(v);
+                      },
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   // ── Filters section ─────────────────────────────────────────────────────
   Widget _buildFiltersSection() {
     final hasActive = _qualityTier != null || _membershipsOnly || _selectedStores.isNotEmpty;
@@ -530,7 +624,7 @@ class _SearchScreenState extends State<SearchScreen> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Icon(
-                  _filtersExpanded ? Icons.tune : Icons.tune,
+                  hasActive ? Icons.filter_list : Icons.tune,
                   size: 16,
                   color: hasActive
                       ? SupplyMapColors.accentGreen

@@ -71,6 +71,7 @@ class SettingsPanel extends StatelessWidget {
                   IconButton(
                     icon: const Icon(Icons.close,
                         color: SupplyMapColors.textSecondary, size: 20),
+                    tooltip: 'Close settings',
                     onPressed: onClose,
                   ),
                 ],

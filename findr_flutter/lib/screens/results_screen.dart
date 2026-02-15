@@ -11,6 +11,7 @@ import '../services/distance_util.dart';
 import '../providers/settings_provider.dart';
 import '../widgets/design_system.dart';
 import '../widgets/settings_panel.dart';
+import '../config.dart';
 import '../version.dart';
 
 // ---------------------------------------------------------------------------
@@ -24,9 +25,10 @@ _CardStyle _styleForStore(int index, Store store, List<Store> allStores) {
   if (index == 0) return _CardStyle.closest;
   // "Fastest" = shortest drive time among stores with duration data
   if (store.durationMinutes != null) {
-    final fastestDur = allStores
-        .where((s) => s.durationMinutes != null)
-        .fold<int>(999, (min, s) => s.durationMinutes! < min ? s.durationMinutes! : min);
+    final withDuration = allStores.where((s) => s.durationMinutes != null);
+    if (withDuration.isEmpty) return _CardStyle.standard;
+    final fastestDur = withDuration
+        .fold<int>(2147483647, (min, s) => s.durationMinutes! < min ? s.durationMinutes! : min);
     if (store.durationMinutes == fastestDur && index != 0) {
       return _CardStyle.fastest;
     }
@@ -96,6 +98,37 @@ TextStyle _outfit({
 }
 
 // ---------------------------------------------------------------------------
+// Safe URL launcher
+// ---------------------------------------------------------------------------
+
+Future<void> _safeLaunch(String url) async {
+  try {
+    final uri = Uri.parse(url);
+    await launchUrl(uri, mode: LaunchMode.externalApplication);
+  } catch (_) {
+    // Silently ignore unsupported schemes or parse errors.
+  }
+}
+
+/// Format a price placeholder with the user's currency.
+String _formatPrice(String price, String currency) {
+  // Strip existing currency symbols for re-formatting.
+  final raw = price.replaceAll(RegExp(r'[^\d.]'), '');
+  switch (currency) {
+    case 'EUR':
+      return '€$raw';
+    case 'GBP':
+      return '£$raw';
+    case 'CAD':
+      return 'C\$$raw';
+    case 'MXN':
+      return 'MX\$$raw';
+    default:
+      return '\$$raw';
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Results screen
 // ---------------------------------------------------------------------------
 
@@ -131,6 +164,7 @@ class _ResultsScreenState extends State<ResultsScreen> {
   String? _selectedStoreId;
   late String _currentItem;
   bool _settingsOpen = false;
+  bool _enriching = false;
 
   @override
   void initState() {
@@ -173,6 +207,7 @@ class _ResultsScreenState extends State<ResultsScreen> {
 
       // Phase 2: Enrich with road distances in background.
       if (fastResult.stores.isNotEmpty) {
+        if (mounted) setState(() => _enriching = true);
         final enriched = await enrichWithRoadDistances(
           fastResult: fastResult,
           lat: widget.lat,
@@ -182,6 +217,7 @@ class _ResultsScreenState extends State<ResultsScreen> {
         if (!mounted) return;
         setState(() {
           _result = enriched;
+          _enriching = false;
         });
       }
     } catch (e) {
@@ -203,17 +239,15 @@ class _ResultsScreenState extends State<ResultsScreen> {
   }
 
   void _openDirections(Store store) {
-    final url = Uri.parse(
+    _safeLaunch(
       'https://www.google.com/maps/dir/?api=1&destination=${store.lat},${store.lng}',
     );
-    launchUrl(url, mode: LaunchMode.externalApplication);
   }
 
   void _onSelectStore(Store store) {
     setState(() => _selectedStoreId = store.id);
-    const targetZoom = 17.5;
     final currentZoom = _mapController.camera.zoom;
-    final nextZoom = currentZoom < targetZoom ? targetZoom : currentZoom;
+    final nextZoom = currentZoom < kMapSelectZoom ? kMapSelectZoom : currentZoom;
     _mapController.move(LatLng(store.lat, store.lng), nextZoom);
   }
 
@@ -286,13 +320,20 @@ class _ResultsScreenState extends State<ResultsScreen> {
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 16),
-                _pillButton('Back', onTap: () {
-                  if (widget.onNewSearch != null) {
-                    widget.onNewSearch!();
-                  } else {
-                    Navigator.of(context).pop();
-                  }
-                }),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _pillButton('Back', onTap: () {
+                      if (widget.onNewSearch != null) {
+                        widget.onNewSearch!();
+                      } else {
+                        Navigator.of(context).pop();
+                      }
+                    }),
+                    const SizedBox(width: 12),
+                    _pillButton('Try again', onTap: _load),
+                  ],
+                ),
               ],
             ),
           ),
@@ -336,6 +377,7 @@ class _ResultsScreenState extends State<ResultsScreen> {
                 onSelectStore: _onSelectStore,
                 onDirections: _openDirections,
                 onReSearch: _reSearch,
+                enriching: _enriching,
                 onNewSearch: () {
                   if (widget.onNewSearch != null) {
                     widget.onNewSearch!();
@@ -364,6 +406,7 @@ class _ResultsScreenState extends State<ResultsScreen> {
               left: 12,
               child: _MapControlBtn(
                 icon: Icons.arrow_back,
+                tooltip: 'Back',
                 onTap: () {
                   if (widget.onNewSearch != null) {
                     widget.onNewSearch!();
@@ -440,6 +483,30 @@ class _ResultsScreenState extends State<ResultsScreen> {
                         ],
                       ),
                     ),
+                    if (_enriching)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 20, vertical: 6),
+                        child: Row(
+                          children: [
+                            const SizedBox(
+                              width: 12,
+                              height: 12,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 1.5,
+                                color: SupplyMapColors.accentGreen,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Refining distances…',
+                              style: _outfit(
+                                  fontSize: 11,
+                                  color: SupplyMapColors.textTertiary),
+                            ),
+                          ],
+                        ),
+                      ),
                     const SizedBox(height: 12),
                     // List
                     Expanded(
@@ -536,6 +603,7 @@ class _ResultsScreenState extends State<ResultsScreen> {
             child: IconButton(
               icon: const Icon(Icons.settings,
                   color: SupplyMapColors.textSecondary, size: 20),
+              tooltip: 'Settings',
               onPressed: () =>
                   setState(() => _settingsOpen = !_settingsOpen),
             ),
@@ -590,14 +658,13 @@ class _ResultsScreenState extends State<ResultsScreen> {
                   mapController: _mapController,
                   options: MapOptions(
                     initialCenter: LatLng(widget.lat, widget.lng),
-                    initialZoom: 14,
+                    initialZoom: kMapInitialZoom,
                     backgroundColor: Colors.transparent,
                   ),
                   children: [
                     TileLayer(
-                      urlTemplate:
-                          'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                      userAgentPackageName: 'com.findr.findr_flutter',
+                      urlTemplate: kTileUrl,
+                      userAgentPackageName: kTileUserAgent,
                     ),
                     CircleLayer(
                       circles: [
@@ -679,6 +746,7 @@ class _ResultsScreenState extends State<ResultsScreen> {
                     children: [
                       _MapControlBtn(
                           icon: Icons.add,
+                          tooltip: 'Zoom in',
                           onTap: () {
                             final cam = _mapController.camera;
                             _mapController.move(
@@ -687,6 +755,7 @@ class _ResultsScreenState extends State<ResultsScreen> {
                       const SizedBox(height: 8),
                       _MapControlBtn(
                           icon: Icons.remove,
+                          tooltip: 'Zoom out',
                           onTap: () {
                             final cam = _mapController.camera;
                             _mapController.move(
@@ -695,6 +764,7 @@ class _ResultsScreenState extends State<ResultsScreen> {
                       const SizedBox(height: 8),
                       _MapControlBtn(
                           icon: Icons.navigation,
+                          tooltip: 'Fit to results',
                           onTap: () {
                             _fitMapToClosestStores(stores);
                           }),
@@ -722,6 +792,7 @@ class _Sidebar extends StatefulWidget {
     required this.onDirections,
     required this.onReSearch,
     required this.onNewSearch,
+    this.enriching = false,
   });
 
   final String query;
@@ -733,6 +804,7 @@ class _Sidebar extends StatefulWidget {
   final void Function(Store) onDirections;
   final void Function(String) onReSearch;
   final VoidCallback onNewSearch;
+  final bool enriching;
 
   @override
   State<_Sidebar> createState() => _SidebarState();
@@ -832,7 +904,7 @@ class _SidebarState extends State<_Sidebar> {
                       icon: const Icon(Icons.close,
                           color: SupplyMapColors.textSecondary, size: 16),
                       onPressed: widget.onNewSearch,
-                      tooltip: '',
+                      tooltip: 'New search',
                       padding: EdgeInsets.zero,
                     ),
                   ),
@@ -890,6 +962,29 @@ class _SidebarState extends State<_Sidebar> {
                   ],
                 ),
               ),
+              if (widget.enriching)
+                Padding(
+                  padding: const EdgeInsets.only(top: 12, bottom: 4),
+                  child: Row(
+                    children: [
+                      const SizedBox(
+                        width: 12,
+                        height: 12,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 1.5,
+                          color: SupplyMapColors.accentGreen,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Refining distances…',
+                        style: _outfit(
+                            fontSize: 11,
+                            color: SupplyMapColors.textTertiary),
+                      ),
+                    ],
+                  ),
+                ),
               const SizedBox(height: 20),
               // Results list
               Expanded(
@@ -1091,7 +1186,7 @@ class _ResultCardState extends State<_ResultCard> {
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Text(
-                  widget.store.price,
+                  _formatPrice(widget.store.price, widget.settings.currency),
                   style: _outfit(
                     fontSize: 15,
                     fontWeight: FontWeight.w700,
@@ -1172,21 +1267,44 @@ class _ResultCardState extends State<_ResultCard> {
                         ],
                       ),
                     if (widget.store.phone != null)
-                      Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(Icons.phone,
-                              size: 12,
-                              color: fg.withValues(alpha: 0.7)),
-                          const SizedBox(width: 4),
-                          Text(
-                            widget.store.phone!,
-                            style: _outfit(
-                              fontSize: 11,
-                              color: fg.withValues(alpha: 0.7),
+                      GestureDetector(
+                        onTap: () => _safeLaunch('tel:${widget.store.phone}'),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.phone,
+                                size: 12,
+                                color: fg.withValues(alpha: 0.7)),
+                            const SizedBox(width: 4),
+                            Text(
+                              widget.store.phone!,
+                              style: _outfit(
+                                fontSize: 11,
+                                color: fg.withValues(alpha: 0.7),
+                              ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
+                      ),
+                    if (widget.store.website != null)
+                      GestureDetector(
+                        onTap: () => _safeLaunch(widget.store.website!),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.language,
+                                size: 12,
+                                color: fg.withValues(alpha: 0.7)),
+                            const SizedBox(width: 4),
+                            Text(
+                              'Website',
+                              style: _outfit(
+                                fontSize: 11,
+                                color: fg.withValues(alpha: 0.7),
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                   ],
                 ),
@@ -1295,10 +1413,12 @@ class _MapControlBtn extends StatefulWidget {
   const _MapControlBtn({
     required this.icon,
     required this.onTap,
+    this.tooltip,
   });
 
   final IconData icon;
   final VoidCallback onTap;
+  final String? tooltip;
 
   @override
   State<_MapControlBtn> createState() => _MapControlBtnState();
@@ -1313,29 +1433,32 @@ class _MapControlBtnState extends State<_MapControlBtn> {
       onEnter: (_) => setState(() => _hovered = true),
       onExit: (_) => setState(() => _hovered = false),
       cursor: SystemMouseCursors.click,
-      child: GestureDetector(
-        onTap: widget.onTap,
-        child: Container(
-          width: 48,
-          height: 48,
-          decoration: BoxDecoration(
-            color: _hovered
-                ? SupplyMapColors.borderSubtle
-                : Colors.white,
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(
-                color: SupplyMapColors.borderSubtle),
-            boxShadow: const [
-              BoxShadow(
-                color: Color(0x081A1918),
-                blurRadius: 6,
-                offset: Offset(0, 1),
-              ),
-            ],
+      child: Tooltip(
+        message: widget.tooltip ?? '',
+        child: GestureDetector(
+          onTap: widget.onTap,
+          child: Container(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              color: _hovered
+                  ? SupplyMapColors.borderSubtle
+                  : Colors.white,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(
+                  color: SupplyMapColors.borderSubtle),
+              boxShadow: const [
+                BoxShadow(
+                  color: Color(0x081A1918),
+                  blurRadius: 6,
+                  offset: Offset(0, 1),
+                ),
+              ],
+            ),
+            alignment: Alignment.center,
+            child: Icon(widget.icon,
+                color: SupplyMapColors.textBlack, size: 20),
           ),
-          alignment: Alignment.center,
-          child: Icon(widget.icon,
-              color: SupplyMapColors.textBlack, size: 20),
         ),
       ),
     );
@@ -1407,7 +1530,7 @@ class _SelectedStorePopup extends StatelessWidget {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    '${store.price} · ${formatDistance(store.distanceKm, useKm: settings.useKm)} away'
+                    '${_formatPrice(store.price, settings.currency)} · ${formatDistance(store.distanceKm, useKm: settings.useKm)} away'
                     '${store.durationMinutes != null ? ' · ~${store.durationMinutes} min' : ''}',
                     style: _outfit(
                         fontSize: 12, color: SupplyMapColors.textSecondary),

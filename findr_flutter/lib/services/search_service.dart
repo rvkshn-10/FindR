@@ -3,10 +3,7 @@ import 'store_filters.dart';
 import 'nearby_stores_service.dart';
 import 'road_distance_service.dart';
 import '../models/search_models.dart';
-
-const _maxStores = 10;
-const _maxStoresForRoad = 25;
-const _avgSpeedKmh = 50.0;
+import '../config.dart';
 
 bool _passesFilters(OverpassStore s, SearchFilters? filters) {
   if (filters == null || !filters.hasFilters) return true;
@@ -23,7 +20,7 @@ bool _passesFilters(OverpassStore s, SearchFilters? filters) {
 
 /// Build a SearchResult from a list of Store candidates.
 SearchResult _buildResult(List<Store> candidates, double lat, double lng) {
-  final stores = candidates.take(_maxStores).toList();
+  final stores = candidates.take(kMaxStoresDisplay).toList();
   if (stores.isEmpty) {
     return const SearchResult(
       stores: [],
@@ -93,7 +90,7 @@ Future<SearchResult> enrichWithRoadDistances({
 }) async {
   if (fastResult.stores.isEmpty) return fastResult;
 
-  final forRoad = fastResult.stores.take(_maxStoresForRoad).toList();
+  final forRoad = fastResult.stores.take(kMaxStoresForRoad).toList();
   final dests = forRoad.map((s) => MapEntry(s.lat, s.lng)).toList();
   final roadResults = await getRoadDistancesOsrm(lat, lng, dests);
 
@@ -104,7 +101,7 @@ Future<SearchResult> enrichWithRoadDistances({
       var roadKm = roadResults[i].distanceKm;
       final durMin = roadResults[i].durationMinutes;
       if (roadKm <= 0 && durMin != null && durMin > 0) {
-        roadKm = ((durMin / 60) * _avgSpeedKmh * 100).round() / 100;
+        roadKm = ((durMin / 60) * kAvgSpeedKmh * 100).round() / 100;
       }
       final straightKm = haversineKm(lat, lng, s.lat, s.lng);
       final useRoad = roadKm > 0 &&

@@ -1,9 +1,6 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-
-const _osrmBase = 'https://router.project-osrm.org/table/v1/driving';
-const _maxDest = 25;
-const _timeout = Duration(seconds: 10);
+import '../config.dart';
 
 class RoadDistanceResult {
   final double distanceKm;
@@ -25,18 +22,18 @@ Future<List<RoadDistanceResult>?> _fetchChunk(
   final destIndices = List.generate(chunk.length, (j) => j + 1).join(';');
 
   // Request duration and distance; some OSRM servers only support duration.
-  Uri uri = Uri.parse('$_osrmBase/$coords').replace(
+  Uri uri = Uri.parse('$kOsrmBase/$coords').replace(
     queryParameters: {'sources': '0', 'destinations': destIndices, 'annotations': 'duration,distance'},
   );
-  var res = await http.get(uri).timeout(_timeout);
+  var res = await http.get(uri).timeout(kOsrmTimeout);
   var data = res.statusCode == 200 ? jsonDecode(res.body) as Map<String, dynamic>? : null;
 
   // If server rejects annotations, retry without it.
   if (data == null || data['code'] != 'Ok' || data['annotations'] == 'error') {
-    uri = Uri.parse('$_osrmBase/$coords').replace(
+    uri = Uri.parse('$kOsrmBase/$coords').replace(
       queryParameters: {'sources': '0', 'destinations': destIndices},
     );
-    res = await http.get(uri).timeout(_timeout);
+    res = await http.get(uri).timeout(kOsrmTimeout);
     if (res.statusCode != 200) return null;
     data = jsonDecode(res.body) as Map<String, dynamic>;
     if (data['code'] != 'Ok') return null;
@@ -62,7 +59,7 @@ Future<List<RoadDistanceResult>?> _fetchChunk(
   return results;
 }
 
-/// Get road distances for all destinations, chunking into groups of [_maxDest]
+/// Get road distances for all destinations, chunking into groups of [kMaxOsrmDest]
 /// and running all chunks in parallel.
 Future<List<RoadDistanceResult>?> getRoadDistancesOsrm(
   double originLat,
@@ -73,8 +70,8 @@ Future<List<RoadDistanceResult>?> getRoadDistancesOsrm(
 
   // Split into chunks
   final chunks = <List<MapEntry<double, double>>>[];
-  for (var i = 0; i < destinations.length; i += _maxDest) {
-    final end = (i + _maxDest > destinations.length) ? destinations.length : i + _maxDest;
+  for (var i = 0; i < destinations.length; i += kMaxOsrmDest) {
+    final end = (i + kMaxOsrmDest > destinations.length) ? destinations.length : i + kMaxOsrmDest;
     chunks.add(destinations.sublist(i, end));
   }
 
