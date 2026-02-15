@@ -493,10 +493,10 @@ class _ResultsScreenState extends State<ResultsScreen> {
     return Stack(
       children: [
         child,
-        // Settings gear – pinned top-right
+        // Settings gear – pinned top-left (next to back button on narrow)
         Positioned(
           top: MediaQuery.of(context).padding.top + 8,
-          right: 12,
+          left: 68,
           child: Container(
             width: 44,
             height: 44,
