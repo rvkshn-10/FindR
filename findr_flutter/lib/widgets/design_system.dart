@@ -1,5 +1,6 @@
 import 'dart:async' show Timer;
 import 'dart:math' as math;
+import 'dart:ui' show PointerDeviceKind;
 import 'package:flutter/material.dart';
 
 // ---------------------------------------------------------------------------
@@ -139,7 +140,13 @@ class _GradientBackgroundState extends State<GradientBackground>
                 size: Size.infinite,
               ),
               MouseRegion(
-                onHover: (e) => setState(() => _mousePos = e.localPosition),
+                onHover: (e) {
+                  // Only track on devices with a mouse; on touch devices
+                  // the glow stays centered and topo lines stay static.
+                  if (e.kind == PointerDeviceKind.mouse) {
+                    setState(() => _mousePos = e.localPosition);
+                  }
+                },
                 child: widget.child,
               ),
             ],
