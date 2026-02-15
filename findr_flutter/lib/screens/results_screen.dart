@@ -10,7 +10,6 @@ import '../services/search_service.dart';
 import '../services/distance_util.dart';
 import '../providers/settings_provider.dart';
 import '../widgets/liquid_glass_background.dart';
-// settings_screen.dart unused in results but kept for navigation if needed
 
 // ---------------------------------------------------------------------------
 // Card style enum – matches the HTML design card variants
@@ -250,7 +249,7 @@ class _ResultsScreenState extends State<ResultsScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              CircularProgressIndicator(color: SupplyMapColors.accentGreen),
+              const CircularProgressIndicator(color: SupplyMapColors.accentGreen),
               const SizedBox(height: 16),
               Text(
                 'Finding nearby stores…',
@@ -310,7 +309,7 @@ class _ResultsScreenState extends State<ResultsScreen> {
 
     final isWide = MediaQuery.of(context).size.width >= 500;
 
-    final mapWidget = _buildMapArea(stores, result, searchRadiusMeters, selectedStore);
+    final mapWidget = _buildMapArea(stores, result, searchRadiusMeters, selectedStore, settings);
 
     // Wide (web / tablet): map left + store list (sidebar) right
     if (isWide) {
@@ -369,13 +368,13 @@ class _ResultsScreenState extends State<ResultsScreen> {
             maxChildSize: 0.85,
             builder: (context, scrollController) {
               return Container(
-                decoration: BoxDecoration(
+                decoration: const BoxDecoration(
                   color: SupplyMapColors.sidebarBg,
-                  borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
                   border: Border(
                     top: BorderSide(color: SupplyMapColors.borderSubtle),
                   ),
-                  boxShadow: const [
+                  boxShadow: [
                     BoxShadow(
                       color: Color(0x121A1918),
                       blurRadius: 24,
@@ -478,8 +477,8 @@ class _ResultsScreenState extends State<ResultsScreen> {
     SearchResult result,
     double searchRadiusMeters,
     Store? selectedStore,
+    SettingsProvider settings,
   ) {
-    final settings = context.watch<SettingsProvider>();
     return Container(
       color: SupplyMapColors.mapBg,
       child: stores.isEmpty
@@ -682,7 +681,7 @@ class _SidebarState extends State<_Sidebar> {
   Widget build(BuildContext context) {
     return Container(
           width: 440,
-          decoration: BoxDecoration(
+          decoration: const BoxDecoration(
             color: SupplyMapColors.sidebarBg,
             border: Border(
               left: BorderSide(
@@ -734,12 +733,12 @@ class _SidebarState extends State<_Sidebar> {
                   Container(
                     width: 36,
                     height: 36,
-                    decoration: BoxDecoration(
+                    decoration: const BoxDecoration(
                       color: SupplyMapColors.glass,
                       shape: BoxShape.circle,
                     ),
                     child: IconButton(
-                      icon: Icon(Icons.close,
+                      icon: const Icon(Icons.close,
                           color: SupplyMapColors.textSecondary, size: 16),
                       onPressed: widget.onNewSearch,
                       tooltip: '',
@@ -759,8 +758,8 @@ class _SidebarState extends State<_Sidebar> {
                 ),
                 child: Row(
                   children: [
-                    Padding(
-                      padding: const EdgeInsets.only(left: 12),
+                    const Padding(
+                      padding: EdgeInsets.only(left: 12),
                       child: Icon(Icons.search,
                           size: 16, color: SupplyMapColors.textTertiary),
                     ),
@@ -1227,7 +1226,7 @@ class _SelectedStorePopup extends StatelessWidget {
                 children: [
                   Row(
                     children: [
-                      Icon(Icons.store,
+                      const Icon(Icons.store,
                           size: 16, color: SupplyMapColors.accentGreen),
                       const SizedBox(width: 8),
                       Expanded(
@@ -1244,7 +1243,7 @@ class _SelectedStorePopup extends StatelessWidget {
                       ),
                       GestureDetector(
                         onTap: onClose,
-                        child: Icon(Icons.close,
+                        child: const Icon(Icons.close,
                             size: 14, color: SupplyMapColors.textTertiary),
                       ),
                     ],

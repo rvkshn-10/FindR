@@ -53,10 +53,6 @@ const double kRadiusLg = 16;
 const double kRadiusMd = 12;
 const double kRadiusSm = 8;
 const double kRadiusPill = 999;
-const double kBlurStrength = 30;
-
-// Keep the old name so existing imports don't break.
-typedef LiquidGlassColors = SupplyMapColors;
 
 // ---------------------------------------------------------------------------
 // Gradient background (static warm blobs + topo lines + glow)

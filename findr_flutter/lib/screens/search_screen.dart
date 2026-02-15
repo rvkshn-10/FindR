@@ -54,9 +54,6 @@ class _SearchScreenState extends State<SearchScreen> {
   bool _useMyLocation = true;
   final double _maxDistanceMiles = 5;
   bool _loading = false;
-  final String _qualityTier = 'All';
-  final bool _membershipsOnly = false;
-  final Set<String> _selectedStoreNames = {};
   bool _settingsOpen = false;
 
   @override
@@ -130,11 +127,7 @@ class _SearchScreenState extends State<SearchScreen> {
         lat = result.lat;
         lng = result.lng;
       }
-      final filters = SearchFilters(
-        qualityTier: _qualityTier == 'All' ? null : _qualityTier,
-        membershipsOnly: _membershipsOnly,
-        storeNames: _selectedStoreNames.toList(),
-      );
+      const filters = SearchFilters();
       if (!mounted) return;
       final params = SearchResultParams(
         item: item,
@@ -208,7 +201,7 @@ class _SearchScreenState extends State<SearchScreen> {
                   ],
                 ),
                 child: IconButton(
-                  icon: Icon(Icons.settings,
+                  icon: const Icon(Icons.settings,
                       color: SupplyMapColors.textSecondary, size: 20),
                   onPressed: () =>
                       setState(() => _settingsOpen = !_settingsOpen),
@@ -328,8 +321,8 @@ class _SearchScreenState extends State<SearchScreen> {
       padding: const EdgeInsets.all(8),
       child: Row(
         children: [
-          Padding(
-            padding: const EdgeInsets.only(left: 12),
+          const Padding(
+            padding: EdgeInsets.only(left: 12),
             child: Icon(Icons.search, color: SupplyMapColors.textTertiary, size: 22),
           ),
           Expanded(
@@ -385,7 +378,7 @@ class _SearchScreenState extends State<SearchScreen> {
                   value: _useMyLocation,
                   onChanged:
                       _loading ? null : (v) => setState(() => _useMyLocation = v ?? true),
-                  side: BorderSide(color: SupplyMapColors.borderStrong),
+                  side: const BorderSide(color: SupplyMapColors.borderStrong),
                   checkColor: Colors.white,
                   fillColor: WidgetStateProperty.resolveWith((s) =>
                       s.contains(WidgetState.selected)
@@ -427,7 +420,7 @@ class _SearchScreenState extends State<SearchScreen> {
                   focusedBorder: InputBorder.none,
                   contentPadding: const EdgeInsets.symmetric(
                       horizontal: 16, vertical: 12),
-                  prefixIcon: Icon(Icons.place_outlined,
+                  prefixIcon: const Icon(Icons.place_outlined,
                       color: SupplyMapColors.textTertiary, size: 18),
                   filled: false,
                 ),
@@ -537,13 +530,13 @@ class _SettingsPanel extends StatelessWidget {
     return Material(
       color: Colors.transparent,
       child: Container(
-        decoration: BoxDecoration(
+        decoration: const BoxDecoration(
           color: SupplyMapColors.sidebarBg,
-          borderRadius: const BorderRadius.only(
+          borderRadius: BorderRadius.only(
             topLeft: Radius.circular(20),
             bottomLeft: Radius.circular(20),
           ),
-          boxShadow: const [
+          boxShadow: [
             BoxShadow(
               color: Color(0x1A000000),
               blurRadius: 24,
@@ -558,7 +551,7 @@ class _SettingsPanel extends StatelessWidget {
               padding: const EdgeInsets.fromLTRB(24, 24, 12, 8),
               child: Row(
                 children: [
-                  Icon(Icons.settings,
+                  const Icon(Icons.settings,
                       color: SupplyMapColors.textSecondary, size: 20),
                   const SizedBox(width: 10),
                   Text(
@@ -571,14 +564,14 @@ class _SettingsPanel extends StatelessWidget {
                   ),
                   const Spacer(),
                   IconButton(
-                    icon: Icon(Icons.close,
+                    icon: const Icon(Icons.close,
                         color: SupplyMapColors.textSecondary, size: 20),
                     onPressed: onClose,
                   ),
                 ],
               ),
             ),
-            Divider(color: SupplyMapColors.borderSubtle, height: 1),
+            const Divider(color: SupplyMapColors.borderSubtle, height: 1),
             // ── Body
             Expanded(
               child: ListView(
@@ -587,7 +580,7 @@ class _SettingsPanel extends StatelessWidget {
                   // Distance unit section
                   Row(
                     children: [
-                      Icon(Icons.straighten,
+                      const Icon(Icons.straighten,
                           color: SupplyMapColors.blue, size: 20),
                       const SizedBox(width: 12),
                       Text(
@@ -614,12 +607,12 @@ class _SettingsPanel extends StatelessWidget {
                     onChanged: (v) => settings.setDistanceUnit(v!),
                   ),
                   const SizedBox(height: 24),
-                  Divider(color: SupplyMapColors.borderSubtle, height: 1),
+                  const Divider(color: SupplyMapColors.borderSubtle, height: 1),
                   const SizedBox(height: 24),
                   // Currency section
                   Row(
                     children: [
-                      Icon(Icons.attach_money,
+                      const Icon(Icons.attach_money,
                           color: SupplyMapColors.accentGreen, size: 20),
                       const SizedBox(width: 12),
                       Text(
