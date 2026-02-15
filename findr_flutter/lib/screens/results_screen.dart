@@ -494,10 +494,10 @@ class _ResultsScreenState extends State<ResultsScreen> {
     return Stack(
       children: [
         child,
-        // Version label – pinned bottom-left
+        // Version label – pinned bottom-right
         Positioned(
           bottom: 10,
-          left: 14,
+          right: 14,
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
             decoration: BoxDecoration(
