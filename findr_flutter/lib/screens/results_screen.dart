@@ -10,6 +10,7 @@ import '../services/search_service.dart';
 import '../services/distance_util.dart';
 import '../providers/settings_provider.dart';
 import '../widgets/design_system.dart';
+import '../widgets/settings_panel.dart';
 
 // ---------------------------------------------------------------------------
 // Card style enum – matches the HTML design card variants
@@ -128,6 +129,7 @@ class _ResultsScreenState extends State<ResultsScreen> {
   final MapController _mapController = MapController();
   String? _selectedStoreId;
   late String _currentItem;
+  bool _settingsOpen = false;
 
   @override
   void initState() {
@@ -319,27 +321,30 @@ class _ResultsScreenState extends State<ResultsScreen> {
     if (isWide) {
       return Scaffold(
         backgroundColor: Colors.transparent,
-        body: Row(
-          children: [
-            Expanded(child: mapWidget),
-            _Sidebar(
-              query: _currentItem,
-              stores: stores,
-              result: result,
-              settings: settings,
-              selectedStoreId: _selectedStoreId,
-              onSelectStore: _onSelectStore,
-              onDirections: _openDirections,
-              onReSearch: _reSearch,
-              onNewSearch: () {
-                if (widget.onNewSearch != null) {
-                  widget.onNewSearch!();
-                } else {
-                  Navigator.of(context).pop();
-                }
-              },
-            ),
-          ],
+        body: _wrapWithSettings(
+          context: context,
+          child: Row(
+            children: [
+              Expanded(child: mapWidget),
+              _Sidebar(
+                query: _currentItem,
+                stores: stores,
+                result: result,
+                settings: settings,
+                selectedStoreId: _selectedStoreId,
+                onSelectStore: _onSelectStore,
+                onDirections: _openDirections,
+                onReSearch: _reSearch,
+                onNewSearch: () {
+                  if (widget.onNewSearch != null) {
+                    widget.onNewSearch!();
+                  } else {
+                    Navigator.of(context).pop();
+                  }
+                },
+              ),
+            ],
+          ),
         ),
       );
     }
@@ -347,26 +352,28 @@ class _ResultsScreenState extends State<ResultsScreen> {
     // Narrow (phone): map full-screen + draggable bottom sheet
     return Scaffold(
       backgroundColor: Colors.transparent,
-      body: Stack(
-        children: [
-          mapWidget,
-          // Back / new-search button
-          Positioned(
-            top: MediaQuery.of(context).padding.top + 8,
-            left: 12,
-            child: _MapControlBtn(
-              icon: Icons.arrow_back,
-              onTap: () {
-                if (widget.onNewSearch != null) {
-                  widget.onNewSearch!();
-                } else {
-                  Navigator.of(context).pop();
-                }
-              },
+      body: _wrapWithSettings(
+        context: context,
+        child: Stack(
+          children: [
+            mapWidget,
+            // Back / new-search button
+            Positioned(
+              top: MediaQuery.of(context).padding.top + 8,
+              left: 12,
+              child: _MapControlBtn(
+                icon: Icons.arrow_back,
+                onTap: () {
+                  if (widget.onNewSearch != null) {
+                    widget.onNewSearch!();
+                  } else {
+                    Navigator.of(context).pop();
+                  }
+                },
+              ),
             ),
-          ),
-          // Draggable results sheet
-          DraggableScrollableSheet(
+            // Draggable results sheet
+            DraggableScrollableSheet(
             initialChildSize: 0.35,
             minChildSize: 0.10,
             maxChildSize: 0.85,
@@ -468,8 +475,73 @@ class _ResultsScreenState extends State<ResultsScreen> {
               );
             },
           ),
-        ],
+          ],
+        ),
       ),
+    );
+  }
+
+  // -----------------------------------------------------------------------
+  // Settings overlay wrapper
+  // -----------------------------------------------------------------------
+  Widget _wrapWithSettings({
+    required BuildContext context,
+    required Widget child,
+  }) {
+    final screenW = MediaQuery.of(context).size.width;
+    final sidebarW = screenW < 400 ? screenW.toDouble() : 320.0;
+    return Stack(
+      children: [
+        child,
+        // Settings gear – pinned top-right
+        Positioned(
+          top: MediaQuery.of(context).padding.top + 8,
+          right: 12,
+          child: Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              shape: BoxShape.circle,
+              border: Border.all(color: SupplyMapColors.borderSubtle),
+              boxShadow: const [
+                BoxShadow(
+                  color: Color(0x081A1918),
+                  blurRadius: 6,
+                  offset: Offset(0, 1),
+                ),
+              ],
+            ),
+            child: IconButton(
+              icon: const Icon(Icons.settings,
+                  color: SupplyMapColors.textSecondary, size: 20),
+              onPressed: () =>
+                  setState(() => _settingsOpen = !_settingsOpen),
+            ),
+          ),
+        ),
+        // Dim background when open
+        if (_settingsOpen)
+          Positioned.fill(
+            child: GestureDetector(
+              onTap: () => setState(() => _settingsOpen = false),
+              child: Container(
+                  color: Colors.black.withValues(alpha: 0.15)),
+            ),
+          ),
+        // Sliding settings panel from the right
+        AnimatedPositioned(
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOutCubic,
+          top: 0,
+          bottom: 0,
+          right: _settingsOpen ? 0 : -sidebarW,
+          width: sidebarW,
+          child: SettingsPanel(
+            onClose: () => setState(() => _settingsOpen = false),
+          ),
+        ),
+      ],
     );
   }
 
