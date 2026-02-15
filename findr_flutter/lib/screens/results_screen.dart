@@ -11,6 +11,7 @@ import '../services/distance_util.dart';
 import '../providers/settings_provider.dart';
 import '../widgets/design_system.dart';
 import '../widgets/settings_panel.dart';
+import '../version.dart';
 
 // ---------------------------------------------------------------------------
 // Card style enum – matches the HTML design card variants
@@ -493,6 +494,18 @@ class _ResultsScreenState extends State<ResultsScreen> {
     return Stack(
       children: [
         child,
+        // Version label – pinned bottom-left
+        Positioned(
+          bottom: 8,
+          left: 12,
+          child: Text(
+            'v$appVersion',
+            style: _outfit(
+              fontSize: 10,
+              color: SupplyMapColors.textTertiary.withValues(alpha: 0.5),
+            ),
+          ),
+        ),
         // Settings gear – pinned top-left (next to back button on narrow)
         Positioned(
           top: MediaQuery.of(context).padding.top + 8,

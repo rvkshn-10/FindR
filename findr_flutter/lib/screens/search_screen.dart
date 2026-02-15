@@ -7,6 +7,7 @@ import '../services/geocode_service.dart';
 import '../services/store_filters.dart';
 import '../widgets/design_system.dart';
 import '../widgets/settings_panel.dart';
+import '../version.dart';
 import 'results_screen.dart';
 import 'app_shell.dart';
 
@@ -220,6 +221,18 @@ class _SearchScreenState extends State<SearchScreen> {
       body: SafeArea(
         child: Stack(
           children: [
+            // Version label – pinned bottom-left
+            Positioned(
+              bottom: 8,
+              left: 12,
+              child: Text(
+                'v$appVersion',
+                style: _outfit(
+                  fontSize: 10,
+                  color: SupplyMapColors.textTertiary.withValues(alpha: 0.5),
+                ),
+              ),
+            ),
             // Settings gear – pinned top-right
             Positioned(
               top: 16,
