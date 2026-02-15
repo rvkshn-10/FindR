@@ -56,7 +56,7 @@ const double kRadiusSm = 8;
 const double kRadiusPill = 999;
 
 // ---------------------------------------------------------------------------
-// Gradient background (static warm blobs + topo lines + glow)
+// Gradient background – dense topo lines with string-vibration on hover
 // ---------------------------------------------------------------------------
 
 class GradientBackground extends StatefulWidget {
@@ -65,7 +65,6 @@ class GradientBackground extends StatefulWidget {
   final Widget child;
 
   /// Call this from child widgets to trigger a typing pulse.
-  /// Usage: GradientBackground.onKeystroke(context)
   static void onKeystroke(BuildContext context) {
     context.findAncestorStateOfType<_GradientBackgroundState>()?._keystroke();
   }
@@ -77,39 +76,58 @@ class GradientBackground extends StatefulWidget {
 class _GradientBackgroundState extends State<GradientBackground>
     with SingleTickerProviderStateMixin {
   Offset? _mousePos;
+  // Trail of recent mouse positions to create a wake of vibration.
+  final List<_MouseSample> _trail = [];
   DateTime _lastMouseUpdate = DateTime(0);
 
-  // Typing energy: builds up with keystrokes, decays when idle.
-  late final AnimationController _breathe;
+  late final AnimationController _anim;
   Timer? _decayTimer;
+
+  // Typing energy: 0 = idle, 1 = active typing.
+  double _breathe = 0.0;
 
   @override
   void initState() {
     super.initState();
-    _breathe = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 800),
-    );
+    // Continuous ticker for the vibration animation.
+    _anim = AnimationController.unbounded(vsync: this)
+      ..repeat(min: 0, max: 1, period: const Duration(seconds: 1));
+    _anim.addListener(_tick);
+  }
+
+  void _tick() {
+    // Prune old trail samples (keep last 1.5s).
+    final now = DateTime.now().millisecondsSinceEpoch;
+    _trail.removeWhere((s) => now - s.time > 1500);
+    // We rely on the ticker to drive repaints – no extra setState needed
+    // because AnimatedBuilder already rebuilds on each tick.
   }
 
   @override
   void dispose() {
+    _anim.removeListener(_tick);
     _decayTimer?.cancel();
-    _breathe.dispose();
+    _anim.dispose();
     super.dispose();
   }
 
   void _keystroke() {
-    // Each keystroke nudges the energy up a bit (capped at 1.0).
-    // When typing stops, it decays back to 0.
-    final target = (_breathe.value + 0.15).clamp(0.0, 1.0);
-    _breathe.animateTo(target, duration: const Duration(milliseconds: 200));
-
-    // Schedule decay: after a pause, animate back to 0.
+    _breathe = (_breathe + 0.15).clamp(0.0, 1.0);
     _decayTimer?.cancel();
     _decayTimer = Timer(const Duration(milliseconds: 600), () {
-      if (mounted) {
-        _breathe.animateTo(0.0, duration: const Duration(milliseconds: 1200));
+      _startDecay();
+    });
+  }
+
+  void _startDecay() {
+    // Gradually decay _breathe back to 0.
+    const step = Duration(milliseconds: 50);
+    _decayTimer?.cancel();
+    _decayTimer = Timer.periodic(step, (t) {
+      _breathe -= 0.025;
+      if (_breathe <= 0) {
+        _breathe = 0;
+        t.cancel();
       }
     });
   }
@@ -117,41 +135,47 @@ class _GradientBackgroundState extends State<GradientBackground>
   @override
   Widget build(BuildContext context) {
     return AnimatedBuilder(
-      animation: _breathe,
+      animation: _anim,
       builder: (context, _) {
-        final energy = _breathe.value;
+        final now = DateTime.now().millisecondsSinceEpoch;
         return Container(
           color: SupplyMapColors.bodyBg,
           child: Stack(
             fit: StackFit.expand,
             children: [
+              // Soft color blobs (subtle depth)
               CustomPaint(
                 painter: _GradientBlobPainter(),
                 size: Size.infinite,
               ),
+              // Dense topo lines with vibration
               CustomPaint(
-                painter: _TopoPainter(
-                  breathe: energy,
+                painter: _TopoStringPainter(
                   mousePos: _mousePos,
+                  trail: List.of(_trail),
+                  breathe: _breathe,
+                  timeMs: now,
                 ),
                 size: Size.infinite,
               ),
+              // Glow around mouse
               CustomPaint(
-                painter: _SearchGlowPainter(mousePos: _mousePos),
+                painter: _CursorGlowPainter(mousePos: _mousePos),
                 size: Size.infinite,
               ),
               MouseRegion(
                 onHover: (e) {
-                  // Only track on devices with a mouse; on touch devices
-                  // the glow stays centered and topo lines stay static.
                   if (e.kind == PointerDeviceKind.mouse) {
-                    // Throttle to ~60 fps (skip if < 16ms since last call).
                     final now = DateTime.now();
                     if (now.difference(_lastMouseUpdate).inMilliseconds < 16) {
                       return;
                     }
                     _lastMouseUpdate = now;
-                    setState(() => _mousePos = e.localPosition);
+                    _mousePos = e.localPosition;
+                    _trail.add(_MouseSample(
+                      e.localPosition,
+                      now.millisecondsSinceEpoch,
+                    ));
                   }
                 },
                 child: widget.child,
@@ -164,155 +188,198 @@ class _GradientBackgroundState extends State<GradientBackground>
   }
 }
 
-class _GradientBlobPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    _drawBlob(
-      canvas,
-      Offset(size.width * 0.1, size.height * 0.1),
-      math.max(size.width, size.height) * 0.4,
-      SupplyMapColors.accentGreen.withValues(alpha: 0.08),
-    );
-    _drawBlob(
-      canvas,
-      Offset(size.width * 0.9, size.height * 0.8),
-      math.max(size.width, size.height) * 0.4,
-      SupplyMapColors.accentWarm.withValues(alpha: 0.08),
-    );
-    _drawBlob(
-      canvas,
-      Offset(size.width * 0.5, size.height * 0.5),
-      math.max(size.width, size.height) * 0.6,
-      SupplyMapColors.blue.withValues(alpha: 0.06),
-    );
-  }
-
-  void _drawBlob(Canvas canvas, Offset center, double radius, Color color) {
-    final paint = Paint()
-      ..shader = RadialGradient(
-        colors: [color, color.withValues(alpha: 0)],
-        stops: const [0.0, 1.0],
-      ).createShader(Rect.fromCircle(center: center, radius: radius));
-    canvas.drawCircle(center, radius, paint);
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+class _MouseSample {
+  final Offset pos;
+  final int time;
+  const _MouseSample(this.pos, this.time);
 }
 
 // ---------------------------------------------------------------------------
-// Topographic contour line painter (map-themed background texture)
+// Soft gradient blobs (subtle color depth behind the lines)
 // ---------------------------------------------------------------------------
 
-class _TopoPainter extends CustomPainter {
-  _TopoPainter({this.breathe = 0.0, this.mousePos});
+class _GradientBlobPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    _blob(canvas, Offset(size.width * 0.15, size.height * 0.1),
+        math.max(size.width, size.height) * 0.45,
+        SupplyMapColors.accentGreen.withValues(alpha: 0.06));
+    _blob(canvas, Offset(size.width * 0.85, size.height * 0.85),
+        math.max(size.width, size.height) * 0.45,
+        SupplyMapColors.accentWarm.withValues(alpha: 0.06));
+    _blob(canvas, Offset(size.width * 0.5, size.height * 0.45),
+        math.max(size.width, size.height) * 0.55,
+        SupplyMapColors.blue.withValues(alpha: 0.04));
+  }
 
-  /// 0 = resting, 1 = fully expanded (keystroke pulse).
-  final double breathe;
+  void _blob(Canvas c, Offset center, double r, Color color) {
+    c.drawCircle(
+      center,
+      r,
+      Paint()
+        ..shader = RadialGradient(
+          colors: [color, color.withValues(alpha: 0)],
+        ).createShader(Rect.fromCircle(center: center, radius: r)),
+    );
+  }
 
-  /// Current mouse position (null = no mouse yet).
+  @override
+  bool shouldRepaint(covariant CustomPainter old) => false;
+}
+
+// ---------------------------------------------------------------------------
+// Dense topographic lines with string-vibration on mouse proximity
+// ---------------------------------------------------------------------------
+
+class _TopoStringPainter extends CustomPainter {
+  _TopoStringPainter({
+    this.mousePos,
+    required this.trail,
+    this.breathe = 0.0,
+    required this.timeMs,
+  });
+
   final Offset? mousePos;
+  final List<_MouseSample> trail;
+  final double breathe;
+  final int timeMs;
+
+  // How many horizontal lines to draw.
+  static const int _lineCount = 50;
+  // Radius around cursor that triggers vibration.
+  static const double _influenceRadius = 180.0;
 
   @override
   void paint(Canvas canvas, Size size) {
-    final baseCx = size.width * 0.45;
-    final baseCy = size.height * 0.48;
-    final rng = math.Random(42);
+    if (size.isEmpty) return;
+    final rng = math.Random(7);
+    final w = size.width;
+    final h = size.height;
+    final spacing = h / (_lineCount + 1);
+    final time = timeMs / 1000.0; // seconds
 
-    // Parallax: how far the mouse is from center, normalized to -1..1.
-    double px = 0.0;
-    double py = 0.0;
-    if (mousePos != null && size.width > 0 && size.height > 0) {
-      px = (mousePos!.dx - size.width / 2) / (size.width / 2);
-      py = (mousePos!.dy - size.height / 2) / (size.height / 2);
-    }
+    for (int i = 0; i < _lineCount; i++) {
+      final baseY = spacing * (i + 1);
+      // Each line has a unique subtle vertical wobble (static topo character).
+      final seed = rng.nextDouble() * 1000;
+      final amplitude = 2.0 + rng.nextDouble() * 3.0; // gentle base wave
 
-    for (int i = 1; i <= 10; i++) {
-      final baseRx = 55.0 * i + rng.nextDouble() * 12;
-      final baseRy = 40.0 * i + rng.nextDouble() * 12;
-
-      // Scale up when typing – outer rings expand more.
-      final scale = 1.0 + breathe * (0.10 + 0.03 * i);
-      final rx = baseRx * scale;
-      final ry = baseRy * scale;
-
-      // Parallax shift: outer rings move more than inner.
-      final strength = 15.0 + i * 8.0;
-      final cx = baseCx + px * strength;
-      final cy = baseCy + py * strength;
-
-      // Lines get thicker and slightly greener when typing.
-      final baseAlpha = (i > 6) ? (0.5 - (i - 6) * 0.08) : 0.5;
-      final alpha = (baseAlpha + breathe * 0.25).clamp(0.0, 0.85);
-      final color = Color.lerp(
+      // Color: alternate subtle greens / warm greys for topo feel.
+      final hue = rng.nextDouble();
+      final baseColor = Color.lerp(
         SupplyMapColors.borderStrong,
         SupplyMapColors.accentGreen,
-        breathe * 0.35,
+        0.1 + hue * 0.15 + breathe * 0.3,
       )!;
+      final alpha = (0.25 + rng.nextDouble() * 0.2 + breathe * 0.15)
+          .clamp(0.0, 0.7);
 
       final paint = Paint()
         ..style = PaintingStyle.stroke
-        ..strokeWidth = 1.2 + breathe * 1.0
-        ..color = color.withValues(alpha: alpha);
+        ..strokeWidth = 0.8 + breathe * 0.4
+        ..color = baseColor.withValues(alpha: alpha);
 
       final path = Path();
+      const segments = 120;
 
-      const segments = 64;
       for (int s = 0; s <= segments; s++) {
-        final angle = (s / segments) * 2 * math.pi;
-        final noise = 1.0 + (rng.nextDouble() - 0.5) * 0.12;
-        final x = cx + rx * noise * math.cos(angle);
-        final y = cy + ry * noise * math.sin(angle);
+        final t = s / segments;
+        final x = t * w;
+
+        // Base topographic wave (static, unique per line).
+        double y = baseY +
+            math.sin(t * 6.0 + seed) * amplitude +
+            math.cos(t * 3.2 + seed * 0.7) * amplitude * 0.6;
+
+        // Breathing pulse from typing.
+        if (breathe > 0) {
+          y += math.sin(t * 10.0 + time * 4.0) * breathe * 4.0;
+        }
+
+        // ── String vibration from mouse proximity ──
+        // Check current mouse position.
+        double vibration = 0;
+        if (mousePos != null) {
+          vibration = _calcVibration(
+            x, y, mousePos!, time, 1.0, _influenceRadius,
+          );
+        }
+        // Check trail for lingering vibration (decays over time).
+        for (final sample in trail) {
+          final age = (timeMs - sample.time) / 1000.0; // seconds since sample
+          final decay = (1.0 - age / 1.5).clamp(0.0, 1.0);
+          if (decay > 0.01) {
+            vibration += _calcVibration(
+              x, y, sample.pos, time, decay * 0.6, _influenceRadius,
+            );
+          }
+        }
+
+        y += vibration;
+
         if (s == 0) {
           path.moveTo(x, y);
         } else {
-          final prevAngle = ((s - 1) / segments) * 2 * math.pi;
-          final prevNoise = 1.0 + (rng.nextDouble() - 0.5) * 0.10;
-          final cpx = cx + rx * prevNoise * math.cos((prevAngle + angle) / 2);
-          final cpy = cy + ry * prevNoise * math.sin((prevAngle + angle) / 2);
-          path.quadraticBezierTo(cpx, cpy, x, y);
+          path.lineTo(x, y);
         }
       }
 
-      path.close();
       canvas.drawPath(path, paint);
     }
   }
 
+  /// Calculate vibration displacement at point (px, py) from a source.
+  double _calcVibration(
+    double px, double py, Offset source,
+    double time, double strength, double radius,
+  ) {
+    final dx = px - source.dx;
+    final dy = py - source.dy;
+    final dist = math.sqrt(dx * dx + dy * dy);
+    if (dist > radius) return 0;
+
+    // Proximity factor: strongest at cursor, fades to zero at radius.
+    final proximity = 1.0 - (dist / radius);
+    // Damped sinusoidal oscillation (like a plucked string).
+    final freq = 14.0 + dist * 0.05; // higher freq further from center
+    final phase = dist * 0.04; // wave ripples outward
+    final vibAmp = proximity * proximity * 18.0 * strength;
+    return math.sin(time * freq - phase) * vibAmp;
+  }
+
   @override
-  bool shouldRepaint(covariant _TopoPainter oldDelegate) =>
-      oldDelegate.breathe != breathe || oldDelegate.mousePos != mousePos;
+  bool shouldRepaint(covariant _TopoStringPainter old) => true; // ticking
 }
 
 // ---------------------------------------------------------------------------
-// Radial glow painter (soft green halo behind the search bar)
+// Subtle glow around the cursor
 // ---------------------------------------------------------------------------
 
-class _SearchGlowPainter extends CustomPainter {
-  _SearchGlowPainter({this.mousePos});
+class _CursorGlowPainter extends CustomPainter {
+  _CursorGlowPainter({this.mousePos});
 
   final Offset? mousePos;
 
   @override
   void paint(Canvas canvas, Size size) {
-    // Follow mouse if available, otherwise default to center.
     final center = mousePos ?? Offset(size.width * 0.5, size.height * 0.55);
-    const radius = 350.0;
-    final paint = Paint()
-      ..shader = RadialGradient(
-        colors: [
-          SupplyMapColors.accentGreen.withValues(alpha: 0.18),
-          SupplyMapColors.accentGreen.withValues(alpha: 0.0),
-        ],
-        stops: const [0.0, 1.0],
-      ).createShader(Rect.fromCircle(center: center, radius: radius));
-
-    canvas.drawCircle(center, radius, paint);
+    const radius = 250.0;
+    canvas.drawCircle(
+      center,
+      radius,
+      Paint()
+        ..shader = RadialGradient(
+          colors: [
+            SupplyMapColors.accentGreen.withValues(alpha: 0.12),
+            SupplyMapColors.accentGreen.withValues(alpha: 0.0),
+          ],
+        ).createShader(Rect.fromCircle(center: center, radius: radius)),
+    );
   }
 
   @override
-  bool shouldRepaint(covariant _SearchGlowPainter oldDelegate) =>
-      oldDelegate.mousePos != mousePos;
+  bool shouldRepaint(covariant _CursorGlowPainter old) =>
+      old.mousePos != mousePos;
 }
 
 // ---------------------------------------------------------------------------
