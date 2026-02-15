@@ -2,12 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
-import '../models/store.dart';
+import '../models/search_models.dart';
 import '../providers/settings_provider.dart';
 import '../services/geocode_service.dart';
-import '../widgets/liquid_glass_background.dart';
+import '../widgets/design_system.dart';
 import 'results_screen.dart';
-import 'supply_map_shell.dart';
+import 'app_shell.dart';
 
 // Shared font helper for Outfit
 TextStyle _outfit({

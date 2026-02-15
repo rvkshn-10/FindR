@@ -1,8 +1,8 @@
 import 'distance_util.dart';
-import 'filter_constants.dart';
-import 'overpass_service.dart';
-import 'osrm_service.dart';
-import '../models/store.dart';
+import 'store_filters.dart';
+import 'nearby_stores_service.dart';
+import 'road_distance_service.dart';
+import '../models/search_models.dart';
 
 const _maxStores = 10;
 const _maxStoresForRoad = 25;

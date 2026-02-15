@@ -5,11 +5,11 @@ import 'package:provider/provider.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:url_launcher/url_launcher.dart';
-import '../models/store.dart';
+import '../models/search_models.dart';
 import '../services/search_service.dart';
 import '../services/distance_util.dart';
 import '../providers/settings_provider.dart';
-import '../widgets/liquid_glass_background.dart';
+import '../widgets/design_system.dart';
 
 // ---------------------------------------------------------------------------
 // Card style enum – matches the HTML design card variants

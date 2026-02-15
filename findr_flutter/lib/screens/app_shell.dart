@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import '../models/store.dart';
-import '../widgets/liquid_glass_background.dart';
+import '../models/search_models.dart';
+import '../widgets/design_system.dart';
 import 'results_screen.dart';
 import 'search_screen.dart';
 

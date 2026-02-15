@@ -4,8 +4,8 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'firebase_options.dart';
 import 'providers/settings_provider.dart';
-import 'screens/supply_map_shell.dart';
-import 'widgets/liquid_glass_background.dart';
+import 'screens/app_shell.dart';
+import 'widgets/design_system.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
