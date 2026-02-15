@@ -82,29 +82,36 @@ class GradientBackground extends StatefulWidget {
 }
 
 class _GradientBackgroundState extends State<GradientBackground>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   Offset? _mousePos;
   final List<_Ripple> _ripples = [];
   DateTime _lastMouseUpdate = DateTime(0);
   DateTime _lastRippleEmit = DateTime(0);
 
+  // Continuous ticker drives ripple animation each frame.
   late final AnimationController _anim;
-  Timer? _decayTimer;
 
-  // Typing energy: 0 = idle, 1 = active typing.
-  double _breathe = 0.0;
+  // Smooth breath controller — animateTo() for buttery interpolation.
+  late final AnimationController _breathe;
+  Timer? _decayTimer;
 
   @override
   void initState() {
     super.initState();
-    // Continuous ticker drives ripple animation.
     _anim = AnimationController.unbounded(vsync: this)
       ..repeat(min: 0, max: 1, period: const Duration(seconds: 1));
     _anim.addListener(_tick);
+
+    _breathe = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 300),
+      lowerBound: 0.0,
+      upperBound: 1.0,
+      value: 0.0,
+    );
   }
 
   void _tick() {
-    // Prune ripples older than 1.5s.
     final now = DateTime.now().millisecondsSinceEpoch;
     _ripples.removeWhere((r) => now - r.birthMs > 1500);
   }
@@ -114,25 +121,20 @@ class _GradientBackgroundState extends State<GradientBackground>
     _anim.removeListener(_tick);
     _decayTimer?.cancel();
     _anim.dispose();
+    _breathe.dispose();
     super.dispose();
   }
 
   void _keystroke() {
-    _breathe = (_breathe + 0.15).clamp(0.0, 1.0);
+    // Smoothly animate breath up.
+    final target = (_breathe.value + 0.15).clamp(0.0, 1.0);
+    _breathe.animateTo(target, duration: const Duration(milliseconds: 200));
+
+    // After typing stops, smoothly decay back to 0.
     _decayTimer?.cancel();
     _decayTimer = Timer(const Duration(milliseconds: 600), () {
-      _startDecay();
-    });
-  }
-
-  void _startDecay() {
-    const step = Duration(milliseconds: 50);
-    _decayTimer?.cancel();
-    _decayTimer = Timer.periodic(step, (t) {
-      _breathe -= 0.025;
-      if (_breathe <= 0) {
-        _breathe = 0;
-        t.cancel();
+      if (mounted) {
+        _breathe.animateTo(0.0, duration: const Duration(milliseconds: 1200));
       }
     });
   }
@@ -140,9 +142,10 @@ class _GradientBackgroundState extends State<GradientBackground>
   @override
   Widget build(BuildContext context) {
     return AnimatedBuilder(
-      animation: _anim,
+      animation: Listenable.merge([_anim, _breathe]),
       builder: (context, _) {
         final now = DateTime.now().millisecondsSinceEpoch;
+        final energy = _breathe.value;
         return Container(
           color: SupplyMapColors.bodyBg,
           child: Stack(
@@ -157,7 +160,7 @@ class _GradientBackgroundState extends State<GradientBackground>
               CustomPaint(
                 painter: _TopoRipplePainter(
                   ripples: List.of(_ripples),
-                  breathe: _breathe,
+                  breathe: energy,
                   timeMs: now,
                 ),
                 size: Size.infinite,
