@@ -17,6 +17,10 @@ class OverpassStore {
   final double lng;
   final String address;
   final double distanceKm;
+  final String? phone;
+  final String? website;
+  final String? openingHours;
+  final String? brand;
 
   OverpassStore({
     required this.id,
@@ -25,6 +29,10 @@ class OverpassStore {
     required this.lng,
     required this.address,
     required this.distanceKm,
+    this.phone,
+    this.website,
+    this.openingHours,
+    this.brand,
   });
 }
 
@@ -105,6 +113,10 @@ Future<List<OverpassStore>> _fetchFromEndpoint(
       lng: lngV,
       address: address,
       distanceKm: (distanceKm * 100).round() / 100,
+      phone: tags?['phone']?.toString() ?? tags?['contact:phone']?.toString(),
+      website: tags?['website']?.toString() ?? tags?['contact:website']?.toString(),
+      openingHours: tags?['opening_hours']?.toString(),
+      brand: tags?['brand']?.toString(),
     ));
   }
   stores.sort((a, b) => a.distanceKm.compareTo(b.distanceKm));

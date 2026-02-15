@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../models/search_models.dart';
 import '../providers/settings_provider.dart';
 import '../services/geocode_service.dart';
+import '../services/store_filters.dart';
 import '../widgets/design_system.dart';
 import 'results_screen.dart';
 import 'app_shell.dart';
@@ -55,6 +56,10 @@ class _SearchScreenState extends State<SearchScreen> {
   final double _maxDistanceMiles = 5;
   bool _loading = false;
   bool _settingsOpen = false;
+  bool _filtersExpanded = false;
+  String? _qualityTier; // null = All
+  bool _membershipsOnly = false;
+  final Set<String> _selectedStores = {};
 
   @override
   void dispose() {
@@ -127,7 +132,11 @@ class _SearchScreenState extends State<SearchScreen> {
         lat = result.lat;
         lng = result.lng;
       }
-      const filters = SearchFilters();
+      final filters = SearchFilters(
+        qualityTier: _qualityTier,
+        membershipsOnly: _membershipsOnly,
+        storeNames: _selectedStores.toList(),
+      );
       if (!mounted) return;
       final params = SearchResultParams(
         item: item,
@@ -258,6 +267,10 @@ class _SearchScreenState extends State<SearchScreen> {
                 const SizedBox(height: 12),
                 _buildLocationToggle(),
 
+                // ── Filters toggle ───────────────────────────────
+                const SizedBox(height: 12),
+                _buildFiltersSection(),
+
                 // ── Suggestion pills ────────────────────────────────
                 const SizedBox(height: 24),
                 Wrap(
@@ -284,18 +297,22 @@ class _SearchScreenState extends State<SearchScreen> {
                   child: Container(color: Colors.black.withValues(alpha: 0.15)),
                 ),
               ),
-            // Sliding panel from the right
-            AnimatedPositioned(
-              duration: const Duration(milliseconds: 300),
-              curve: Curves.easeOutCubic,
-              top: 0,
-              bottom: 0,
-              right: _settingsOpen ? 0 : -320,
-              width: 320,
-              child: _SettingsPanel(
-                onClose: () => setState(() => _settingsOpen = false),
-              ),
-            ),
+            // Sliding panel from the right (responsive width)
+            Builder(builder: (context) {
+              final screenW = MediaQuery.of(context).size.width;
+              final sidebarW = screenW < 400 ? screenW.toDouble() : 320.0;
+              return AnimatedPositioned(
+                duration: const Duration(milliseconds: 300),
+                curve: Curves.easeOutCubic,
+                top: 0,
+                bottom: 0,
+                right: _settingsOpen ? 0 : -sidebarW,
+                width: sidebarW,
+                child: _SettingsPanel(
+                  onClose: () => setState(() => _settingsOpen = false),
+                ),
+              );
+            }),
           ],
         ),
       ),
@@ -431,6 +448,190 @@ class _SearchScreenState extends State<SearchScreen> {
             ),
           ],
         ],
+      ),
+    );
+  }
+  // ── Filters section ─────────────────────────────────────────────────────
+  Widget _buildFiltersSection() {
+    final hasActive = _qualityTier != null || _membershipsOnly || _selectedStores.isNotEmpty;
+    return Container(
+      constraints: const BoxConstraints(maxWidth: 700),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          GestureDetector(
+            onTap: () => setState(() => _filtersExpanded = !_filtersExpanded),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  _filtersExpanded ? Icons.tune : Icons.tune,
+                  size: 16,
+                  color: hasActive
+                      ? SupplyMapColors.accentGreen
+                      : SupplyMapColors.textTertiary,
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  hasActive ? 'Filters (active)' : 'Filters',
+                  style: _outfit(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                    color: hasActive
+                        ? SupplyMapColors.accentGreen
+                        : SupplyMapColors.textSecondary,
+                  ),
+                ),
+                const SizedBox(width: 4),
+                Icon(
+                  _filtersExpanded
+                      ? Icons.keyboard_arrow_up
+                      : Icons.keyboard_arrow_down,
+                  size: 16,
+                  color: SupplyMapColors.textTertiary,
+                ),
+              ],
+            ),
+          ),
+          AnimatedCrossFade(
+            firstChild: const SizedBox.shrink(),
+            secondChild: Padding(
+              padding: const EdgeInsets.only(top: 12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Quality tier
+                  Text('Store type',
+                      style: _outfit(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: SupplyMapColors.textSecondary)),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [null, 'Premium', 'Standard', 'Budget']
+                        .map((tier) => _FilterChip(
+                              label: tier ?? 'All',
+                              selected: _qualityTier == tier,
+                              onTap: () =>
+                                  setState(() => _qualityTier = tier),
+                            ))
+                        .toList(),
+                  ),
+                  const SizedBox(height: 14),
+                  // Membership only
+                  GestureDetector(
+                    onTap: () => setState(
+                        () => _membershipsOnly = !_membershipsOnly),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: Checkbox(
+                            value: _membershipsOnly,
+                            onChanged: (v) => setState(
+                                () => _membershipsOnly = v ?? false),
+                            side: const BorderSide(
+                                color: SupplyMapColors.borderStrong),
+                            checkColor: Colors.white,
+                            fillColor:
+                                WidgetStateProperty.resolveWith((s) =>
+                                    s.contains(WidgetState.selected)
+                                        ? SupplyMapColors.accentGreen
+                                        : Colors.transparent),
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(4)),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Text('Membership stores only',
+                            style: _outfit(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w500,
+                              color: SupplyMapColors.textSecondary,
+                            )),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  // Specific stores
+                  Text('Specific stores',
+                      style: _outfit(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: SupplyMapColors.textSecondary)),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: commonStoresForFilter.map((name) {
+                      final sel = _selectedStores.contains(name);
+                      return _FilterChip(
+                        label: name,
+                        selected: sel,
+                        onTap: () => setState(() {
+                          if (sel) {
+                            _selectedStores.remove(name);
+                          } else {
+                            _selectedStores.add(name);
+                          }
+                        }),
+                      );
+                    }).toList(),
+                  ),
+                ],
+              ),
+            ),
+            crossFadeState: _filtersExpanded
+                ? CrossFadeState.showSecond
+                : CrossFadeState.showFirst,
+            duration: const Duration(milliseconds: 250),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Filter chip ────────────────────────────────────────────────────────────
+
+class _FilterChip extends StatelessWidget {
+  const _FilterChip({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: selected ? SupplyMapColors.accentGreen : SupplyMapColors.glass,
+          borderRadius: BorderRadius.circular(kRadiusPill),
+          border: Border.all(
+            color: selected
+                ? SupplyMapColors.accentGreen
+                : SupplyMapColors.borderSubtle,
+          ),
+        ),
+        child: Text(
+          label,
+          style: _outfit(
+            fontSize: 12,
+            fontWeight: FontWeight.w500,
+            color: selected ? Colors.white : SupplyMapColors.textBlack,
+          ),
+        ),
       ),
     );
   }

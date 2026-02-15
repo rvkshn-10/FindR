@@ -15,70 +15,63 @@ import '../widgets/design_system.dart';
 // Card style enum – matches the HTML design card variants
 // ---------------------------------------------------------------------------
 
-enum _CardStyle { bestMatch, goodMatch, convenient, available, substitute }
+enum _CardStyle { closest, fastest, nearby, standard }
 
-_CardStyle _styleForIndex(int i, bool isBest) {
-  if (isBest) return _CardStyle.bestMatch;
-  switch (i) {
-    case 0:
-      return _CardStyle.bestMatch;
-    case 1:
-      return _CardStyle.goodMatch;
-    case 2:
-      return _CardStyle.convenient;
-    case 3:
-      return _CardStyle.substitute;
-    default:
-      return i % 2 == 0 ? _CardStyle.available : _CardStyle.substitute;
+/// Assign a data-driven style based on actual store attributes.
+_CardStyle _styleForStore(int index, Store store, List<Store> allStores) {
+  if (index == 0) return _CardStyle.closest;
+  // "Fastest" = shortest drive time among stores with duration data
+  if (store.durationMinutes != null) {
+    final fastestDur = allStores
+        .where((s) => s.durationMinutes != null)
+        .fold<int>(999, (min, s) => s.durationMinutes! < min ? s.durationMinutes! : min);
+    if (store.durationMinutes == fastestDur && index != 0) {
+      return _CardStyle.fastest;
+    }
   }
+  if (store.distanceKm <= 1.6) return _CardStyle.nearby; // ~1 mile
+  return _CardStyle.standard;
 }
 
 Color _cardBg(_CardStyle s) {
   switch (s) {
-    case _CardStyle.bestMatch:
+    case _CardStyle.closest:
       return SupplyMapColors.red;
-    case _CardStyle.goodMatch:
+    case _CardStyle.fastest:
       return SupplyMapColors.purple;
-    case _CardStyle.convenient:
-      return SupplyMapColors.yellow;
-    case _CardStyle.available:
+    case _CardStyle.nearby:
       return SupplyMapColors.accentLightGreen;
-    case _CardStyle.substitute:
+    case _CardStyle.standard:
       return SupplyMapColors.glass;
   }
 }
 
 bool _cardDarkText(_CardStyle s) {
-  return s == _CardStyle.convenient || s == _CardStyle.available || s == _CardStyle.substitute;
+  return s == _CardStyle.nearby || s == _CardStyle.standard;
 }
 
 String _badgeLabel(_CardStyle s) {
   switch (s) {
-    case _CardStyle.bestMatch:
-      return 'Best Match';
-    case _CardStyle.goodMatch:
-      return 'Convenient';
-    case _CardStyle.convenient:
-      return 'Cheapest';
-    case _CardStyle.available:
-      return 'Open Now';
-    case _CardStyle.substitute:
-      return 'Suggestion';
+    case _CardStyle.closest:
+      return 'Closest';
+    case _CardStyle.fastest:
+      return 'Fastest';
+    case _CardStyle.nearby:
+      return 'Nearby';
+    case _CardStyle.standard:
+      return 'Store';
   }
 }
 
-// Pin color on map
 Color _pinColor(_CardStyle s) {
   switch (s) {
-    case _CardStyle.bestMatch:
+    case _CardStyle.closest:
       return SupplyMapColors.red;
-    case _CardStyle.goodMatch:
+    case _CardStyle.fastest:
       return SupplyMapColors.purple;
-    case _CardStyle.convenient:
-      return SupplyMapColors.yellow;
-    case _CardStyle.available:
+    case _CardStyle.nearby:
       return SupplyMapColors.accentGreen;
-    case _CardStyle.substitute:
+    case _CardStyle.standard:
       return SupplyMapColors.borderStrong;
   }
 }
@@ -241,22 +234,33 @@ class _ResultsScreenState extends State<ResultsScreen> {
   Widget build(BuildContext context) {
     final settings = context.watch<SettingsProvider>();
 
-    // Loading
+    // Loading — shimmer skeleton cards
     if (_loading) {
       return Scaffold(
         backgroundColor: Colors.transparent,
         body: Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const CircularProgressIndicator(color: SupplyMapColors.accentGreen),
-              const SizedBox(height: 16),
-              Text(
-                'Finding nearby stores…',
-                style: _outfit(
-                    fontSize: 14, color: SupplyMapColors.textSecondary),
-              ),
-            ],
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const CircularProgressIndicator(
+                    color: SupplyMapColors.accentGreen),
+                const SizedBox(height: 20),
+                Text(
+                  'Finding nearby stores…',
+                  style: _outfit(
+                      fontSize: 14, color: SupplyMapColors.textSecondary),
+                ),
+                const SizedBox(height: 28),
+                ...List.generate(
+                    3,
+                    (i) => Padding(
+                          padding: const EdgeInsets.only(bottom: 12),
+                          child: _ShimmerCard(delay: i * 200),
+                        )),
+              ],
+            ),
           ),
         ),
       );
@@ -432,29 +436,29 @@ class _ResultsScreenState extends State<ResultsScreen> {
                     // List
                     Expanded(
                       child: stores.isEmpty
-                          ? Center(
-                              child: Text(
-                                'No nearby stores found.',
-                                style: _outfit(
-                                    color: SupplyMapColors.textTertiary, fontSize: 14),
-                              ),
-                            )
+                          ? const _EmptyState()
                           : ListView.separated(
                               controller: scrollController,
-                              padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+                              padding: EdgeInsets.fromLTRB(
+                                  16,
+                                  0,
+                                  16,
+                                  24 + MediaQuery.of(context).padding.bottom),
                               itemCount: stores.length,
                               separatorBuilder: (_, __) =>
                                   const SizedBox(height: 12),
                               itemBuilder: (context, i) {
                                 final s = stores[i];
-                                final isBest = s.id == result.bestOptionId;
-                                final style = _styleForIndex(i, isBest);
-                                return _SafeResultCard(
-                                  store: s,
-                                  style: style,
-                                  settings: settings,
-                                  isSelected: s.id == _selectedStoreId,
-                                  onTap: () => _onSelectStore(s),
+                                final style = _styleForStore(i, s, stores);
+                                return _StaggeredFadeIn(
+                                  index: i,
+                                  child: _SafeResultCard(
+                                    store: s,
+                                    style: style,
+                                    settings: settings,
+                                    isSelected: s.id == _selectedStoreId,
+                                    onTap: () => _onSelectStore(s),
+                                  ),
                                 );
                               },
                             ),
@@ -482,12 +486,7 @@ class _ResultsScreenState extends State<ResultsScreen> {
     return Container(
       color: SupplyMapColors.mapBg,
       child: stores.isEmpty
-          ? Center(
-              child: Text(
-                'No nearby stores found.',
-                style: _outfit(color: SupplyMapColors.textTertiary, fontSize: 14),
-              ),
-            )
+          ? const Center(child: _EmptyState())
           : Stack(
               children: [
                 CustomPaint(
@@ -540,8 +539,7 @@ class _ResultsScreenState extends State<ResultsScreen> {
                         ...stores.asMap().entries.map((entry) {
                           final i = entry.key;
                           final s = entry.value;
-                          final isBest = s.id == result.bestOptionId;
-                          final style = _styleForIndex(i, isBest);
+                          final style = _styleForStore(i, s, stores);
                           final isSelected = s.id == _selectedStoreId;
                           return Marker(
                             point: LatLng(s.lat, s.lng),
@@ -550,7 +548,7 @@ class _ResultsScreenState extends State<ResultsScreen> {
                             child: _MapPin(
                               index: i + 1,
                               color: _pinColor(style),
-                              isBest: isBest,
+                              isBest: style == _CardStyle.closest,
                               isSelected: isSelected,
                               darkText: _cardDarkText(style),
                               onTap: () => _onSelectStore(s),
@@ -803,13 +801,7 @@ class _SidebarState extends State<_Sidebar> {
               // Results list
               Expanded(
                 child: widget.stores.isEmpty
-                    ? Center(
-                        child: Text(
-                          'No nearby stores found.',
-                          style: _outfit(
-                              color: SupplyMapColors.textTertiary, fontSize: 14),
-                        ),
-                      )
+                    ? const _EmptyState()
                     : ListView.separated(
                         itemCount: widget.stores.length,
                         separatorBuilder: (_, __) =>
@@ -817,17 +809,18 @@ class _SidebarState extends State<_Sidebar> {
                         padding: const EdgeInsets.only(right: 8),
                         itemBuilder: (context, i) {
                           final s = widget.stores[i];
-                          final isBest =
-                              s.id == widget.result.bestOptionId;
                           final style =
-                              _styleForIndex(i, isBest);
-                          return _SafeResultCard(
-                            store: s,
-                            style: style,
-                            settings: widget.settings,
-                            isSelected:
-                                s.id == widget.selectedStoreId,
-                            onTap: () => widget.onSelectStore(s),
+                              _styleForStore(i, s, widget.stores);
+                          return _StaggeredFadeIn(
+                            index: i,
+                            child: _SafeResultCard(
+                              store: s,
+                              style: style,
+                              settings: widget.settings,
+                              isSelected:
+                                  s.id == widget.selectedStoreId,
+                              onTap: () => widget.onSelectStore(s),
+                            ),
                           );
                         },
                       ),
@@ -907,7 +900,7 @@ class _ResultCardState extends State<_ResultCard> {
     final bg = _cardBg(widget.style);
     final dark = _cardDarkText(widget.style);
     final fg = dark ? SupplyMapColors.textBlack : Colors.white;
-    final isGlass = widget.style == _CardStyle.substitute;
+    final isGlass = widget.style == _CardStyle.standard;
 
     final noShadowStyle = Theme.of(context)
         .textTheme
@@ -973,11 +966,11 @@ class _ResultCardState extends State<_ResultCard> {
                       ),
                     ),
                   ),
-                  if (widget.style == _CardStyle.bestMatch)
+                  if (widget.store.durationMinutes != null)
                     Text(
-                      '98%',
+                      '~${widget.store.durationMinutes} min',
                       style: _outfit(
-                          fontSize: 16, fontWeight: FontWeight.w600, color: fg),
+                          fontSize: 13, fontWeight: FontWeight.w600, color: fg),
                     ),
                 ],
               ),
@@ -994,8 +987,11 @@ class _ResultCardState extends State<_ResultCard> {
                 ),
               ),
               const SizedBox(height: 12),
-              // Meta
-              Row(
+              // Meta row
+              Wrap(
+                spacing: 0,
+                runSpacing: 4,
+                crossAxisAlignment: WrapCrossAlignment.center,
                 children: [
                   Text(
                     formatDistance(widget.store.distanceKm,
@@ -1006,8 +1002,8 @@ class _ResultCardState extends State<_ResultCard> {
                       color: fg.withValues(alpha: 0.85),
                     ),
                   ),
-                  _dot(fg),
                   if (widget.store.durationMinutes != null) ...[
+                    _dot(fg),
                     Text(
                       '~${widget.store.durationMinutes} min',
                       style: _outfit(
@@ -1016,24 +1012,70 @@ class _ResultCardState extends State<_ResultCard> {
                         color: fg.withValues(alpha: 0.85),
                       ),
                     ),
-                    _dot(fg),
                   ],
-                  Text(
-                    widget.store.address.isEmpty
-                        ? 'In Stock'
-                        : widget.store.address
-                            .split(',')
-                            .first
-                            .trim(),
-                    style: _outfit(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w500,
-                      color: fg.withValues(alpha: 0.85),
+                  if (widget.store.address.isNotEmpty) ...[
+                    _dot(fg),
+                    Text(
+                      widget.store.address.split(',').first.trim(),
+                      style: _outfit(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                        color: fg.withValues(alpha: 0.85),
+                      ),
+                      overflow: TextOverflow.ellipsis,
                     ),
-                    overflow: TextOverflow.ellipsis,
-                  ),
+                  ],
                 ],
               ),
+              // Extra info row (phone, website, hours)
+              if (widget.store.phone != null ||
+                  widget.store.website != null ||
+                  widget.store.openingHours != null) ...[
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 12,
+                  runSpacing: 4,
+                  children: [
+                    if (widget.store.openingHours != null)
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.schedule,
+                              size: 12,
+                              color: fg.withValues(alpha: 0.7)),
+                          const SizedBox(width: 4),
+                          Flexible(
+                            child: Text(
+                              widget.store.openingHours!,
+                              style: _outfit(
+                                fontSize: 11,
+                                color: fg.withValues(alpha: 0.7),
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                    if (widget.store.phone != null)
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.phone,
+                              size: 12,
+                              color: fg.withValues(alpha: 0.7)),
+                          const SizedBox(width: 4),
+                          Text(
+                            widget.store.phone!,
+                            style: _outfit(
+                              fontSize: 11,
+                              color: fg.withValues(alpha: 0.7),
+                            ),
+                          ),
+                        ],
+                      ),
+                  ],
+                ),
+              ],
             ],
           ),
         ),
@@ -1159,13 +1201,13 @@ class _MapControlBtnState extends State<_MapControlBtn> {
       child: GestureDetector(
         onTap: widget.onTap,
         child: Container(
-          width: 44,
-          height: 44,
+          width: 48,
+          height: 48,
           decoration: BoxDecoration(
             color: _hovered
                 ? SupplyMapColors.borderSubtle
                 : Colors.white,
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(14),
             border: Border.all(
                 color: SupplyMapColors.borderSubtle),
             boxShadow: const [
@@ -1178,7 +1220,7 @@ class _MapControlBtnState extends State<_MapControlBtn> {
           ),
           alignment: Alignment.center,
           child: Icon(widget.icon,
-              color: SupplyMapColors.textBlack, size: 18),
+              color: SupplyMapColors.textBlack, size: 20),
         ),
       ),
     );
@@ -1255,6 +1297,16 @@ class _SelectedStorePopup extends StatelessWidget {
                     style: _outfit(
                         fontSize: 12, color: SupplyMapColors.textSecondary),
                   ),
+                  if (store.openingHours != null) ...[
+                    const SizedBox(height: 2),
+                    Text(
+                      store.openingHours!,
+                      style: _outfit(
+                          fontSize: 11, color: SupplyMapColors.textTertiary),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
                   const SizedBox(height: 8),
                   GestureDetector(
                     onTap: onDirections,
@@ -1343,6 +1395,164 @@ class _PopupArrowPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant _PopupArrowPainter old) =>
       old.color != color;
+}
+
+// ---------------------------------------------------------------------------
+// Shimmer skeleton card (loading placeholder)
+// ---------------------------------------------------------------------------
+
+class _ShimmerCard extends StatefulWidget {
+  const _ShimmerCard({this.delay = 0});
+  final int delay;
+
+  @override
+  State<_ShimmerCard> createState() => _ShimmerCardState();
+}
+
+class _ShimmerCardState extends State<_ShimmerCard>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+        vsync: this, duration: const Duration(milliseconds: 1200))
+      ..repeat();
+    if (widget.delay > 0) {
+      Future.delayed(Duration(milliseconds: widget.delay), () {
+        if (mounted) _ctrl.forward(from: 0);
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _ctrl,
+      builder: (context, child) {
+        final shimmer = _ctrl.value;
+        return Container(
+          constraints: const BoxConstraints(maxWidth: 500),
+          height: 100,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(kRadiusLg),
+            gradient: LinearGradient(
+              begin: Alignment(-1.0 + 2.0 * shimmer, 0),
+              end: Alignment(-0.5 + 2.0 * shimmer, 0),
+              colors: const [
+                Color(0xFFEEEEEE),
+                Color(0xFFF5F5F5),
+                Color(0xFFEEEEEE),
+              ],
+            ),
+          ),
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Container(
+                  width: 70,
+                  height: 14,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFDDDDDD),
+                    borderRadius: BorderRadius.circular(4),
+                  )),
+              Container(
+                  width: 160,
+                  height: 18,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFDDDDDD),
+                    borderRadius: BorderRadius.circular(4),
+                  )),
+              Container(
+                  width: 120,
+                  height: 12,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFDDDDDD),
+                    borderRadius: BorderRadius.circular(4),
+                  )),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Staggered fade-in wrapper for cards
+// ---------------------------------------------------------------------------
+
+class _StaggeredFadeIn extends StatelessWidget {
+  const _StaggeredFadeIn({required this.index, required this.child});
+  final int index;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0.0, end: 1.0),
+      duration: Duration(milliseconds: 350 + index * 80),
+      curve: Curves.easeOut,
+      builder: (context, value, child) {
+        return Opacity(
+          opacity: value,
+          child: Transform.translate(
+            offset: Offset(0, 12 * (1 - value)),
+            child: child,
+          ),
+        );
+      },
+      child: child,
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Empty state widget
+// ---------------------------------------------------------------------------
+
+class _EmptyState extends StatelessWidget {
+  const _EmptyState();
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.storefront_outlined,
+              size: 48, color: SupplyMapColors.borderStrong.withValues(alpha: 0.5)),
+          const SizedBox(height: 12),
+          Text(
+            'No stores found nearby',
+            style: _outfit(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+              color: SupplyMapColors.textSecondary,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Try increasing the search radius or\nsearching for a different item.',
+            textAlign: TextAlign.center,
+            style: _outfit(
+              fontSize: 13,
+              color: SupplyMapColors.textTertiary,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 // ---------------------------------------------------------------------------

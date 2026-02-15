@@ -7,6 +7,10 @@ class Store {
   final String address;
   final double distanceKm;
   final int? durationMinutes;
+  final String? phone;
+  final String? website;
+  final String? openingHours;
+  final String? brand;
 
   const Store({
     required this.id,
@@ -16,6 +20,10 @@ class Store {
     required this.address,
     required this.distanceKm,
     this.durationMinutes,
+    this.phone,
+    this.website,
+    this.openingHours,
+    this.brand,
   });
 
   Store copyWith({
@@ -26,6 +34,10 @@ class Store {
     String? address,
     double? distanceKm,
     int? durationMinutes,
+    String? phone,
+    String? website,
+    String? openingHours,
+    String? brand,
   }) {
     return Store(
       id: id ?? this.id,
@@ -35,6 +47,10 @@ class Store {
       address: address ?? this.address,
       distanceKm: distanceKm ?? this.distanceKm,
       durationMinutes: durationMinutes ?? this.durationMinutes,
+      phone: phone ?? this.phone,
+      website: website ?? this.website,
+      openingHours: openingHours ?? this.openingHours,
+      brand: brand ?? this.brand,
     );
   }
 }

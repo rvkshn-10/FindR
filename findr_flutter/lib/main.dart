@@ -92,7 +92,7 @@ class FindRApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ChangeNotifierProvider(
-      create: (_) => SettingsProvider(),
+      create: (_) => SettingsProvider()..load(),
       child: MaterialApp(
         title: 'FindR',
         theme: _supplyMapTheme,

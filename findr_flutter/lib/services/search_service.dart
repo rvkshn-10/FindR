@@ -72,6 +72,10 @@ Future<SearchResult> searchFast({
             lng: s.lng,
             address: s.address,
             distanceKm: s.distanceKm,
+            phone: s.phone,
+            website: s.website,
+            openingHours: s.openingHours,
+            brand: s.brand,
           ))
       .toList()
     ..sort((a, b) => a.distanceKm.compareTo(b.distanceKm));
@@ -115,6 +119,10 @@ Future<SearchResult> enrichWithRoadDistances({
         address: s.address,
         distanceKm: useRoad ? roadKm : s.distanceKm,
         durationMinutes: useRoad ? durMin : null,
+        phone: s.phone,
+        website: s.website,
+        openingHours: s.openingHours,
+        brand: s.brand,
       ));
     }
     withRoad.sort((a, b) => a.distanceKm.compareTo(b.distanceKm));
