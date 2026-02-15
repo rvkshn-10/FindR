@@ -1,0 +1,10 @@
+# Auto-bump version
+
+Every time you modify or add any file inside `findr_flutter/lib/` (other than `version.dart` itself), you MUST also bump the patch number in `findr_flutter/lib/version.dart`.
+
+The version format is `XXX.XXX.XXX` (e.g. `000.000.002`). Increment the last segment by 1 each time. When it reaches 999, roll over to the middle segment:
+- `000.000.999` → `000.001.000`
+- `000.001.999` → `000.002.000`
+- `000.999.999` → `001.000.000`
+
+Only bump once per task/commit, not once per file changed.

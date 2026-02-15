@@ -496,13 +496,21 @@ class _ResultsScreenState extends State<ResultsScreen> {
         child,
         // Version label – pinned bottom-left
         Positioned(
-          bottom: 8,
-          left: 12,
-          child: Text(
-            'v$appVersion',
-            style: _outfit(
-              fontSize: 10,
-              color: SupplyMapColors.textTertiary.withValues(alpha: 0.5),
+          bottom: 10,
+          left: 14,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+            decoration: BoxDecoration(
+              color: Colors.black.withValues(alpha: 0.06),
+              borderRadius: BorderRadius.circular(4),
+            ),
+            child: Text(
+              'v$appVersion',
+              style: _outfit(
+                fontSize: 11,
+                fontWeight: FontWeight.w500,
+                color: SupplyMapColors.textSecondary,
+              ),
             ),
           ),
         ),
