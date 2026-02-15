@@ -1,7 +1,8 @@
 import 'dart:async' show Timer;
-import 'dart:math' as math;
-import 'dart:ui' show PointerDeviceKind;
+import 'dart:ui' as ui show PointerDeviceKind;
 import 'package:flutter/material.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart';
 
 // ---------------------------------------------------------------------------
 // Design tokens from the HTML mockup
@@ -56,7 +57,7 @@ const double kRadiusSm = 8;
 const double kRadiusPill = 999;
 
 // ---------------------------------------------------------------------------
-// Gradient background – topo contour rings with color heatmap on hover
+// Gradient background – terrain map with fog-reveal on hover
 // ---------------------------------------------------------------------------
 
 /// A sample of the mouse position at a point in time.
@@ -110,9 +111,9 @@ class _GradientBackgroundState extends State<GradientBackground>
   }
 
   void _tick() {
-    // Prune trail samples older than 3s.
+    // Prune trail samples older than 3.5s.
     final now = DateTime.now().millisecondsSinceEpoch;
-    _trail.removeWhere((s) => now - s.timeMs > 3000);
+    _trail.removeWhere((s) => now - s.timeMs > 3500);
   }
 
   @override
@@ -147,14 +148,28 @@ class _GradientBackgroundState extends State<GradientBackground>
           child: Stack(
             fit: StackFit.expand,
             children: [
-              // Soft color blobs
-              CustomPaint(
-                painter: _GradientBlobPainter(),
-                size: Size.infinite,
+              // ── Bottom layer: decorative terrain map ──
+              IgnorePointer(
+                child: FlutterMap(
+                  options: const MapOptions(
+                    initialCenter: LatLng(46.8, 8.2), // Swiss Alps
+                    initialZoom: 12,
+                    interactionOptions: InteractionOptions(
+                      flags: InteractiveFlag.none,
+                    ),
+                  ),
+                  children: [
+                    TileLayer(
+                      urlTemplate:
+                          'https://tile.opentopomap.org/{z}/{x}/{y}.png',
+                      userAgentPackageName: 'com.findr.findr_flutter',
+                    ),
+                  ],
+                ),
               ),
-              // Topo rings with color heatmap
+              // ── Fog overlay with mouse reveal ──
               CustomPaint(
-                painter: _TopoHeatPainter(
+                painter: _FogRevealPainter(
                   mousePos: _mousePos,
                   trail: List.of(_trail),
                   breathe: energy,
@@ -162,14 +177,15 @@ class _GradientBackgroundState extends State<GradientBackground>
                 ),
                 size: Size.infinite,
               ),
-              // Glow around mouse
+              // ── Cursor glow ──
               CustomPaint(
                 painter: _CursorGlowPainter(mousePos: _mousePos),
                 size: Size.infinite,
               ),
+              // ── Input layer ──
               MouseRegion(
                 onHover: (e) {
-                  if (e.kind == PointerDeviceKind.mouse) {
+                  if (e.kind == ui.PointerDeviceKind.mouse) {
                     final now = DateTime.now();
                     if (now.difference(_lastMouseUpdate).inMilliseconds >= 16) {
                       _lastMouseUpdate = now;
@@ -192,44 +208,11 @@ class _GradientBackgroundState extends State<GradientBackground>
 }
 
 // ---------------------------------------------------------------------------
-// Soft gradient blobs
+// Fog overlay – thick cream covers the map; cursor punches through it
 // ---------------------------------------------------------------------------
 
-class _GradientBlobPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    _blob(canvas, Offset(size.width * 0.15, size.height * 0.1),
-        math.max(size.width, size.height) * 0.45,
-        SupplyMapColors.accentGreen.withValues(alpha: 0.06));
-    _blob(canvas, Offset(size.width * 0.85, size.height * 0.85),
-        math.max(size.width, size.height) * 0.45,
-        SupplyMapColors.accentWarm.withValues(alpha: 0.06));
-    _blob(canvas, Offset(size.width * 0.5, size.height * 0.45),
-        math.max(size.width, size.height) * 0.55,
-        SupplyMapColors.blue.withValues(alpha: 0.04));
-  }
-
-  void _blob(Canvas c, Offset center, double r, Color color) {
-    c.drawCircle(
-      center,
-      r,
-      Paint()
-        ..shader = RadialGradient(
-          colors: [color, color.withValues(alpha: 0)],
-        ).createShader(Rect.fromCircle(center: center, radius: r)),
-    );
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter old) => false;
-}
-
-// ---------------------------------------------------------------------------
-// Topo contour rings – lines stay still, color changes near the cursor
-// ---------------------------------------------------------------------------
-
-class _TopoHeatPainter extends CustomPainter {
-  _TopoHeatPainter({
+class _FogRevealPainter extends CustomPainter {
+  _FogRevealPainter({
     this.mousePos,
     required this.trail,
     this.breathe = 0.0,
@@ -241,125 +224,105 @@ class _TopoHeatPainter extends CustomPainter {
   final double breathe;
   final int timeMs;
 
-  static const int _ringCount = 14;
-  static const int _segments = 80;
-  // Radius of the color influence around the cursor / trail points.
-  static const double _heatRadius = 180.0;
+  // Exaggerated reveal parameters.
+  static const double _cursorRadius = 220.0;
+  static const double _cursorCoreRadius = 80.0;
+  static const double _trailRadius = 160.0;
 
   @override
   void paint(Canvas canvas, Size size) {
     if (size.isEmpty) return;
-    final rng = math.Random(42);
-    final cx = size.width * 0.45;
-    final cy = size.height * 0.48;
-    final time = timeMs / 1000.0;
 
-    // Warm color for the trailing wake.
-    const heatGreen = SupplyMapColors.accentGreen;
-    const heatWarm = SupplyMapColors.accentWarm;
-    const coldColor = SupplyMapColors.borderStrong;
+    // Save layer so we can use blend modes to "cut holes" in the fog.
+    canvas.saveLayer(Offset.zero & size, Paint());
 
-    for (int i = 1; i <= _ringCount; i++) {
-      final baseRx = 50.0 * i + rng.nextDouble() * 14;
-      final baseRy = 36.0 * i + rng.nextDouble() * 14;
+    // 1) Fill entire canvas with cream fog.
+    //    Typing breath makes fog slightly thinner globally.
+    final fogAlpha = (0.82 - breathe * 0.12).clamp(0.55, 0.85);
+    canvas.drawRect(
+      Offset.zero & size,
+      Paint()..color = SupplyMapColors.bodyBg.withValues(alpha: fogAlpha),
+    );
 
-      // Typing breath: rings expand smoothly.
-      final scale = 1.0 + breathe * (0.08 + 0.025 * i);
-      final rx = baseRx * scale;
-      final ry = baseRy * scale;
+    // 2) Cut reveal holes using DstOut blend mode.
+    //    DstOut erases the fog wherever we paint, proportional to alpha.
+    final clearPaint = Paint()..blendMode = BlendMode.dstOut;
 
-      // Base appearance.
-      final baseAlpha = (i > 8) ? (0.40 - (i - 8) * 0.05) : 0.40;
+    // ── Trail holes (warm glow, fading) ──
+    for (final sample in trail) {
+      final age = (timeMs - sample.timeMs) / 1000.0;
+      final decay = (1.0 - age / 3.5).clamp(0.0, 1.0);
+      if (decay < 0.01) continue;
 
-      // We draw each segment individually so each can have its own color.
-      // Pre-compute all points first.
-      final points = <Offset>[];
-      for (int s = 0; s <= _segments; s++) {
-        final angle = (s / _segments) * 2 * math.pi;
-        final noise = 1.0 + (rng.nextDouble() - 0.5) * 0.12;
-        double x = cx + rx * noise * math.cos(angle);
-        double y = cy + ry * noise * math.sin(angle);
+      // How much to erase: stronger for recent samples.
+      final strength = decay * decay * 0.55;
+      clearPaint.shader = RadialGradient(
+        colors: [
+          Colors.white.withValues(alpha: strength),
+          Colors.white.withValues(alpha: strength * 0.3),
+          Colors.white.withValues(alpha: 0.0),
+        ],
+        stops: const [0.0, 0.5, 1.0],
+      ).createShader(
+        Rect.fromCircle(center: sample.pos, radius: _trailRadius),
+      );
+      canvas.drawCircle(sample.pos, _trailRadius, clearPaint);
+    }
 
-        // Typing breath wave (smooth radial pulse).
-        if (breathe > 0) {
-          final ax = x - cx;
-          final ay = y - cy;
-          final len = math.sqrt(ax * ax + ay * ay);
-          if (len > 0) {
-            final pulse = math.sin(angle * 3 + time * 4.0) * breathe * 3.0;
-            x += pulse * (ax / len);
-            y += pulse * (ay / len);
-          }
-        }
+    // ── Cursor reveal (strongest) ──
+    if (mousePos != null) {
+      clearPaint.shader = RadialGradient(
+        colors: [
+          Colors.white.withValues(alpha: 0.95),
+          Colors.white.withValues(alpha: 0.7),
+          Colors.white.withValues(alpha: 0.0),
+        ],
+        stops: [0.0, _cursorCoreRadius / _cursorRadius, 1.0],
+      ).createShader(
+        Rect.fromCircle(center: mousePos!, radius: _cursorRadius),
+      );
+      canvas.drawCircle(mousePos!, _cursorRadius, clearPaint);
+    }
 
-        points.add(Offset(x, y));
-      }
+    canvas.restore();
 
-      // Draw segments with per-segment color.
-      for (int s = 0; s < _segments; s++) {
-        final p1 = points[s];
-        final p2 = points[s + 1];
-        final mid = Offset((p1.dx + p2.dx) / 2, (p1.dy + p2.dy) / 2);
+    // 3) Draw a warm color tint over the trail reveal areas.
+    //    This sits on top of the now-partially-transparent fog.
+    for (final sample in trail) {
+      final age = (timeMs - sample.timeMs) / 1000.0;
+      final decay = (1.0 - age / 3.5).clamp(0.0, 1.0);
+      if (decay < 0.01) continue;
 
-        // Compute heat at segment midpoint.
-        double heat = 0; // 0 = cold, 1 = hot (at cursor)
-        double warmth = 0; // 0 = no trail, 1 = recent trail
+      final warmAlpha = decay * 0.08;
+      final warmPaint = Paint()
+        ..shader = RadialGradient(
+          colors: [
+            SupplyMapColors.accentWarm.withValues(alpha: warmAlpha),
+            SupplyMapColors.accentWarm.withValues(alpha: 0.0),
+          ],
+        ).createShader(
+          Rect.fromCircle(center: sample.pos, radius: _trailRadius),
+        );
+      canvas.drawCircle(sample.pos, _trailRadius, warmPaint);
+    }
 
-        // Current mouse position.
-        if (mousePos != null) {
-          final d = (mid - mousePos!).distance;
-          if (d < _heatRadius) {
-            final proximity = 1.0 - (d / _heatRadius);
-            heat = math.max(heat, proximity * proximity);
-          }
-        }
-
-        // Trail: older samples contribute warmth (cooling).
-        for (final sample in trail) {
-          final d = (mid - sample.pos).distance;
-          if (d < _heatRadius) {
-            final age = (timeMs - sample.timeMs) / 1000.0;
-            final decay = (1.0 - age / 3.0).clamp(0.0, 1.0);
-            final proximity = 1.0 - (d / _heatRadius);
-            warmth = math.max(warmth, proximity * proximity * decay);
-          }
-        }
-
-        // Blend colors: cold -> warm trail -> hot green at cursor.
-        Color segColor;
-        double segAlpha;
-        double segWidth;
-
-        if (heat > 0.01) {
-          // Near cursor: bright green, thicker, more opaque.
-          segColor = Color.lerp(coldColor, heatGreen, heat)!;
-          segAlpha = (baseAlpha + heat * 0.45 + breathe * 0.15).clamp(0.0, 0.9);
-          segWidth = 1.2 + heat * 1.8 + breathe * 0.6;
-        } else if (warmth > 0.01) {
-          // In the trail wake: warm tone, slightly brighter.
-          segColor = Color.lerp(coldColor, heatWarm, warmth * 0.7)!;
-          segAlpha = (baseAlpha + warmth * 0.25 + breathe * 0.15).clamp(0.0, 0.75);
-          segWidth = 1.2 + warmth * 0.8 + breathe * 0.6;
-        } else {
-          // Cold: default subtle grey (+ green tint when typing).
-          segColor = Color.lerp(coldColor, heatGreen, breathe * 0.3)!;
-          segAlpha = (baseAlpha + breathe * 0.15).clamp(0.0, 0.65);
-          segWidth = 1.2 + breathe * 0.6;
-        }
-
-        final paint = Paint()
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = segWidth
-          ..strokeCap = StrokeCap.round
-          ..color = segColor.withValues(alpha: segAlpha);
-
-        canvas.drawLine(p1, p2, paint);
-      }
+    // 4) Green tint at cursor position.
+    if (mousePos != null) {
+      final greenPaint = Paint()
+        ..shader = RadialGradient(
+          colors: [
+            SupplyMapColors.accentGreen.withValues(alpha: 0.06),
+            SupplyMapColors.accentGreen.withValues(alpha: 0.0),
+          ],
+        ).createShader(
+          Rect.fromCircle(center: mousePos!, radius: _cursorRadius),
+        );
+      canvas.drawCircle(mousePos!, _cursorRadius, greenPaint);
     }
   }
 
   @override
-  bool shouldRepaint(covariant _TopoHeatPainter old) => true; // ticking
+  bool shouldRepaint(covariant _FogRevealPainter old) => true; // ticking
 }
 
 // ---------------------------------------------------------------------------
@@ -374,14 +337,14 @@ class _CursorGlowPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final center = mousePos ?? Offset(size.width * 0.5, size.height * 0.55);
-    const radius = 250.0;
+    const radius = 280.0;
     canvas.drawCircle(
       center,
       radius,
       Paint()
         ..shader = RadialGradient(
           colors: [
-            SupplyMapColors.accentGreen.withValues(alpha: 0.12),
+            SupplyMapColors.accentGreen.withValues(alpha: 0.14),
             SupplyMapColors.accentGreen.withValues(alpha: 0.0),
           ],
         ).createShader(Rect.fromCircle(center: center, radius: radius)),
