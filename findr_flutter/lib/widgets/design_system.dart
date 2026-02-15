@@ -56,15 +56,14 @@ const double kRadiusSm = 8;
 const double kRadiusPill = 999;
 
 // ---------------------------------------------------------------------------
-// Gradient background – topo contour rings with ripple wave on hover/click
+// Gradient background – topo contour rings with color heatmap on hover
 // ---------------------------------------------------------------------------
 
-/// A ripple expanding outward from a point.
-class _Ripple {
-  final Offset center;
-  final int birthMs;
-  final double strength; // 1.0 = hover, 3.0 = click
-  const _Ripple(this.center, this.birthMs, this.strength);
+/// A sample of the mouse position at a point in time.
+class _HeatSample {
+  final Offset pos;
+  final int timeMs;
+  const _HeatSample(this.pos, this.timeMs);
 }
 
 class GradientBackground extends StatefulWidget {
@@ -84,14 +83,13 @@ class GradientBackground extends StatefulWidget {
 class _GradientBackgroundState extends State<GradientBackground>
     with TickerProviderStateMixin {
   Offset? _mousePos;
-  final List<_Ripple> _ripples = [];
+  final List<_HeatSample> _trail = [];
   DateTime _lastMouseUpdate = DateTime(0);
-  DateTime _lastRippleEmit = DateTime(0);
 
-  // Continuous ticker drives ripple animation each frame.
+  // Continuous ticker for trail decay animation.
   late final AnimationController _anim;
 
-  // Smooth breath controller — animateTo() for buttery interpolation.
+  // Smooth breath controller.
   late final AnimationController _breathe;
   Timer? _decayTimer;
 
@@ -112,8 +110,9 @@ class _GradientBackgroundState extends State<GradientBackground>
   }
 
   void _tick() {
+    // Prune trail samples older than 3s.
     final now = DateTime.now().millisecondsSinceEpoch;
-    _ripples.removeWhere((r) => now - r.birthMs > 1500);
+    _trail.removeWhere((s) => now - s.timeMs > 3000);
   }
 
   @override
@@ -126,11 +125,8 @@ class _GradientBackgroundState extends State<GradientBackground>
   }
 
   void _keystroke() {
-    // Smoothly animate breath up.
     final target = (_breathe.value + 0.15).clamp(0.0, 1.0);
     _breathe.animateTo(target, duration: const Duration(milliseconds: 200));
-
-    // After typing stops, smoothly decay back to 0.
     _decayTimer?.cancel();
     _decayTimer = Timer(const Duration(milliseconds: 600), () {
       if (mounted) {
@@ -151,15 +147,16 @@ class _GradientBackgroundState extends State<GradientBackground>
           child: Stack(
             fit: StackFit.expand,
             children: [
-              // Soft color blobs (subtle depth)
+              // Soft color blobs
               CustomPaint(
                 painter: _GradientBlobPainter(),
                 size: Size.infinite,
               ),
-              // Concentric topo rings with ripple displacement
+              // Topo rings with color heatmap
               CustomPaint(
-                painter: _TopoRipplePainter(
-                  ripples: List.of(_ripples),
+                painter: _TopoHeatPainter(
+                  mousePos: _mousePos,
+                  trail: List.of(_trail),
                   breathe: energy,
                   timeMs: now,
                 ),
@@ -170,40 +167,21 @@ class _GradientBackgroundState extends State<GradientBackground>
                 painter: _CursorGlowPainter(mousePos: _mousePos),
                 size: Size.infinite,
               ),
-              // Input layer: hover emits gentle ripples, click emits big one
-              Listener(
-                behavior: HitTestBehavior.translucent,
-                onPointerDown: (e) {
+              MouseRegion(
+                onHover: (e) {
                   if (e.kind == PointerDeviceKind.mouse) {
-                    _ripples.add(_Ripple(
-                      e.localPosition,
-                      DateTime.now().millisecondsSinceEpoch,
-                      3.0,
-                    ));
+                    final now = DateTime.now();
+                    if (now.difference(_lastMouseUpdate).inMilliseconds >= 16) {
+                      _lastMouseUpdate = now;
+                      _mousePos = e.localPosition;
+                      _trail.add(_HeatSample(
+                        e.localPosition,
+                        now.millisecondsSinceEpoch,
+                      ));
+                    }
                   }
                 },
-                child: MouseRegion(
-                  onHover: (e) {
-                    if (e.kind == PointerDeviceKind.mouse) {
-                      final now = DateTime.now();
-                      // Throttle mouse position updates (~60fps).
-                      if (now.difference(_lastMouseUpdate).inMilliseconds >= 16) {
-                        _lastMouseUpdate = now;
-                        _mousePos = e.localPosition;
-                      }
-                      // Emit a hover ripple every ~120ms.
-                      if (now.difference(_lastRippleEmit).inMilliseconds >= 120) {
-                        _lastRippleEmit = now;
-                        _ripples.add(_Ripple(
-                          e.localPosition,
-                          now.millisecondsSinceEpoch,
-                          1.0,
-                        ));
-                      }
-                    }
-                  },
-                  child: widget.child,
-                ),
+                child: widget.child,
               ),
             ],
           ),
@@ -214,7 +192,7 @@ class _GradientBackgroundState extends State<GradientBackground>
 }
 
 // ---------------------------------------------------------------------------
-// Soft gradient blobs (subtle color depth behind the lines)
+// Soft gradient blobs
 // ---------------------------------------------------------------------------
 
 class _GradientBlobPainter extends CustomPainter {
@@ -247,27 +225,26 @@ class _GradientBlobPainter extends CustomPainter {
 }
 
 // ---------------------------------------------------------------------------
-// Concentric topo contour rings with smooth ripple-wave displacement
+// Topo contour rings – lines stay still, color changes near the cursor
 // ---------------------------------------------------------------------------
 
-class _TopoRipplePainter extends CustomPainter {
-  _TopoRipplePainter({
-    required this.ripples,
+class _TopoHeatPainter extends CustomPainter {
+  _TopoHeatPainter({
+    this.mousePos,
+    required this.trail,
     this.breathe = 0.0,
     required this.timeMs,
   });
 
-  final List<_Ripple> ripples;
+  final Offset? mousePos;
+  final List<_HeatSample> trail;
   final double breathe;
   final int timeMs;
 
   static const int _ringCount = 14;
   static const int _segments = 80;
-
-  // Ripple physics.
-  static const double _rippleSpeed = 400.0; // px per second
-  static const double _rippleLifespan = 1.2; // seconds
-  static const double _rippleSpread = 2200.0; // bell-curve width (squared)
+  // Radius of the color influence around the cursor / trail points.
+  static const double _heatRadius = 180.0;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -277,104 +254,112 @@ class _TopoRipplePainter extends CustomPainter {
     final cy = size.height * 0.48;
     final time = timeMs / 1000.0;
 
+    // Warm color for the trailing wake.
+    const heatGreen = SupplyMapColors.accentGreen;
+    const heatWarm = SupplyMapColors.accentWarm;
+    const coldColor = SupplyMapColors.borderStrong;
+
     for (int i = 1; i <= _ringCount; i++) {
       final baseRx = 50.0 * i + rng.nextDouble() * 14;
       final baseRy = 36.0 * i + rng.nextDouble() * 14;
 
-      // Scale up when typing – outer rings expand more.
+      // Typing breath: rings expand smoothly.
       final scale = 1.0 + breathe * (0.08 + 0.025 * i);
       final rx = baseRx * scale;
       final ry = baseRy * scale;
 
-      // Color: subtle grey -> slightly green when typing.
-      final baseAlpha = (i > 8) ? (0.45 - (i - 8) * 0.06) : 0.45;
-      final alpha = (baseAlpha + breathe * 0.2).clamp(0.0, 0.75);
-      final color = Color.lerp(
-        SupplyMapColors.borderStrong,
-        SupplyMapColors.accentGreen,
-        breathe * 0.35,
-      )!;
+      // Base appearance.
+      final baseAlpha = (i > 8) ? (0.40 - (i - 8) * 0.05) : 0.40;
 
-      final paint = Paint()
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 1.2 + breathe * 0.8
-        ..color = color.withValues(alpha: alpha);
-
-      final path = Path();
-
+      // We draw each segment individually so each can have its own color.
+      // Pre-compute all points first.
+      final points = <Offset>[];
       for (int s = 0; s <= _segments; s++) {
         final angle = (s / _segments) * 2 * math.pi;
         final noise = 1.0 + (rng.nextDouble() - 0.5) * 0.12;
         double x = cx + rx * noise * math.cos(angle);
         double y = cy + ry * noise * math.sin(angle);
 
-        // ── Ripple displacement ──
-        double dispDx = 0;
-        double dispDy = 0;
-
-        // Radial unit vector (outward from ring center).
-        final ax = x - cx;
-        final ay = y - cy;
-        final len = math.sqrt(ax * ax + ay * ay);
-        final nx = len > 0 ? ax / len : 0.0;
-        final ny = len > 0 ? ay / len : 0.0;
-
-        for (final ripple in ripples) {
-          final age = (timeMs - ripple.birthMs) / 1000.0;
-          if (age > _rippleLifespan || age < 0) continue;
-
-          // Expanding wavefront radius.
-          final wavefront = age * _rippleSpeed;
-
-          // Distance from this point to ripple center.
-          final rdx = x - ripple.center.dx;
-          final rdy = y - ripple.center.dy;
-          final dist = math.sqrt(rdx * rdx + rdy * rdy);
-
-          // Bell curve: peaks when dist == wavefront, drops off on both sides.
-          final delta = dist - wavefront;
-          final bell = math.exp(-(delta * delta) / _rippleSpread);
-
-          // Fade out as ripple ages.
-          final fade = 1.0 - (age / _rippleLifespan);
-
-          // Displacement magnitude.
-          final disp = ripple.strength * bell * fade * 12.0;
-
-          // Push radially outward from ring center.
-          dispDx += disp * nx;
-          dispDy += disp * ny;
-        }
-
-        // Typing breath wave.
+        // Typing breath wave (smooth radial pulse).
         if (breathe > 0) {
-          final pulse = math.sin(angle * 3 + time * 4.0) * breathe * 3.0;
-          dispDx += pulse * nx;
-          dispDy += pulse * ny;
+          final ax = x - cx;
+          final ay = y - cy;
+          final len = math.sqrt(ax * ax + ay * ay);
+          if (len > 0) {
+            final pulse = math.sin(angle * 3 + time * 4.0) * breathe * 3.0;
+            x += pulse * (ax / len);
+            y += pulse * (ay / len);
+          }
         }
 
-        x += dispDx;
-        y += dispDy;
-
-        if (s == 0) {
-          path.moveTo(x, y);
-        } else {
-          final prevAngle = ((s - 1) / _segments) * 2 * math.pi;
-          final prevNoise = 1.0 + (rng.nextDouble() - 0.5) * 0.10;
-          final midAngle = (prevAngle + angle) / 2;
-          final cpx = cx + rx * prevNoise * math.cos(midAngle) + dispDx * 0.5;
-          final cpy = cy + ry * prevNoise * math.sin(midAngle) + dispDy * 0.5;
-          path.quadraticBezierTo(cpx, cpy, x, y);
-        }
+        points.add(Offset(x, y));
       }
 
-      path.close();
-      canvas.drawPath(path, paint);
+      // Draw segments with per-segment color.
+      for (int s = 0; s < _segments; s++) {
+        final p1 = points[s];
+        final p2 = points[s + 1];
+        final mid = Offset((p1.dx + p2.dx) / 2, (p1.dy + p2.dy) / 2);
+
+        // Compute heat at segment midpoint.
+        double heat = 0; // 0 = cold, 1 = hot (at cursor)
+        double warmth = 0; // 0 = no trail, 1 = recent trail
+
+        // Current mouse position.
+        if (mousePos != null) {
+          final d = (mid - mousePos!).distance;
+          if (d < _heatRadius) {
+            final proximity = 1.0 - (d / _heatRadius);
+            heat = math.max(heat, proximity * proximity);
+          }
+        }
+
+        // Trail: older samples contribute warmth (cooling).
+        for (final sample in trail) {
+          final d = (mid - sample.pos).distance;
+          if (d < _heatRadius) {
+            final age = (timeMs - sample.timeMs) / 1000.0;
+            final decay = (1.0 - age / 3.0).clamp(0.0, 1.0);
+            final proximity = 1.0 - (d / _heatRadius);
+            warmth = math.max(warmth, proximity * proximity * decay);
+          }
+        }
+
+        // Blend colors: cold -> warm trail -> hot green at cursor.
+        Color segColor;
+        double segAlpha;
+        double segWidth;
+
+        if (heat > 0.01) {
+          // Near cursor: bright green, thicker, more opaque.
+          segColor = Color.lerp(coldColor, heatGreen, heat)!;
+          segAlpha = (baseAlpha + heat * 0.45 + breathe * 0.15).clamp(0.0, 0.9);
+          segWidth = 1.2 + heat * 1.8 + breathe * 0.6;
+        } else if (warmth > 0.01) {
+          // In the trail wake: warm tone, slightly brighter.
+          segColor = Color.lerp(coldColor, heatWarm, warmth * 0.7)!;
+          segAlpha = (baseAlpha + warmth * 0.25 + breathe * 0.15).clamp(0.0, 0.75);
+          segWidth = 1.2 + warmth * 0.8 + breathe * 0.6;
+        } else {
+          // Cold: default subtle grey (+ green tint when typing).
+          segColor = Color.lerp(coldColor, heatGreen, breathe * 0.3)!;
+          segAlpha = (baseAlpha + breathe * 0.15).clamp(0.0, 0.65);
+          segWidth = 1.2 + breathe * 0.6;
+        }
+
+        final paint = Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = segWidth
+          ..strokeCap = StrokeCap.round
+          ..color = segColor.withValues(alpha: segAlpha);
+
+        canvas.drawLine(p1, p2, paint);
+      }
     }
   }
 
   @override
-  bool shouldRepaint(covariant _TopoRipplePainter old) => true; // ticking
+  bool shouldRepaint(covariant _TopoHeatPainter old) => true; // ticking
 }
 
 // ---------------------------------------------------------------------------
