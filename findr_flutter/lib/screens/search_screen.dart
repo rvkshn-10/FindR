@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../models/search_models.dart';
 import '../services/geocode_service.dart';
 import '../services/store_filters.dart';
@@ -26,13 +27,16 @@ TextStyle _outfit({
   ).copyWith(shadows: const <Shadow>[]);
 }
 
-// Suggestion pills shown below the search bar (label → search term).
-const _kSuggestions = <String, String>{
-  'Medical Supplies': 'N95 Masks',
-  'Baby Care': 'Baby Formula',
-  'Emergency': 'Water',
-  'Hardware': 'Batteries',
-};
+// Default suggestions when the user has no search history yet.
+const _kDefaultSuggestions = <String>[
+  'N95 Masks',
+  'Baby Formula',
+  'Water',
+  'Batteries',
+];
+
+const _kRecentSearchesKey = 'recent_searches';
+const _kMaxRecent = 8;
 
 class SearchScreen extends StatefulWidget {
   final bool embedInBackground;
@@ -59,6 +63,32 @@ class _SearchScreenState extends State<SearchScreen> {
   String? _qualityTier; // null = All
   bool _membershipsOnly = false;
   final Set<String> _selectedStores = {};
+  List<String> _recentSearches = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadRecentSearches();
+  }
+
+  Future<void> _loadRecentSearches() async {
+    final prefs = await SharedPreferences.getInstance();
+    final list = prefs.getStringList(_kRecentSearchesKey);
+    if (list != null && list.isNotEmpty && mounted) {
+      setState(() => _recentSearches = list);
+    }
+  }
+
+  Future<void> _saveRecentSearch(String term) async {
+    _recentSearches.remove(term); // deduplicate
+    _recentSearches.insert(0, term);
+    if (_recentSearches.length > _kMaxRecent) {
+      _recentSearches = _recentSearches.sublist(0, _kMaxRecent);
+    }
+    setState(() {});
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setStringList(_kRecentSearchesKey, _recentSearches);
+  }
 
   @override
   void dispose() {
@@ -137,6 +167,7 @@ class _SearchScreenState extends State<SearchScreen> {
         storeNames: _selectedStores.toList(),
       );
       if (!mounted) return;
+      _saveRecentSearch(item);
       final params = SearchResultParams(
         item: item,
         lat: lat,
@@ -270,16 +301,30 @@ class _SearchScreenState extends State<SearchScreen> {
                 const SizedBox(height: 12),
                 _buildFiltersSection(),
 
-                // ── Suggestion pills ────────────────────────────────
+                // ── Suggestion pills (recent searches or defaults) ──
                 const SizedBox(height: 24),
+                if (_recentSearches.isNotEmpty) ...[
+                  Text(
+                    'Recent searches',
+                    style: _outfit(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                      color: SupplyMapColors.textTertiary,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                ],
                 Wrap(
                   spacing: 12,
                   runSpacing: 12,
                   alignment: WrapAlignment.center,
-                  children: _kSuggestions.entries.map((e) {
+                  children: (_recentSearches.isNotEmpty
+                          ? _recentSearches
+                          : _kDefaultSuggestions)
+                      .map((term) {
                     return _SuggestionPill(
-                      label: e.key,
-                      onTap: () => _searchFor(e.value),
+                      label: term,
+                      onTap: () => _searchFor(term),
                     );
                   }).toList(),
                 ),
