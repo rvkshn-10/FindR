@@ -1058,7 +1058,29 @@ class _ResultCardState extends State<_ResultCard> {
                   color: fg.withValues(alpha: isGlass ? 0.9 : 1.0),
                 ),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 8),
+              // Price
+              Container(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: dark
+                      ? SupplyMapColors.accentGreen.withValues(alpha: 0.12)
+                      : Colors.white.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  widget.store.price,
+                  style: _outfit(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                    color: dark
+                        ? SupplyMapColors.accentGreen
+                        : Colors.white,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
               // Meta row
               Wrap(
                 spacing: 0,
@@ -1364,7 +1386,7 @@ class _SelectedStorePopup extends StatelessWidget {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    '${formatDistance(store.distanceKm, useKm: settings.useKm)} away'
+                    '${store.price} · ${formatDistance(store.distanceKm, useKm: settings.useKm)} away'
                     '${store.durationMinutes != null ? ' · ~${store.durationMinutes} min' : ''}',
                     style: _outfit(
                         fontSize: 12, color: SupplyMapColors.textSecondary),

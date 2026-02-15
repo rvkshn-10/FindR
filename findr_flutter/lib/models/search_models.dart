@@ -11,6 +11,7 @@ class Store {
   final String? website;
   final String? openingHours;
   final String? brand;
+  final String price; // placeholder – will be filled with real data later
 
   const Store({
     required this.id,
@@ -24,6 +25,7 @@ class Store {
     this.website,
     this.openingHours,
     this.brand,
+    this.price = '\$1.00',
   });
 
   Store copyWith({
@@ -38,6 +40,7 @@ class Store {
     String? website,
     String? openingHours,
     String? brand,
+    String? price,
   }) {
     return Store(
       id: id ?? this.id,
@@ -51,6 +54,7 @@ class Store {
       website: website ?? this.website,
       openingHours: openingHours ?? this.openingHours,
       brand: brand ?? this.brand,
+      price: price ?? this.price,
     );
   }
 }
