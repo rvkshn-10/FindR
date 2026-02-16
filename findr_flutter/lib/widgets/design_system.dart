@@ -224,10 +224,9 @@ class _FogRevealPainter extends CustomPainter {
   final double breathe;
   final int timeMs;
 
-  // Exaggerated reveal parameters.
-  static const double _cursorRadius = 220.0;
-  static const double _cursorCoreRadius = 80.0;
-  static const double _trailRadius = 160.0;
+  // Reveal parameters (reduced size).
+  static const double _cursorRadius = 160.0;
+  static const double _cursorCoreRadius = 55.0;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -244,33 +243,9 @@ class _FogRevealPainter extends CustomPainter {
       Paint()..color = SupplyMapColors.bodyBg.withValues(alpha: fogAlpha),
     );
 
-    // 2) Cut reveal holes using DstOut blend mode.
-    //    DstOut erases the fog wherever we paint, proportional to alpha.
-    final clearPaint = Paint()..blendMode = BlendMode.dstOut;
-
-    // ── Trail holes (warm glow, fading) ──
-    for (final sample in trail) {
-      final age = (timeMs - sample.timeMs) / 1000.0;
-      final decay = (1.0 - age / 3.5).clamp(0.0, 1.0);
-      if (decay < 0.01) continue;
-
-      // How much to erase: stronger for recent samples.
-      final strength = decay * decay * 0.55;
-      clearPaint.shader = RadialGradient(
-        colors: [
-          Colors.white.withValues(alpha: strength),
-          Colors.white.withValues(alpha: strength * 0.3),
-          Colors.white.withValues(alpha: 0.0),
-        ],
-        stops: const [0.0, 0.5, 1.0],
-      ).createShader(
-        Rect.fromCircle(center: sample.pos, radius: _trailRadius),
-      );
-      canvas.drawCircle(sample.pos, _trailRadius, clearPaint);
-    }
-
-    // ── Cursor reveal (strongest) ──
+    // 2) Cut a reveal hole at the cursor using DstOut blend mode.
     if (mousePos != null) {
+      final clearPaint = Paint()..blendMode = BlendMode.dstOut;
       clearPaint.shader = RadialGradient(
         colors: [
           Colors.white.withValues(alpha: 0.95),
@@ -286,27 +261,7 @@ class _FogRevealPainter extends CustomPainter {
 
     canvas.restore();
 
-    // 3) Draw a warm color tint over the trail reveal areas.
-    //    This sits on top of the now-partially-transparent fog.
-    for (final sample in trail) {
-      final age = (timeMs - sample.timeMs) / 1000.0;
-      final decay = (1.0 - age / 3.5).clamp(0.0, 1.0);
-      if (decay < 0.01) continue;
-
-      final warmAlpha = decay * 0.08;
-      final warmPaint = Paint()
-        ..shader = RadialGradient(
-          colors: [
-            SupplyMapColors.accentWarm.withValues(alpha: warmAlpha),
-            SupplyMapColors.accentWarm.withValues(alpha: 0.0),
-          ],
-        ).createShader(
-          Rect.fromCircle(center: sample.pos, radius: _trailRadius),
-        );
-      canvas.drawCircle(sample.pos, _trailRadius, warmPaint);
-    }
-
-    // 4) Green tint at cursor position.
+    // 3) Subtle green tint at cursor position.
     if (mousePos != null) {
       final greenPaint = Paint()
         ..shader = RadialGradient(
@@ -337,7 +292,7 @@ class _CursorGlowPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final center = mousePos ?? Offset(size.width * 0.5, size.height * 0.55);
-    const radius = 280.0;
+    const radius = 200.0;
     canvas.drawCircle(
       center,
       radius,
