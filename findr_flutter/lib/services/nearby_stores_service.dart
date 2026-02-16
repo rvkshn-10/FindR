@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'distance_util.dart';
+import 'product_store_mapper.dart';
 
 import '../config.dart';
 
@@ -15,6 +16,8 @@ class OverpassStore {
   final String? website;
   final String? openingHours;
   final String? brand;
+  final String? shopType;   // OSM shop=* tag value (e.g. "supermarket", "bakery")
+  final String? amenityType; // OSM amenity=* tag value (e.g. "pharmacy", "fuel")
 
   OverpassStore({
     required this.id,
@@ -27,6 +30,8 @@ class OverpassStore {
     this.website,
     this.openingHours,
     this.brand,
+    this.shopType,
+    this.amenityType,
   });
 }
 
@@ -111,67 +116,47 @@ Future<List<OverpassStore>> _fetchFromEndpoint(
       website: tags?['website']?.toString() ?? tags?['contact:website']?.toString(),
       openingHours: tags?['opening_hours']?.toString(),
       brand: tags?['brand']?.toString(),
+      shopType: tags?['shop']?.toString(),
+      amenityType: tags?['amenity']?.toString(),
     ));
   }
   stores.sort((a, b) => a.distanceKm.compareTo(b.distanceKm));
   return stores;
 }
 
-/// Build an Overpass QL query. When [shopTags] or [amenityTags] are provided
-/// (from the AI query enhancer) the query is scoped to those specific store
-/// types instead of the broad default ("any shop").
-String buildOverpassQuery({
-  required double lat,
-  required double lng,
-  required int radiusM,
-  List<String>? shopTags,
-  List<String>? amenityTags,
-}) {
-  final hasShop = shopTags != null && shopTags.isNotEmpty;
-  final hasAmenity = amenityTags != null && amenityTags.isNotEmpty;
-
-  if (!hasShop && !hasAmenity) {
-    // Fallback: broad search (original behaviour).
-    return '''
-[out:json][timeout:10];
-(
-  nwr["shop"](around:$radiusM,$lat,$lng);
-  nwr["amenity"~"marketplace|pharmacy|fuel"](around:$radiusM,$lat,$lng);
-);
-out center;
-''';
-  }
-
-  final buf = StringBuffer('[out:json][timeout:10];\n(\n');
-  if (hasShop) {
-    final regex = shopTags!.join('|');
-    buf.writeln('  nwr["shop"~"$regex"](around:$radiusM,$lat,$lng);');
-  }
-  if (hasAmenity) {
-    final regex = amenityTags!.join('|');
-    buf.writeln('  nwr["amenity"~"$regex"](around:$radiusM,$lat,$lng);');
-  }
-  // Always include a broad shop fallback so results aren't empty
-  buf.writeln('  nwr["shop"](around:$radiusM,$lat,$lng);');
-  buf.writeln(');\nout center;');
-  return buf.toString();
-}
-
 /// Race all Overpass endpoints in parallel and return the first success.
+///
+/// When [item] is provided, the Overpass query is narrowed to shop/amenity
+/// types that are relevant to that product (e.g. "batteries" will search
+/// electronics stores, hardware stores, supermarkets -- but NOT bakeries).
 Future<List<OverpassStore>> fetchNearbyStores(
   double lat,
   double lng, {
   int radiusM = kDefaultOverpassRadiusM,
-  List<String>? shopTags,
-  List<String>? amenityTags,
+  String? item,
 }) async {
-  final query = buildOverpassQuery(
-    lat: lat,
-    lng: lng,
-    radiusM: radiusM,
-    shopTags: shopTags,
-    amenityTags: amenityTags,
-  );
+  // Build targeted shop & amenity regex filters based on the search term.
+  final shopFilter = (item != null && item.trim().isNotEmpty)
+      ? shopFilterForItem(item)
+      : null;
+  final amenityFilter = (item != null && item.trim().isNotEmpty)
+      ? amenityFilterForItem(item)
+      : 'marketplace|pharmacy|fuel';
+
+  // If we have a product-specific filter, use regex matching on the shop tag.
+  // Otherwise fall back to the broad "any shop" query.
+  final shopClause = shopFilter != null
+      ? 'nwr["shop"~"$shopFilter"](around:$radiusM,$lat,$lng);'
+      : 'nwr["shop"](around:$radiusM,$lat,$lng);';
+
+  final query = '''
+[out:json][timeout:10];
+(
+  $shopClause
+  nwr["amenity"~"$amenityFilter"](around:$radiusM,$lat,$lng);
+);
+out center;
+''';
 
   // Fire all endpoints in parallel, return the first successful result.
   final futures = kOverpassEndpoints.map(

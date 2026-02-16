@@ -317,8 +317,8 @@ class _SearchScreenState extends State<SearchScreen> {
                   final isNarrow = MediaQuery.of(context).size.width < 600;
                   return Text(
                     isNarrow
-                        ? 'Locate essentials instantly.\nAI-powered inventory tracking.'
-                        : 'Locate essentials instantly. AI-powered inventory\ntracking and convenience ranking.',
+                        ? 'Locate essentials instantly.\nSmart store matching by product type.'
+                        : 'Locate essentials instantly. Smart store matching\nby product type and convenience ranking.',
                     textAlign: TextAlign.center,
                     style: _outfit(
                       fontSize: isNarrow ? 15 : 18,

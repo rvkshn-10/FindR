@@ -11,7 +11,8 @@ class Store {
   final String? website;
   final String? openingHours;
   final String? brand;
-  final String price; // placeholder – will be filled with real data later
+  final String? shopType;   // OSM shop type (e.g. "supermarket", "electronics")
+  final String? amenityType; // OSM amenity type (e.g. "pharmacy", "fuel")
 
   const Store({
     required this.id,
@@ -25,7 +26,8 @@ class Store {
     this.website,
     this.openingHours,
     this.brand,
-    this.price = '\$1.00',
+    this.shopType,
+    this.amenityType,
   });
 
   Store copyWith({
@@ -40,7 +42,8 @@ class Store {
     String? website,
     String? openingHours,
     String? brand,
-    String? price,
+    String? shopType,
+    String? amenityType,
   }) {
     return Store(
       id: id ?? this.id,
@@ -54,7 +57,8 @@ class Store {
       website: website ?? this.website,
       openingHours: openingHours ?? this.openingHours,
       brand: brand ?? this.brand,
-      price: price ?? this.price,
+      shopType: shopType ?? this.shopType,
+      amenityType: amenityType ?? this.amenityType,
     );
   }
 }

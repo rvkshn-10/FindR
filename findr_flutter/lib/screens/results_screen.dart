@@ -111,22 +111,16 @@ Future<void> _safeLaunch(String url) async {
   }
 }
 
-/// Format a price placeholder with the user's currency.
-String _formatPrice(String price, String currency) {
-  // Strip existing currency symbols for re-formatting.
-  final raw = price.replaceAll(RegExp(r'[^\d.]'), '');
-  switch (currency) {
-    case 'EUR':
-      return '€$raw';
-    case 'GBP':
-      return '£$raw';
-    case 'CAD':
-      return 'C\$$raw';
-    case 'MXN':
-      return 'MX\$$raw';
-    default:
-      return '\$$raw';
-  }
+/// Returns a human-friendly label for the store's OSM type, or null if unknown.
+String? _storeTypeLabel(Store store) {
+  final raw = store.shopType ?? store.amenityType;
+  if (raw == null || raw.isEmpty) return null;
+  // Capitalise and replace underscores with spaces.
+  return raw
+      .replaceAll('_', ' ')
+      .split(' ')
+      .map((w) => w.isEmpty ? w : '${w[0].toUpperCase()}${w.substring(1)}')
+      .join(' ');
 }
 
 // ---------------------------------------------------------------------------
@@ -504,7 +498,7 @@ class _ResultsScreenState extends State<ResultsScreen> {
                               child: Padding(
                                 padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
                                 child: _aiLoading
-                                    ? _AiInsightCard.loading()
+                                    ? const _AiInsightCard.loading()
                                     : _AiInsightCard(summary: _aiSummary!),
                               ),
                             ),
@@ -1067,7 +1061,7 @@ class _SidebarState extends State<_Sidebar> {
               const SizedBox(height: 16),
               // AI Insight card
               if (widget.aiLoading)
-                _AiInsightCard.loading()
+                const _AiInsightCard.loading()
               else if (widget.aiSummary != null)
                 _AiInsightCard(summary: widget.aiSummary!),
               const SizedBox(height: 16),
@@ -1259,28 +1253,30 @@ class _ResultCardState extends State<_ResultCard> {
                   color: fg.withValues(alpha: isGlass ? 0.9 : 1.0),
                 ),
               ),
-              const SizedBox(height: 8),
-              // Price
-              Container(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color: dark
-                      ? SupplyMapColors.accentGreen.withValues(alpha: 0.12)
-                      : Colors.white.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Text(
-                  _formatPrice(widget.store.price, widget.settings.currency),
-                  style: _outfit(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w700,
+              // Store type badge
+              if (_storeTypeLabel(widget.store) != null) ...[
+                const SizedBox(height: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
                     color: dark
-                        ? SupplyMapColors.accentGreen
-                        : Colors.white,
+                        ? SupplyMapColors.accentGreen.withValues(alpha: 0.12)
+                        : Colors.white.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text(
+                    _storeTypeLabel(widget.store)!,
+                    style: _outfit(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: dark
+                          ? SupplyMapColors.accentGreen
+                          : Colors.white,
+                    ),
                   ),
                 ),
-              ),
+              ],
               const SizedBox(height: 8),
               // Meta row
               Wrap(
@@ -1617,8 +1613,9 @@ class _SelectedStorePopup extends StatelessWidget {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    '${_formatPrice(store.price, settings.currency)} · ${formatDistance(store.distanceKm, useKm: settings.useKm)} away'
-                    '${store.durationMinutes != null ? ' · ~${store.durationMinutes} min' : ''}',
+                    '${formatDistance(store.distanceKm, useKm: settings.useKm)} away'
+                    '${store.durationMinutes != null ? ' · ~${store.durationMinutes} min' : ''}'
+                    '${_storeTypeLabel(store) != null ? ' · ${_storeTypeLabel(store)}' : ''}',
                     style: _outfit(
                         fontSize: 12, color: SupplyMapColors.textSecondary),
                   ),
