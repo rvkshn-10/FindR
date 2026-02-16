@@ -255,8 +255,8 @@ class _TopoPainter extends CustomPainter {
       }
 
       // Lines get thicker and slightly greener when typing or hovered.
-      final baseAlpha = (i > 6) ? (0.5 - (i - 6) * 0.08) : 0.5;
-      final alpha = (baseAlpha + breathe * 0.25 + proximity * 0.35).clamp(0.0, 0.95);
+      final baseAlpha = (i > 6) ? (0.7 - (i - 6) * 0.06) : 0.7;
+      final alpha = (baseAlpha + breathe * 0.2 + proximity * 0.25).clamp(0.0, 0.95);
       final greenAmount = (breathe * 0.35 + proximity * 0.5).clamp(0.0, 1.0);
       final color = Color.lerp(
         SupplyMapColors.borderStrong,
@@ -266,7 +266,7 @@ class _TopoPainter extends CustomPainter {
 
       final paint = Paint()
         ..style = PaintingStyle.stroke
-        ..strokeWidth = 1.2 + breathe * 1.0 + proximity * 1.8
+        ..strokeWidth = 1.6 + breathe * 1.0 + proximity * 1.8
         ..color = color.withValues(alpha: alpha);
 
       final path = Path();
