@@ -422,6 +422,8 @@ class _ResultsScreenState extends State<ResultsScreen> {
             initialChildSize: 0.35,
             minChildSize: 0.10,
             maxChildSize: 0.85,
+            snap: true,
+            snapSizes: const [0.10, 0.35, 0.85],
             builder: (context, scrollController) {
               return Container(
                 decoration: const BoxDecoration(
@@ -438,109 +440,58 @@ class _ResultsScreenState extends State<ResultsScreen> {
                     ),
                   ],
                 ),
-                child: Column(
-                  children: [
-                    // Drag handle
-                    Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 10),
-                      child: Container(
-                        width: 40,
-                        height: 4,
-                        decoration: BoxDecoration(
-                          color: SupplyMapColors.borderStrong,
-                          borderRadius: BorderRadius.circular(2),
-                        ),
-                      ),
-                    ),
-                    // Header
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 20),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: Text.rich(
-                              TextSpan(
-                                text: 'Results for ',
-                                style: _outfit(
-                                  fontSize: 16,
-                                  color: SupplyMapColors.textSecondary,
-                                ),
-                                children: [
-                                  TextSpan(
-                                    text: _currentItem,
-                                    style: _outfit(
-                                        fontWeight: FontWeight.w700,
-                                        color: SupplyMapColors.textBlack),
-                                  ),
-                                ],
+                clipBehavior: Clip.antiAlias,
+                child: stores.isEmpty
+                    ? CustomScrollView(
+                        controller: scrollController,
+                        slivers: [
+                          SliverToBoxAdapter(
+                            child: _buildSheetHeader(stores),
+                          ),
+                          const SliverFillRemaining(
+                            hasScrollBody: false,
+                            child: _EmptyState(),
+                          ),
+                        ],
+                      )
+                    : CustomScrollView(
+                        controller: scrollController,
+                        slivers: [
+                          SliverToBoxAdapter(
+                            child: _buildSheetHeader(stores),
+                          ),
+                          SliverPadding(
+                            padding: EdgeInsets.fromLTRB(
+                                16,
+                                0,
+                                16,
+                                24 + MediaQuery.of(context).padding.bottom),
+                            sliver: SliverList(
+                              delegate: SliverChildBuilderDelegate(
+                                (context, i) {
+                                  final s = stores[i];
+                                  final style = _styleForStore(i, s, stores);
+                                  return Padding(
+                                    padding: EdgeInsets.only(
+                                        bottom: i < stores.length - 1 ? 12 : 0),
+                                    child: _StaggeredFadeIn(
+                                      index: i,
+                                      child: _SafeResultCard(
+                                        store: s,
+                                        style: style,
+                                        settings: settings,
+                                        isSelected: s.id == _selectedStoreId,
+                                        onTap: () => _onSelectStore(s),
+                                      ),
+                                    ),
+                                  );
+                                },
+                                childCount: stores.length,
                               ),
                             ),
-                          ),
-                          Text(
-                            '${stores.length} found',
-                            style: _outfit(
-                                fontSize: 13, color: SupplyMapColors.textTertiary),
                           ),
                         ],
                       ),
-                    ),
-                    if (_enriching)
-                      Padding(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 20, vertical: 6),
-                        child: Row(
-                          children: [
-                            const SizedBox(
-                              width: 12,
-                              height: 12,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 1.5,
-                                color: SupplyMapColors.accentGreen,
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Text(
-                              'Refining distances…',
-                              style: _outfit(
-                                  fontSize: 11,
-                                  color: SupplyMapColors.textTertiary),
-                            ),
-                          ],
-                        ),
-                      ),
-                    const SizedBox(height: 12),
-                    // List
-                    Expanded(
-                      child: stores.isEmpty
-                          ? const _EmptyState()
-                          : ListView.separated(
-                              controller: scrollController,
-                              padding: EdgeInsets.fromLTRB(
-                                  16,
-                                  0,
-                                  16,
-                                  24 + MediaQuery.of(context).padding.bottom),
-                              itemCount: stores.length,
-                              separatorBuilder: (_, __) =>
-                                  const SizedBox(height: 12),
-                              itemBuilder: (context, i) {
-                                final s = stores[i];
-                                final style = _styleForStore(i, s, stores);
-                                return _StaggeredFadeIn(
-                                  index: i,
-                                  child: _SafeResultCard(
-                                    store: s,
-                                    style: style,
-                                    settings: settings,
-                                    isSelected: s.id == _selectedStoreId,
-                                    onTap: () => _onSelectStore(s),
-                                  ),
-                                );
-                              },
-                            ),
-                    ),
-                  ],
-                ),
               );
             },
           ),
@@ -553,6 +504,81 @@ class _ResultsScreenState extends State<ResultsScreen> {
   // -----------------------------------------------------------------------
   // Settings overlay wrapper
   // -----------------------------------------------------------------------
+  Widget _buildSheetHeader(List<Store> stores) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        // Drag handle
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 10),
+          child: Container(
+            width: 40,
+            height: 4,
+            decoration: BoxDecoration(
+              color: SupplyMapColors.borderStrong,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+        ),
+        // Header row
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text.rich(
+                  TextSpan(
+                    text: 'Results for ',
+                    style: _outfit(
+                      fontSize: 16,
+                      color: SupplyMapColors.textSecondary,
+                    ),
+                    children: [
+                      TextSpan(
+                        text: _currentItem,
+                        style: _outfit(
+                            fontWeight: FontWeight.w700,
+                            color: SupplyMapColors.textBlack),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              Text(
+                '${stores.length} found',
+                style: _outfit(
+                    fontSize: 13, color: SupplyMapColors.textTertiary),
+              ),
+            ],
+          ),
+        ),
+        if (_enriching)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
+            child: Row(
+              children: [
+                const SizedBox(
+                  width: 12,
+                  height: 12,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 1.5,
+                    color: SupplyMapColors.accentGreen,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  'Refining distances…',
+                  style: _outfit(
+                      fontSize: 11, color: SupplyMapColors.textTertiary),
+                ),
+              ],
+            ),
+          ),
+        const SizedBox(height: 12),
+      ],
+    );
+  }
+
   Widget _wrapWithSettings({
     required BuildContext context,
     required Widget child,
