@@ -9,6 +9,7 @@ import '../models/search_models.dart';
 import '../services/search_service.dart';
 import '../services/distance_util.dart';
 import '../services/ai_service.dart';
+import '../services/price_service.dart';
 import '../providers/settings_provider.dart';
 import '../widgets/design_system.dart';
 import '../widgets/settings_panel.dart';
@@ -160,6 +161,8 @@ class _ResultsScreenState extends State<ResultsScreen> {
   bool _enriching = false;
   bool _aiLoading = false;
   AiResultSummary? _aiSummary;
+  PriceData? _priceData;
+  bool _pricesLoading = false;
 
   @override
   void initState() {
@@ -200,17 +203,19 @@ class _ResultsScreenState extends State<ResultsScreen> {
         _fitMapToClosestStores(fastResult.stores);
       });
 
-      // Phase 2 + 3 run in parallel: road distances & AI summary.
+      // Phase 2 + 3 + 4 run in parallel: road distances, AI summary, prices.
       if (fastResult.stores.isNotEmpty) {
         if (mounted) {
           setState(() {
             _enriching = true;
             _aiLoading = true;
             _aiSummary = null;
+            _pricesLoading = true;
+            _priceData = null;
           });
         }
 
-        // Fire both in parallel.
+        // Fire all three in parallel.
         final enrichFuture = enrichWithRoadDistances(
           fastResult: fastResult,
           lat: widget.lat,
@@ -230,22 +235,35 @@ class _ResultsScreenState extends State<ResultsScreen> {
           }).toList(),
         );
 
-        // Wait for both.
+        final priceFuture = fetchProductPrices(
+          _currentItem,
+          lat: widget.lat,
+          lng: widget.lng,
+        );
+
+        // Wait for all three.
         final results = await Future.wait([
           enrichFuture,
           aiFuture,
+          priceFuture,
         ]);
 
         if (!mounted) return;
 
         final enriched = results[0] as SearchResult;
         final aiSummary = results[1] as AiResultSummary?;
+        final prices = results[2] as PriceData?;
+
+        // Merge price data into store results.
+        final storesWithPrices = _applyPrices(enriched.stores, prices);
 
         setState(() {
-          _result = enriched;
+          _result = enriched.copyWith(stores: storesWithPrices);
           _enriching = false;
           _aiSummary = aiSummary;
           _aiLoading = false;
+          _priceData = prices;
+          _pricesLoading = false;
         });
       }
     } catch (e) {
@@ -265,8 +283,38 @@ class _ResultsScreenState extends State<ResultsScreen> {
       _selectedStoreId = null;
       _aiSummary = null;
       _aiLoading = false;
+      _priceData = null;
+      _pricesLoading = false;
     });
     _load();
+  }
+
+  /// Merge Google Shopping prices into the store list.
+  List<Store> _applyPrices(List<Store> stores, PriceData? prices) {
+    if (prices == null || prices.prices.isEmpty) return stores;
+
+    final settings = Provider.of<SettingsProvider>(context, listen: false);
+    final currency = settings.currency;
+
+    return stores.map((store) {
+      final matched = matchPriceToStore(store, prices);
+      if (matched != null) {
+        return store.copyWith(
+          price: matched.price,
+          priceLabel: formatPrice(matched.price, currency),
+          priceIsAvg: false,
+        );
+      }
+      // No direct match — show the average price across all results.
+      if (prices.avgPrice > 0) {
+        return store.copyWith(
+          price: prices.avgPrice,
+          priceLabel: 'avg ~${formatPrice(prices.avgPrice, currency)}',
+          priceIsAvg: true,
+        );
+      }
+      return store;
+    }).toList();
   }
 
   void _openDirections(Store store) {
@@ -411,6 +459,8 @@ class _ResultsScreenState extends State<ResultsScreen> {
                 enriching: _enriching,
                 aiSummary: _aiSummary,
                 aiLoading: _aiLoading,
+                priceData: _priceData,
+                pricesLoading: _pricesLoading,
                 onNewSearch: () {
                   if (widget.onNewSearch != null) {
                     widget.onNewSearch!();
@@ -614,6 +664,59 @@ class _ResultsScreenState extends State<ResultsScreen> {
                       fontSize: 11, color: SupplyMapColors.textTertiary),
                 ),
               ],
+            ),
+          ),
+        // Price range banner (mobile)
+        if (_pricesLoading)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+            child: Row(
+              children: [
+                const SizedBox(
+                  width: 12, height: 12,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 1.5,
+                    color: SupplyMapColors.accentGreen,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Text('Fetching prices…',
+                    style: _outfit(
+                        fontSize: 11, color: SupplyMapColors.textTertiary)),
+              ],
+            ),
+          )
+        else if (_priceData != null && _priceData!.prices.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: SupplyMapColors.accentGreen.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: SupplyMapColors.accentGreen.withValues(alpha: 0.2),
+                ),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.sell_outlined,
+                      size: 14, color: SupplyMapColors.accentGreen),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      '${formatPrice(_priceData!.lowPrice, Provider.of<SettingsProvider>(context, listen: false).currency)}'
+                      ' – ${formatPrice(_priceData!.highPrice, Provider.of<SettingsProvider>(context, listen: false).currency)}'
+                      '  avg ${formatPrice(_priceData!.avgPrice, Provider.of<SettingsProvider>(context, listen: false).currency)}',
+                      style: _outfit(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: SupplyMapColors.textBlack,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         const SizedBox(height: 12),
@@ -864,6 +967,8 @@ class _Sidebar extends StatefulWidget {
     this.enriching = false,
     this.aiSummary,
     this.aiLoading = false,
+    this.priceData,
+    this.pricesLoading = false,
   });
 
   final String query;
@@ -878,6 +983,8 @@ class _Sidebar extends StatefulWidget {
   final bool enriching;
   final AiResultSummary? aiSummary;
   final bool aiLoading;
+  final PriceData? priceData;
+  final bool pricesLoading;
 
   @override
   State<_Sidebar> createState() => _SidebarState();
@@ -1064,7 +1171,73 @@ class _SidebarState extends State<_Sidebar> {
                 const _AiInsightCard.loading()
               else if (widget.aiSummary != null)
                 _AiInsightCard(summary: widget.aiSummary!),
-              const SizedBox(height: 16),
+              // Price range banner (from Google Shopping)
+              if (widget.pricesLoading)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: Row(
+                    children: [
+                      const SizedBox(
+                        width: 12,
+                        height: 12,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 1.5,
+                          color: SupplyMapColors.accentGreen,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Fetching prices…',
+                        style: _outfit(
+                            fontSize: 11,
+                            color: SupplyMapColors.textTertiary),
+                      ),
+                    ],
+                  ),
+                )
+              else if (widget.priceData != null &&
+                  widget.priceData!.prices.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: SupplyMapColors.accentGreen.withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                        color:
+                            SupplyMapColors.accentGreen.withValues(alpha: 0.2),
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.sell_outlined,
+                            size: 16, color: SupplyMapColors.accentGreen),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Price range: ${formatPrice(widget.priceData!.lowPrice, widget.settings.currency)}'
+                            ' – ${formatPrice(widget.priceData!.highPrice, widget.settings.currency)}'
+                            '  (avg ${formatPrice(widget.priceData!.avgPrice, widget.settings.currency)})',
+                            style: _outfit(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: SupplyMapColors.textBlack,
+                            ),
+                          ),
+                        ),
+                        Tooltip(
+                          message: 'Prices from Google Shopping (online)',
+                          child: Icon(Icons.info_outline,
+                              size: 14,
+                              color: SupplyMapColors.textTertiary),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              const SizedBox(height: 4),
               // Results list
               Expanded(
                 child: widget.stores.isEmpty
@@ -1253,30 +1426,56 @@ class _ResultCardState extends State<_ResultCard> {
                   color: fg.withValues(alpha: isGlass ? 0.9 : 1.0),
                 ),
               ),
-              // Store type badge
-              if (_storeTypeLabel(widget.store) != null) ...[
-                const SizedBox(height: 8),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 8, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: dark
-                        ? SupplyMapColors.accentGreen.withValues(alpha: 0.12)
-                        : Colors.white.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Text(
-                    _storeTypeLabel(widget.store)!,
-                    style: _outfit(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: dark
-                          ? SupplyMapColors.accentGreen
-                          : Colors.white,
+              // Price + store type badges
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 6,
+                runSpacing: 4,
+                children: [
+                  // Price badge (from Google Shopping)
+                  if (widget.store.priceLabel != null)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: dark
+                            ? SupplyMapColors.accentGreen.withValues(alpha: 0.15)
+                            : Colors.white.withValues(alpha: 0.2),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        widget.store.priceLabel!,
+                        style: _outfit(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                          color: dark
+                              ? SupplyMapColors.accentGreen
+                              : Colors.white,
+                        ),
+                      ),
                     ),
-                  ),
-                ),
-              ],
+                  // Store type badge
+                  if (_storeTypeLabel(widget.store) != null)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: dark
+                            ? Colors.white.withValues(alpha: 0.08)
+                            : Colors.white.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        _storeTypeLabel(widget.store)!,
+                        style: _outfit(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                          color: fg.withValues(alpha: 0.7),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
               const SizedBox(height: 8),
               // Meta row
               Wrap(
@@ -1613,6 +1812,7 @@ class _SelectedStorePopup extends StatelessWidget {
                   ),
                   const SizedBox(height: 4),
                   Text(
+                    '${store.priceLabel != null ? '${store.priceLabel} · ' : ''}'
                     '${formatDistance(store.distanceKm, useKm: settings.useKm)} away'
                     '${store.durationMinutes != null ? ' · ~${store.durationMinutes} min' : ''}'
                     '${_storeTypeLabel(store) != null ? ' · ${_storeTypeLabel(store)}' : ''}',

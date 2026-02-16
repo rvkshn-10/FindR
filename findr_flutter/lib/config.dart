@@ -66,3 +66,13 @@ const int kMaxLocationLength = 200;
 // ---------------------------------------------------------------------------
 
 const Duration kAiTimeout = Duration(seconds: 10);
+
+// ---------------------------------------------------------------------------
+// SerpApi (Google Shopping prices)
+// ---------------------------------------------------------------------------
+
+/// Your SerpApi API key.  Sign up free at https://serpapi.com (100 searches/mo).
+/// Leave empty to disable price lookups (the app still works without prices).
+const String kSerpApiKey = '';
+
+const Duration kSerpApiTimeout = Duration(seconds: 10);

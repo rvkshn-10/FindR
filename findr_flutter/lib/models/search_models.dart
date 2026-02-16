@@ -14,6 +14,11 @@ class Store {
   final String? shopType;   // OSM shop type (e.g. "supermarket", "electronics")
   final String? amenityType; // OSM amenity type (e.g. "pharmacy", "fuel")
 
+  // Price data from Google Shopping (populated asynchronously).
+  final double? price;         // matched or average price in USD
+  final String? priceLabel;    // e.g. "$8.99" or "avg ~$9.50"
+  final bool priceIsAvg;       // true if this is an average, not a store-specific match
+
   const Store({
     required this.id,
     required this.name,
@@ -28,6 +33,9 @@ class Store {
     this.brand,
     this.shopType,
     this.amenityType,
+    this.price,
+    this.priceLabel,
+    this.priceIsAvg = false,
   });
 
   Store copyWith({
@@ -44,6 +52,9 @@ class Store {
     String? brand,
     String? shopType,
     String? amenityType,
+    double? price,
+    String? priceLabel,
+    bool? priceIsAvg,
   }) {
     return Store(
       id: id ?? this.id,
@@ -59,6 +70,9 @@ class Store {
       brand: brand ?? this.brand,
       shopType: shopType ?? this.shopType,
       amenityType: amenityType ?? this.amenityType,
+      price: price ?? this.price,
+      priceLabel: priceLabel ?? this.priceLabel,
+      priceIsAvg: priceIsAvg ?? this.priceIsAvg,
     );
   }
 }
