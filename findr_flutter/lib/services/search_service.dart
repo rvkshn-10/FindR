@@ -1,6 +1,8 @@
+import 'package:flutter/foundation.dart';
 import 'distance_util.dart';
 import 'store_filters.dart';
 import 'nearby_stores_service.dart';
+import 'google_maps_search_service.dart';
 import 'road_distance_service.dart';
 import '../models/search_models.dart';
 import '../config.dart';
@@ -38,9 +40,13 @@ SearchResult _buildResult(List<Store> candidates, double lat, double lng) {
   );
 }
 
-/// Phase 1: Fetch from Overpass, filter, return haversine-sorted results.
-/// This is the fast path — no OSRM call.
-/// The search [item] is used to target relevant store types in the Overpass query.
+/// Phase 1: Find nearby stores, filter, return haversine-sorted results.
+///
+/// Strategy:
+///   1. Try SerpApi Google Maps first — Google already knows which stores
+///      sell what, so results are highly relevant.
+///   2. Fall back to Overpass (OpenStreetMap) + our product-type mapper
+///      if SerpApi is unavailable or returns nothing.
 Future<SearchResult> searchFast({
   required String item,
   required double lat,
@@ -50,18 +56,40 @@ Future<SearchResult> searchFast({
 }) async {
   final radiusM = (maxDistanceKm * 1000).clamp(1000.0, 25000.0);
 
-  List<OverpassStore> overpassStores;
+  List<OverpassStore> allStores = [];
+
+  // --- Primary: SerpApi Google Maps ---
   try {
-    overpassStores = await fetchNearbyStores(lat, lng, radiusM: radiusM.toInt(), item: item);
-  } catch (e) {
-    return const SearchResult(
-      stores: [],
-      bestOptionId: '',
-      summary: 'Stores service is temporarily unavailable.',
-      alternatives: ['Try again in a moment or try a different location.'],
+    final gmStores = await fetchStoresFromGoogleMaps(
+      item: item,
+      lat: lat,
+      lng: lng,
+      maxDistanceKm: maxDistanceKm,
     );
+    if (gmStores != null && gmStores.isNotEmpty) {
+      debugPrint('Using Google Maps results: ${gmStores.length} stores');
+      allStores = gmStores;
+    }
+  } catch (e) {
+    debugPrint('Google Maps search failed, falling back to Overpass: $e');
   }
-  final filtered = overpassStores.where((s) => _passesFilters(s, filters)).toList();
+
+  // --- Fallback: Overpass (OpenStreetMap) ---
+  if (allStores.isEmpty) {
+    try {
+      debugPrint('Falling back to Overpass for store search');
+      allStores = await fetchNearbyStores(lat, lng, radiusM: radiusM.toInt(), item: item);
+    } catch (e) {
+      return const SearchResult(
+        stores: [],
+        bestOptionId: '',
+        summary: 'Stores service is temporarily unavailable.',
+        alternatives: ['Try again in a moment or try a different location.'],
+      );
+    }
+  }
+
+  final filtered = allStores.where((s) => _passesFilters(s, filters)).toList();
   final candidates = filtered
       .where((s) => s.distanceKm <= maxDistanceKm)
       .map((s) => Store(

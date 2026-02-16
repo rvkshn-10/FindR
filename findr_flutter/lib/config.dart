@@ -71,7 +71,7 @@ const Duration kAiTimeout = Duration(seconds: 10);
 // ---------------------------------------------------------------------------
 
 /// Your SerpApi API key.  Sign up free at https://serpapi.com (100 searches/mo).
-/// Leave empty to disable price lookups (the app still works without prices).
-const String kSerpApiKey = '';
+/// Leave empty to disable price lookups and Google Maps store search.
+const String kSerpApiKey = '3c98c1ad2a12891b404f04b5183fc31781b0fd08aed9da9a2d5a21cb296426c0';
 
-const Duration kSerpApiTimeout = Duration(seconds: 10);
+const Duration kSerpApiTimeout = Duration(seconds: 12);
