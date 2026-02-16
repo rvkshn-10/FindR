@@ -109,6 +109,7 @@ Future<SearchResult> searchFast({
             reviewCount: s.reviewCount,
             priceLevel: s.priceLevel,
             thumbnail: s.thumbnail,
+            serviceOptions: s.serviceOptions,
           ))
       .toList()
     ..sort((a, b) => a.distanceKm.compareTo(b.distanceKm));

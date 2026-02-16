@@ -133,6 +133,23 @@ List<OverpassStore> _parseLocalResults(
     final priceLevel = m['price']?.toString(); // "$", "$$", "$$$"
     final thumbnail = m['thumbnail']?.toString();
 
+    // Extract service options (e.g. "In-store shopping", "Delivery", "Curbside pickup").
+    final svcOpts = <String>[];
+    final svcMap = m['service_options'] as Map<String, dynamic>?;
+    if (svcMap != null) {
+      svcMap.forEach((key, value) {
+        if (value == true) {
+          // Convert key like "dine_in" → "Dine in"
+          final label = key
+              .replaceAll('_', ' ')
+              .split(' ')
+              .map((w) => w.isEmpty ? w : '${w[0].toUpperCase()}${w.substring(1)}')
+              .join(' ');
+          svcOpts.add(label);
+        }
+      });
+    }
+
     stores.add(OverpassStore(
       id: 'gm/$placeId',
       name: name,
@@ -150,6 +167,7 @@ List<OverpassStore> _parseLocalResults(
       reviewCount: reviewCount,
       priceLevel: priceLevel,
       thumbnail: thumbnail,
+      serviceOptions: svcOpts,
     ));
   }
 

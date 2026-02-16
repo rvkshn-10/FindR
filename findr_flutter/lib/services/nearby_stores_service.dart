@@ -22,6 +22,7 @@ class OverpassStore {
   final int? reviewCount;    // Google Maps review count
   final String? priceLevel;  // Google Maps price level ("$", "$$", "$$$")
   final String? thumbnail;   // URL to store photo
+  final List<String> serviceOptions; // e.g. ["In-store shopping", "Delivery"]
 
   OverpassStore({
     required this.id,
@@ -40,6 +41,7 @@ class OverpassStore {
     this.reviewCount,
     this.priceLevel,
     this.thumbnail,
+    this.serviceOptions = const [],
   });
 }
 

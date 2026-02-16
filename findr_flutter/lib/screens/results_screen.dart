@@ -235,6 +235,7 @@ class _ResultsScreenState extends State<ResultsScreen> {
             'reviewCount': s.reviewCount,
             'priceLevel': s.priceLevel,
             'shopType': s.shopType,
+            'serviceOptions': s.serviceOptions,
           }).toList(),
         );
 
@@ -1527,12 +1528,33 @@ class _ResultCardState extends State<_ResultCard> {
                   ]
                 : null,
           ),
-          padding: const EdgeInsets.all(20),
+          padding: EdgeInsets.zero,
           constraints: const BoxConstraints(minHeight: 140),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
+              // Thumbnail image (if available)
+              if (widget.store.thumbnail != null)
+                ClipRRect(
+                  borderRadius: BorderRadius.vertical(
+                    top: Radius.circular(kRadiusLg),
+                  ),
+                  child: SizedBox(
+                    height: 120,
+                    width: double.infinity,
+                    child: Image.network(
+                      widget.store.thumbnail!,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                    ),
+                  ),
+                ),
+              Padding(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
               // Header
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -1794,12 +1816,43 @@ class _ResultCardState extends State<_ResultCard> {
                   ],
                 ),
               ],
-            ],
-          ),
-        ),
-        ),
-      ),
-    );
+              // Service options (e.g. "In-store shopping", "Delivery")
+              if (widget.store.serviceOptions.isNotEmpty) ...[
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 4,
+                  children: widget.store.serviceOptions.map((opt) {
+                    return Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 7, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: dark
+                            ? Colors.white.withValues(alpha: 0.06)
+                            : Colors.white.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(
+                        opt,
+                        style: _outfit(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w500,
+                          color: fg.withValues(alpha: 0.6),
+                        ),
+                      ),
+                    );
+                  }).toList(),
+                ),
+              ],
+                  ], // inner Column children
+                ), // inner Column
+              ), // Padding
+            ], // outer Column children
+          ), // outer Column
+        ), // AnimatedContainer
+        ), // DefaultTextStyle
+      ), // GestureDetector
+    ); // MouseRegion
   }
 
   Widget _dot(Color c) {

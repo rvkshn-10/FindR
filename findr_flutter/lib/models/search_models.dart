@@ -24,6 +24,7 @@ class Store {
   final int? reviewCount;      // number of Google reviews
   final String? priceLevel;    // "$", "$$", "$$$"
   final String? thumbnail;     // URL to store photo
+  final List<String> serviceOptions; // e.g. ["In-store shopping", "Delivery"]
 
   const Store({
     required this.id,
@@ -46,6 +47,7 @@ class Store {
     this.reviewCount,
     this.priceLevel,
     this.thumbnail,
+    this.serviceOptions = const [],
   });
 
   Store copyWith({
@@ -69,6 +71,7 @@ class Store {
     int? reviewCount,
     String? priceLevel,
     String? thumbnail,
+    List<String>? serviceOptions,
   }) {
     return Store(
       id: id ?? this.id,
@@ -91,6 +94,7 @@ class Store {
       reviewCount: reviewCount ?? this.reviewCount,
       priceLevel: priceLevel ?? this.priceLevel,
       thumbnail: thumbnail ?? this.thumbnail,
+      serviceOptions: serviceOptions ?? this.serviceOptions,
     );
   }
 }

@@ -131,9 +131,9 @@ Future<AiResultSummary?> generateResultSummary({
 
 $storesJson
 
-Each store has: name, distanceKm, durationMinutes (drive time, may be null), address, openingHours (may be null), brand, rating (Google rating 1-5, may be null), reviewCount (number of Google reviews, may be null), priceLevel ("\$", "\$\$", "\$\$\$", may be null), shopType (store category).
+Each store has: name, distanceKm, durationMinutes (drive time, may be null), address, openingHours (may be null), brand, rating (Google rating 1-5, may be null), reviewCount (number of Google reviews, may be null), priceLevel ("\$", "\$\$", "\$\$\$", may be null), shopType (store category), serviceOptions (list like ["In-store shopping", "Delivery", "Curbside pickup"]).
 
-Analyze these results considering distance, ratings, store type relevance, and price level. Provide:
+Analyze these results considering distance, ratings, store type relevance, price level, and service options. Provide:
 1. A short (1-2 sentence) recommendation for the user — which store should they go to and why. Factor in ratings, store type, and distance.
 2. Brief reasoning (1 sentence) explaining why this is the best pick
 3. 1-2 practical tips (e.g., "Call ahead to confirm stock", "This store has great reviews")
