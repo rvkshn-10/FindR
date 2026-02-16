@@ -74,14 +74,27 @@ class GradientBackground extends StatefulWidget {
   State<GradientBackground> createState() => _GradientBackgroundState();
 }
 
+/// A single touch ripple: where it started and when.
+class _Ripple {
+  final Offset origin;
+  final double startTime; // seconds since app start
+  _Ripple(this.origin, this.startTime);
+}
+
 class _GradientBackgroundState extends State<GradientBackground>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   Offset? _mousePos;
   DateTime _lastMouseUpdate = DateTime(0);
 
   // Typing energy: builds up with keystrokes, decays when idle.
   late final AnimationController _breathe;
   Timer? _decayTimer;
+
+  // Touch ripples (phone only).
+  final List<_Ripple> _ripples = [];
+  late final AnimationController _rippleTicker;
+  final Stopwatch _stopwatch = Stopwatch();
+  Timer? _rippleCleanupTimer;
 
   @override
   void initState() {
@@ -90,13 +103,38 @@ class _GradientBackgroundState extends State<GradientBackground>
       vsync: this,
       duration: const Duration(milliseconds: 800),
     );
+    _rippleTicker = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 1),
+    );
+    _stopwatch.start();
   }
 
   @override
   void dispose() {
     _decayTimer?.cancel();
+    _rippleCleanupTimer?.cancel();
     _breathe.dispose();
+    _rippleTicker.dispose();
     super.dispose();
+  }
+
+  void _addRipple(Offset position) {
+    final now = _stopwatch.elapsedMilliseconds / 1000.0;
+    _ripples.add(_Ripple(position, now));
+    // Cap to 8 concurrent ripples.
+    if (_ripples.length > 8) _ripples.removeAt(0);
+    // Start/keep the ticker running so the painter repaints.
+    if (!_rippleTicker.isAnimating) {
+      _rippleTicker.repeat();
+    }
+    // Auto-stop the ticker after all ripples have expired (~2s lifespan).
+    _rippleCleanupTimer?.cancel();
+    _rippleCleanupTimer = Timer(const Duration(seconds: 3), () {
+      _ripples.clear();
+      if (_rippleTicker.isAnimating) _rippleTicker.stop();
+      if (mounted) setState(() {});
+    });
   }
 
   void _keystroke() {
@@ -117,9 +155,10 @@ class _GradientBackgroundState extends State<GradientBackground>
   @override
   Widget build(BuildContext context) {
     return AnimatedBuilder(
-      animation: _breathe,
+      animation: Listenable.merge([_breathe, _rippleTicker]),
       builder: (context, _) {
         final energy = _breathe.value;
+        final now = _stopwatch.elapsedMilliseconds / 1000.0;
         return Container(
           color: SupplyMapColors.bodyBg,
           child: Stack(
@@ -133,6 +172,8 @@ class _GradientBackgroundState extends State<GradientBackground>
                 painter: _TopoPainter(
                   breathe: energy,
                   mousePos: _mousePos,
+                  ripples: _ripples,
+                  time: now,
                 ),
                 size: Size.infinite,
               ),
@@ -140,21 +181,26 @@ class _GradientBackgroundState extends State<GradientBackground>
                 painter: _SearchGlowPainter(mousePos: _mousePos),
                 size: Size.infinite,
               ),
-              MouseRegion(
-                onHover: (e) {
-                  // Only track on devices with a mouse; on touch devices
-                  // the glow stays centered and topo lines stay static.
-                  if (e.kind == PointerDeviceKind.mouse) {
-                    // Throttle to ~60 fps (skip if < 16ms since last call).
-                    final now = DateTime.now();
-                    if (now.difference(_lastMouseUpdate).inMilliseconds < 16) {
-                      return;
-                    }
-                    _lastMouseUpdate = now;
-                    setState(() => _mousePos = e.localPosition);
+              Listener(
+                behavior: HitTestBehavior.translucent,
+                onPointerDown: (e) {
+                  if (e.kind != PointerDeviceKind.mouse) {
+                    _addRipple(e.localPosition);
                   }
                 },
-                child: widget.child,
+                child: MouseRegion(
+                  onHover: (e) {
+                    if (e.kind == PointerDeviceKind.mouse) {
+                      final now = DateTime.now();
+                      if (now.difference(_lastMouseUpdate).inMilliseconds < 16) {
+                        return;
+                      }
+                      _lastMouseUpdate = now;
+                      setState(() => _mousePos = e.localPosition);
+                    }
+                  },
+                  child: widget.child,
+                ),
               ),
             ],
           ),
@@ -205,13 +251,24 @@ class _GradientBlobPainter extends CustomPainter {
 // ---------------------------------------------------------------------------
 
 class _TopoPainter extends CustomPainter {
-  _TopoPainter({this.breathe = 0.0, this.mousePos});
+  _TopoPainter({
+    this.breathe = 0.0,
+    this.mousePos,
+    this.ripples = const [],
+    this.time = 0.0,
+  });
 
   /// 0 = resting, 1 = fully expanded (keystroke pulse).
   final double breathe;
 
   /// Current mouse position (null = no mouse yet).
   final Offset? mousePos;
+
+  /// Active touch ripples.
+  final List<_Ripple> ripples;
+
+  /// Current time in seconds (from stopwatch).
+  final double time;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -275,8 +332,32 @@ class _TopoPainter extends CustomPainter {
       for (int s = 0; s <= segments; s++) {
         final angle = (s / segments) * 2 * math.pi;
         final noise = 1.0 + (rng.nextDouble() - 0.5) * 0.12;
-        final x = cx + rx * noise * math.cos(angle);
-        final y = cy + ry * noise * math.sin(angle);
+        var x = cx + rx * noise * math.cos(angle);
+        var y = cy + ry * noise * math.sin(angle);
+
+        // Apply ripple displacement from touch events.
+        for (final ripple in ripples) {
+          final age = time - ripple.startTime;
+          if (age < 0 || age > 2.0) continue;
+          // Ripple wave expands at 300px/s.
+          final waveRadius = age * 300.0;
+          final dist = (Offset(x, y) - ripple.origin).distance;
+          // How close is this point to the wave front?
+          final waveDelta = (dist - waveRadius).abs();
+          if (waveDelta > 60) continue;
+          // Strength peaks at the wave front and fades with age.
+          final waveFade = 1.0 - (age / 2.0);
+          final spatialFade = 1.0 - (waveDelta / 60.0);
+          final jiggle = waveFade * spatialFade * 12.0;
+          // Push outward from ripple origin.
+          if (dist > 1) {
+            final dx = (x - ripple.origin.dx) / dist;
+            final dy = (y - ripple.origin.dy) / dist;
+            x += dx * jiggle * math.sin(age * 18.0);
+            y += dy * jiggle * math.sin(age * 18.0);
+          }
+        }
+
         if (s == 0) {
           path.moveTo(x, y);
         } else {
@@ -295,7 +376,9 @@ class _TopoPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _TopoPainter oldDelegate) =>
-      oldDelegate.breathe != breathe || oldDelegate.mousePos != mousePos;
+      oldDelegate.breathe != breathe ||
+      oldDelegate.mousePos != mousePos ||
+      oldDelegate.time != time;
 }
 
 // ---------------------------------------------------------------------------
