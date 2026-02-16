@@ -1,7 +1,7 @@
-/// Centralised configuration constants for FindR.
-///
-/// Keep all API URLs, timeouts, default values, and magic numbers here so
-/// there is a single source of truth and they are easy to tune.
+// Centralised configuration constants for FindR.
+//
+// Keep all API URLs, timeouts, default values, and magic numbers here so
+// there is a single source of truth and they are easy to tune.
 
 // ---------------------------------------------------------------------------
 // API endpoints

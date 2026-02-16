@@ -225,6 +225,7 @@ class _ResultsScreenState extends State<ResultsScreen> {
       setState(() {
         _error = e.toString().replaceFirst('Exception: ', '');
         _loading = false;
+        _enriching = false;
       });
     }
   }
@@ -1268,6 +1269,7 @@ class _ResultCardState extends State<_ResultCard> {
                       ),
                     if (widget.store.phone != null)
                       GestureDetector(
+                        behavior: HitTestBehavior.opaque,
                         onTap: () => _safeLaunch('tel:${widget.store.phone}'),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
@@ -1288,6 +1290,7 @@ class _ResultCardState extends State<_ResultCard> {
                       ),
                     if (widget.store.website != null)
                       GestureDetector(
+                        behavior: HitTestBehavior.opaque,
                         onTap: () => _safeLaunch(widget.store.website!),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,

@@ -571,7 +571,7 @@ class _SearchScreenState extends State<SearchScreen> {
       constraints: const BoxConstraints(maxWidth: 700),
       child: Row(
         children: [
-          Icon(Icons.near_me, size: 14, color: SupplyMapColors.textTertiary),
+          const Icon(Icons.near_me, size: 14, color: SupplyMapColors.textTertiary),
           const SizedBox(width: 6),
           Text(
             'Radius: ${_maxDistanceMiles.round()} mi',

@@ -1,8 +1,7 @@
 import 'dart:async' show Timer;
-import 'dart:ui' as ui show PointerDeviceKind;
+import 'dart:math' as math;
+import 'dart:ui' show PointerDeviceKind;
 import 'package:flutter/material.dart';
-import 'package:flutter_map/flutter_map.dart';
-import 'package:latlong2/latlong.dart';
 
 // ---------------------------------------------------------------------------
 // Design tokens from the HTML mockup
@@ -57,15 +56,8 @@ const double kRadiusSm = 8;
 const double kRadiusPill = 999;
 
 // ---------------------------------------------------------------------------
-// Gradient background – terrain map with fog-reveal on hover
+// Gradient background (static warm blobs + topo lines + glow)
 // ---------------------------------------------------------------------------
-
-/// A sample of the mouse position at a point in time.
-class _HeatSample {
-  final Offset pos;
-  final int timeMs;
-  const _HeatSample(this.pos, this.timeMs);
-}
 
 class GradientBackground extends StatefulWidget {
   const GradientBackground({super.key, required this.child});
@@ -73,6 +65,7 @@ class GradientBackground extends StatefulWidget {
   final Widget child;
 
   /// Call this from child widgets to trigger a typing pulse.
+  /// Usage: GradientBackground.onKeystroke(context)
   static void onKeystroke(BuildContext context) {
     context.findAncestorStateOfType<_GradientBackgroundState>()?._keystroke();
   }
@@ -82,52 +75,37 @@ class GradientBackground extends StatefulWidget {
 }
 
 class _GradientBackgroundState extends State<GradientBackground>
-    with TickerProviderStateMixin {
+    with SingleTickerProviderStateMixin {
   Offset? _mousePos;
-  final List<_HeatSample> _trail = [];
   DateTime _lastMouseUpdate = DateTime(0);
 
-  // Continuous ticker for trail decay animation.
-  late final AnimationController _anim;
-
-  // Smooth breath controller.
+  // Typing energy: builds up with keystrokes, decays when idle.
   late final AnimationController _breathe;
   Timer? _decayTimer;
 
   @override
   void initState() {
     super.initState();
-    _anim = AnimationController.unbounded(vsync: this)
-      ..repeat(min: 0, max: 1, period: const Duration(seconds: 1));
-    _anim.addListener(_tick);
-
     _breathe = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 300),
-      lowerBound: 0.0,
-      upperBound: 1.0,
-      value: 0.0,
+      duration: const Duration(milliseconds: 800),
     );
-  }
-
-  void _tick() {
-    // Prune trail samples older than 3.5s.
-    final now = DateTime.now().millisecondsSinceEpoch;
-    _trail.removeWhere((s) => now - s.timeMs > 3500);
   }
 
   @override
   void dispose() {
-    _anim.removeListener(_tick);
     _decayTimer?.cancel();
-    _anim.dispose();
     _breathe.dispose();
     super.dispose();
   }
 
   void _keystroke() {
+    // Each keystroke nudges the energy up a bit (capped at 1.0).
+    // When typing stops, it decays back to 0.
     final target = (_breathe.value + 0.15).clamp(0.0, 1.0);
     _breathe.animateTo(target, duration: const Duration(milliseconds: 200));
+
+    // Schedule decay: after a pause, animate back to 0.
     _decayTimer?.cancel();
     _decayTimer = Timer(const Duration(milliseconds: 600), () {
       if (mounted) {
@@ -139,62 +117,41 @@ class _GradientBackgroundState extends State<GradientBackground>
   @override
   Widget build(BuildContext context) {
     return AnimatedBuilder(
-      animation: Listenable.merge([_anim, _breathe]),
+      animation: _breathe,
       builder: (context, _) {
-        final now = DateTime.now().millisecondsSinceEpoch;
         final energy = _breathe.value;
         return Container(
           color: SupplyMapColors.bodyBg,
           child: Stack(
             fit: StackFit.expand,
             children: [
-              // ── Bottom layer: decorative terrain map ──
-              IgnorePointer(
-                child: FlutterMap(
-                  options: const MapOptions(
-                    initialCenter: LatLng(46.8, 8.2), // Swiss Alps
-                    initialZoom: 12,
-                    interactionOptions: InteractionOptions(
-                      flags: InteractiveFlag.none,
-                    ),
-                  ),
-                  children: [
-                    TileLayer(
-                      urlTemplate:
-                          'https://tile.opentopomap.org/{z}/{x}/{y}.png',
-                      userAgentPackageName: 'com.findr.findr_flutter',
-                    ),
-                  ],
-                ),
-              ),
-              // ── Fog overlay with mouse reveal ──
               CustomPaint(
-                painter: _FogRevealPainter(
-                  mousePos: _mousePos,
-                  trail: List.of(_trail),
+                painter: _GradientBlobPainter(),
+                size: Size.infinite,
+              ),
+              CustomPaint(
+                painter: _TopoPainter(
                   breathe: energy,
-                  timeMs: now,
+                  mousePos: _mousePos,
                 ),
                 size: Size.infinite,
               ),
-              // ── Cursor glow ──
               CustomPaint(
-                painter: _CursorGlowPainter(mousePos: _mousePos),
+                painter: _SearchGlowPainter(mousePos: _mousePos),
                 size: Size.infinite,
               ),
-              // ── Input layer ──
               MouseRegion(
                 onHover: (e) {
-                  if (e.kind == ui.PointerDeviceKind.mouse) {
+                  // Only track on devices with a mouse; on touch devices
+                  // the glow stays centered and topo lines stay static.
+                  if (e.kind == PointerDeviceKind.mouse) {
+                    // Throttle to ~60 fps (skip if < 16ms since last call).
                     final now = DateTime.now();
-                    if (now.difference(_lastMouseUpdate).inMilliseconds >= 16) {
-                      _lastMouseUpdate = now;
-                      _mousePos = e.localPosition;
-                      _trail.add(_HeatSample(
-                        e.localPosition,
-                        now.millisecondsSinceEpoch,
-                      ));
+                    if (now.difference(_lastMouseUpdate).inMilliseconds < 16) {
+                      return;
                     }
+                    _lastMouseUpdate = now;
+                    setState(() => _mousePos = e.localPosition);
                   }
                 },
                 child: widget.child,
@@ -207,108 +164,155 @@ class _GradientBackgroundState extends State<GradientBackground>
   }
 }
 
-// ---------------------------------------------------------------------------
-// Fog overlay – thick cream covers the map; cursor punches through it
-// ---------------------------------------------------------------------------
-
-class _FogRevealPainter extends CustomPainter {
-  _FogRevealPainter({
-    this.mousePos,
-    required this.trail,
-    this.breathe = 0.0,
-    required this.timeMs,
-  });
-
-  final Offset? mousePos;
-  final List<_HeatSample> trail;
-  final double breathe;
-  final int timeMs;
-
-  // Reveal parameters (reduced size).
-  static const double _cursorRadius = 160.0;
-  static const double _cursorCoreRadius = 55.0;
-
+class _GradientBlobPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
-    if (size.isEmpty) return;
-
-    // Save layer so we can use blend modes to "cut holes" in the fog.
-    canvas.saveLayer(Offset.zero & size, Paint());
-
-    // 1) Fill entire canvas with cream fog.
-    //    Typing breath makes fog slightly thinner globally.
-    final fogAlpha = (0.82 - breathe * 0.12).clamp(0.55, 0.85);
-    canvas.drawRect(
-      Offset.zero & size,
-      Paint()..color = SupplyMapColors.bodyBg.withValues(alpha: fogAlpha),
+    _drawBlob(
+      canvas,
+      Offset(size.width * 0.1, size.height * 0.1),
+      math.max(size.width, size.height) * 0.4,
+      SupplyMapColors.accentGreen.withValues(alpha: 0.08),
     );
+    _drawBlob(
+      canvas,
+      Offset(size.width * 0.9, size.height * 0.8),
+      math.max(size.width, size.height) * 0.4,
+      SupplyMapColors.accentWarm.withValues(alpha: 0.08),
+    );
+    _drawBlob(
+      canvas,
+      Offset(size.width * 0.5, size.height * 0.5),
+      math.max(size.width, size.height) * 0.6,
+      SupplyMapColors.blue.withValues(alpha: 0.06),
+    );
+  }
 
-    // 2) Cut a reveal hole at the cursor using DstOut blend mode.
-    if (mousePos != null) {
-      final clearPaint = Paint()..blendMode = BlendMode.dstOut;
-      clearPaint.shader = RadialGradient(
-        colors: [
-          Colors.white.withValues(alpha: 0.95),
-          Colors.white.withValues(alpha: 0.7),
-          Colors.white.withValues(alpha: 0.0),
-        ],
-        stops: [0.0, _cursorCoreRadius / _cursorRadius, 1.0],
-      ).createShader(
-        Rect.fromCircle(center: mousePos!, radius: _cursorRadius),
-      );
-      canvas.drawCircle(mousePos!, _cursorRadius, clearPaint);
-    }
-
-    canvas.restore();
-
-    // 3) Subtle green tint at cursor position.
-    if (mousePos != null) {
-      final greenPaint = Paint()
-        ..shader = RadialGradient(
-          colors: [
-            SupplyMapColors.accentGreen.withValues(alpha: 0.06),
-            SupplyMapColors.accentGreen.withValues(alpha: 0.0),
-          ],
-        ).createShader(
-          Rect.fromCircle(center: mousePos!, radius: _cursorRadius),
-        );
-      canvas.drawCircle(mousePos!, _cursorRadius, greenPaint);
-    }
+  void _drawBlob(Canvas canvas, Offset center, double radius, Color color) {
+    final paint = Paint()
+      ..shader = RadialGradient(
+        colors: [color, color.withValues(alpha: 0)],
+        stops: const [0.0, 1.0],
+      ).createShader(Rect.fromCircle(center: center, radius: radius));
+    canvas.drawCircle(center, radius, paint);
   }
 
   @override
-  bool shouldRepaint(covariant _FogRevealPainter old) => true; // ticking
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
 // ---------------------------------------------------------------------------
-// Subtle glow around the cursor
+// Topographic contour line painter (map-themed background texture)
 // ---------------------------------------------------------------------------
 
-class _CursorGlowPainter extends CustomPainter {
-  _CursorGlowPainter({this.mousePos});
+class _TopoPainter extends CustomPainter {
+  _TopoPainter({this.breathe = 0.0, this.mousePos});
+
+  /// 0 = resting, 1 = fully expanded (keystroke pulse).
+  final double breathe;
+
+  /// Current mouse position (null = no mouse yet).
+  final Offset? mousePos;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final baseCx = size.width * 0.45;
+    final baseCy = size.height * 0.48;
+    final rng = math.Random(42);
+
+    // Parallax: how far the mouse is from center, normalized to -1..1.
+    double px = 0.0;
+    double py = 0.0;
+    if (mousePos != null && size.width > 0 && size.height > 0) {
+      px = (mousePos!.dx - size.width / 2) / (size.width / 2);
+      py = (mousePos!.dy - size.height / 2) / (size.height / 2);
+    }
+
+    for (int i = 1; i <= 10; i++) {
+      final baseRx = 55.0 * i + rng.nextDouble() * 12;
+      final baseRy = 40.0 * i + rng.nextDouble() * 12;
+
+      // Scale up when typing – outer rings expand more.
+      final scale = 1.0 + breathe * (0.10 + 0.03 * i);
+      final rx = baseRx * scale;
+      final ry = baseRy * scale;
+
+      // Parallax shift: outer rings move more than inner.
+      final strength = 15.0 + i * 8.0;
+      final cx = baseCx + px * strength;
+      final cy = baseCy + py * strength;
+
+      // Lines get thicker and slightly greener when typing.
+      final baseAlpha = (i > 6) ? (0.5 - (i - 6) * 0.08) : 0.5;
+      final alpha = (baseAlpha + breathe * 0.25).clamp(0.0, 0.85);
+      final color = Color.lerp(
+        SupplyMapColors.borderStrong,
+        SupplyMapColors.accentGreen,
+        breathe * 0.35,
+      )!;
+
+      final paint = Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.2 + breathe * 1.0
+        ..color = color.withValues(alpha: alpha);
+
+      final path = Path();
+
+      const segments = 64;
+      for (int s = 0; s <= segments; s++) {
+        final angle = (s / segments) * 2 * math.pi;
+        final noise = 1.0 + (rng.nextDouble() - 0.5) * 0.12;
+        final x = cx + rx * noise * math.cos(angle);
+        final y = cy + ry * noise * math.sin(angle);
+        if (s == 0) {
+          path.moveTo(x, y);
+        } else {
+          final prevAngle = ((s - 1) / segments) * 2 * math.pi;
+          final prevNoise = 1.0 + (rng.nextDouble() - 0.5) * 0.10;
+          final cpx = cx + rx * prevNoise * math.cos((prevAngle + angle) / 2);
+          final cpy = cy + ry * prevNoise * math.sin((prevAngle + angle) / 2);
+          path.quadraticBezierTo(cpx, cpy, x, y);
+        }
+      }
+
+      path.close();
+      canvas.drawPath(path, paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _TopoPainter oldDelegate) =>
+      oldDelegate.breathe != breathe || oldDelegate.mousePos != mousePos;
+}
+
+// ---------------------------------------------------------------------------
+// Radial glow painter (soft green halo behind the search bar)
+// ---------------------------------------------------------------------------
+
+class _SearchGlowPainter extends CustomPainter {
+  _SearchGlowPainter({this.mousePos});
 
   final Offset? mousePos;
 
   @override
   void paint(Canvas canvas, Size size) {
+    // Follow mouse if available, otherwise default to center.
     final center = mousePos ?? Offset(size.width * 0.5, size.height * 0.55);
-    const radius = 200.0;
-    canvas.drawCircle(
-      center,
-      radius,
-      Paint()
-        ..shader = RadialGradient(
-          colors: [
-            SupplyMapColors.accentGreen.withValues(alpha: 0.14),
-            SupplyMapColors.accentGreen.withValues(alpha: 0.0),
-          ],
-        ).createShader(Rect.fromCircle(center: center, radius: radius)),
-    );
+    const radius = 350.0;
+    final paint = Paint()
+      ..shader = RadialGradient(
+        colors: [
+          SupplyMapColors.accentGreen.withValues(alpha: 0.18),
+          SupplyMapColors.accentGreen.withValues(alpha: 0.0),
+        ],
+        stops: const [0.0, 1.0],
+      ).createShader(Rect.fromCircle(center: center, radius: radius));
+
+    canvas.drawCircle(center, radius, paint);
   }
 
   @override
-  bool shouldRepaint(covariant _CursorGlowPainter old) =>
-      old.mousePos != mousePos;
+  bool shouldRepaint(covariant _SearchGlowPainter oldDelegate) =>
+      oldDelegate.mousePos != mousePos;
 }
 
 // ---------------------------------------------------------------------------
