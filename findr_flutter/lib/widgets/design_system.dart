@@ -215,8 +215,8 @@ class _TopoPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final baseCx = size.width * 0.45;
-    final baseCy = size.height * 0.48;
+    final baseCx = size.width * 0.5;
+    final baseCy = size.height * 0.5;
     final rng = math.Random(42);
 
     // Parallax: how far the mouse is from center, normalized to -1..1.
