@@ -1,9 +1,8 @@
-import 'dart:ui' as ui;
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
-import 'package:flutter_map/flutter_map.dart';
-import 'package:latlong2/latlong.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../models/search_models.dart';
 import '../services/search_service.dart';
@@ -66,19 +65,6 @@ String _badgeLabel(_CardStyle s) {
       return 'Nearby';
     case _CardStyle.standard:
       return 'Store';
-  }
-}
-
-Color _pinColor(_CardStyle s) {
-  switch (s) {
-    case _CardStyle.closest:
-      return SupplyMapColors.red;
-    case _CardStyle.fastest:
-      return SupplyMapColors.purple;
-    case _CardStyle.nearby:
-      return SupplyMapColors.accentGreen;
-    case _CardStyle.standard:
-      return SupplyMapColors.borderStrong;
   }
 }
 
@@ -154,7 +140,8 @@ class _ResultsScreenState extends State<ResultsScreen> {
   SearchResult? _result;
   bool _loading = true;
   String? _error;
-  final MapController _mapController = MapController();
+  GoogleMapController? _mapController;
+  final Completer<GoogleMapController> _mapCompleter = Completer();
   String? _selectedStoreId;
   late String _currentItem;
   bool _settingsOpen = false;
@@ -173,8 +160,15 @@ class _ResultsScreenState extends State<ResultsScreen> {
 
   @override
   void dispose() {
-    _mapController.dispose();
+    _mapController?.dispose();
     super.dispose();
+  }
+
+  void _onMapCreated(GoogleMapController controller) {
+    _mapController = controller;
+    if (!_mapCompleter.isCompleted) {
+      _mapCompleter.complete(controller);
+    }
   }
 
   Future<void> _load() async {
@@ -325,9 +319,12 @@ class _ResultsScreenState extends State<ResultsScreen> {
 
   void _onSelectStore(Store store) {
     setState(() => _selectedStoreId = store.id);
-    final currentZoom = _mapController.camera.zoom;
-    final nextZoom = currentZoom < kMapSelectZoom ? kMapSelectZoom : currentZoom;
-    _mapController.move(LatLng(store.lat, store.lng), nextZoom);
+    _mapController?.animateCamera(
+      CameraUpdate.newLatLngZoom(
+        LatLng(store.lat, store.lng),
+        kMapSelectZoom,
+      ),
+    );
   }
 
   void _fitMapToClosestStores(List<Store> stores) {
@@ -336,9 +333,26 @@ class _ResultsScreenState extends State<ResultsScreen> {
       LatLng(widget.lat, widget.lng),
       ...stores.take(5).map((s) => LatLng(s.lat, s.lng)),
     ];
-    final bounds = LatLngBounds.fromPoints(points);
-    _mapController.fitCamera(
-      CameraFit.bounds(bounds: bounds, padding: const EdgeInsets.all(40)),
+    final bounds = _boundsFromPoints(points);
+    _mapController?.animateCamera(
+      CameraUpdate.newLatLngBounds(bounds, 50),
+    );
+  }
+
+  LatLngBounds _boundsFromPoints(List<LatLng> points) {
+    double minLat = points.first.latitude;
+    double maxLat = points.first.latitude;
+    double minLng = points.first.longitude;
+    double maxLng = points.first.longitude;
+    for (final p in points) {
+      if (p.latitude < minLat) minLat = p.latitude;
+      if (p.latitude > maxLat) maxLat = p.latitude;
+      if (p.longitude < minLng) minLng = p.longitude;
+      if (p.longitude > maxLng) maxLng = p.longitude;
+    }
+    return LatLngBounds(
+      southwest: LatLng(minLat, minLng),
+      northeast: LatLng(maxLat, maxLng),
     );
   }
 
@@ -807,6 +821,85 @@ class _ResultsScreenState extends State<ResultsScreen> {
   }
 
   // -----------------------------------------------------------------------
+  // Build Google Maps markers set
+  // -----------------------------------------------------------------------
+  Set<Marker> _buildGoogleMarkers(
+    List<Store> stores,
+    Store? selectedStore,
+    SettingsProvider settings,
+  ) {
+    final markers = <Marker>{};
+
+    // User location marker
+    markers.add(
+      Marker(
+        markerId: const MarkerId('user_location'),
+        position: LatLng(widget.lat, widget.lng),
+        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure),
+        zIndex: 2,
+      ),
+    );
+
+    // Store markers
+    for (final entry in stores.asMap().entries) {
+      final i = entry.key;
+      final s = entry.value;
+      final style = _styleForStore(i, s, stores);
+      final isSelected = s.id == _selectedStoreId;
+
+      double hue;
+      switch (style) {
+        case _CardStyle.closest:
+          hue = BitmapDescriptor.hueRed;
+          break;
+        case _CardStyle.fastest:
+          hue = BitmapDescriptor.hueViolet;
+          break;
+        case _CardStyle.nearby:
+          hue = BitmapDescriptor.hueGreen;
+          break;
+        case _CardStyle.standard:
+          hue = BitmapDescriptor.hueOrange;
+          break;
+      }
+
+      markers.add(
+        Marker(
+          markerId: MarkerId(s.id),
+          position: LatLng(s.lat, s.lng),
+          icon: BitmapDescriptor.defaultMarkerWithHue(hue),
+          zIndex: isSelected ? 3 : 1,
+          onTap: () => _onSelectStore(s),
+          infoWindow: InfoWindow(
+            title: s.name,
+            snippet: '${formatDistance(s.distanceKm, useKm: settings.useKm)} away'
+                '${s.durationMinutes != null ? ' · ~${s.durationMinutes} min' : ''}',
+            onTap: () => _openDirections(s),
+          ),
+        ),
+      );
+    }
+
+    return markers;
+  }
+
+  // -----------------------------------------------------------------------
+  // Build Google Maps circles set (search radius)
+  // -----------------------------------------------------------------------
+  Set<Circle> _buildGoogleCircles(double searchRadiusMeters) {
+    return {
+      Circle(
+        circleId: const CircleId('search_radius'),
+        center: LatLng(widget.lat, widget.lng),
+        radius: searchRadiusMeters,
+        fillColor: SupplyMapColors.blue.withValues(alpha: 0.08),
+        strokeColor: SupplyMapColors.blue.withValues(alpha: 0.25),
+        strokeWidth: 2,
+      ),
+    };
+  }
+
+  // -----------------------------------------------------------------------
   // Shared map area widget
   // -----------------------------------------------------------------------
   Widget _buildMapArea(
@@ -822,93 +915,34 @@ class _ResultsScreenState extends State<ResultsScreen> {
           ? const Center(child: _EmptyState())
           : Stack(
               children: [
-                CustomPaint(
-                  painter: _GridPainter(),
-                  size: Size.infinite,
-                ),
-                FlutterMap(
-                  mapController: _mapController,
-                  options: MapOptions(
-                    initialCenter: LatLng(widget.lat, widget.lng),
-                    initialZoom: kMapInitialZoom,
-                    backgroundColor: Colors.transparent,
+                GoogleMap(
+                  onMapCreated: _onMapCreated,
+                  initialCameraPosition: CameraPosition(
+                    target: LatLng(widget.lat, widget.lng),
+                    zoom: kMapInitialZoom,
                   ),
-                  children: [
-                    TileLayer(
-                      urlTemplate: kTileUrl,
-                      userAgentPackageName: kTileUserAgent,
-                    ),
-                    CircleLayer(
-                      circles: [
-                        CircleMarker(
-                          point: LatLng(widget.lat, widget.lng),
-                          radius: searchRadiusMeters,
-                          useRadiusInMeter: true,
-                          color:
-                              SupplyMapColors.blue.withValues(alpha: 0.08),
-                          borderColor:
-                              SupplyMapColors.blue.withValues(alpha: 0.20),
-                          borderStrokeWidth: 1.5,
-                        ),
-                      ],
-                    ),
-                    MarkerLayer(
-                      markers: [
-                        Marker(
-                          point: LatLng(widget.lat, widget.lng),
-                          width: 24,
-                          height: 24,
-                          child: Container(
-                            width: 16,
-                            height: 16,
-                            decoration: BoxDecoration(
-                              color: SupplyMapColors.blue,
-                              shape: BoxShape.circle,
-                              border: Border.all(color: Colors.white, width: 3),
-                            ),
-                          ),
-                        ),
-                        ...stores.asMap().entries.map((entry) {
-                          final i = entry.key;
-                          final s = entry.value;
-                          final style = _styleForStore(i, s, stores);
-                          final isSelected = s.id == _selectedStoreId;
-                          return Marker(
-                            point: LatLng(s.lat, s.lng),
-                            width: isSelected ? 50 : 40,
-                            height: isSelected ? 50 : 40,
-                            child: _MapPin(
-                              index: i + 1,
-                              color: _pinColor(style),
-                              isBest: style == _CardStyle.closest,
-                              isSelected: isSelected,
-                              darkText: _cardDarkText(style),
-                              onTap: () => _onSelectStore(s),
-                            ),
-                          );
-                        }),
-                        if (selectedStore != null)
-                          Marker(
-                            point: LatLng(
-                                selectedStore.lat, selectedStore.lng),
-                            width: 250,
-                            height: 130,
-                            child: Align(
-                              alignment: Alignment.topCenter,
-                              child: _SelectedStorePopup(
-                                store: selectedStore,
-                                settings: settings,
-                                onClose: () => setState(
-                                    () => _selectedStoreId = null),
-                                onDirections: () =>
-                                    _openDirections(selectedStore),
-                              ),
-                            ),
-                          ),
-                      ],
-                    ),
-                  ],
+                  markers: _buildGoogleMarkers(stores, selectedStore, settings),
+                  circles: _buildGoogleCircles(searchRadiusMeters),
+                  myLocationEnabled: false,
+                  myLocationButtonEnabled: false,
+                  zoomControlsEnabled: false,
+                  mapToolbarEnabled: false,
+                  compassEnabled: true,
+                  onTap: (_) => setState(() => _selectedStoreId = null),
                 ),
+                // Selected store popup overlay
+                if (selectedStore != null)
+                  Positioned(
+                    top: 16,
+                    left: 16,
+                    right: 80,
+                    child: _SelectedStorePopup(
+                      store: selectedStore,
+                      settings: settings,
+                      onClose: () => setState(() => _selectedStoreId = null),
+                      onDirections: () => _openDirections(selectedStore),
+                    ),
+                  ),
                 // Map controls
                 Positioned(
                   bottom: 32,
@@ -920,18 +954,18 @@ class _ResultsScreenState extends State<ResultsScreen> {
                           icon: Icons.add,
                           tooltip: 'Zoom in',
                           onTap: () {
-                            final cam = _mapController.camera;
-                            _mapController.move(
-                                cam.center, cam.zoom + 1);
+                            _mapController?.animateCamera(
+                              CameraUpdate.zoomIn(),
+                            );
                           }),
                       const SizedBox(height: 8),
                       _MapControlBtn(
                           icon: Icons.remove,
                           tooltip: 'Zoom out',
                           onTap: () {
-                            final cam = _mapController.camera;
-                            _mapController.move(
-                                cam.center, cam.zoom - 1);
+                            _mapController?.animateCamera(
+                              CameraUpdate.zoomOut(),
+                            );
                           }),
                       const SizedBox(height: 8),
                       _MapControlBtn(
@@ -1615,79 +1649,6 @@ class _ResultCardState extends State<_ResultCard> {
 }
 
 // ---------------------------------------------------------------------------
-// Map pin
-// ---------------------------------------------------------------------------
-
-class _MapPin extends StatefulWidget {
-  const _MapPin({
-    required this.index,
-    required this.color,
-    required this.isBest,
-    required this.isSelected,
-    required this.darkText,
-    required this.onTap,
-  });
-
-  final int index;
-  final Color color;
-  final bool isBest;
-  final bool isSelected;
-  final bool darkText;
-  final VoidCallback onTap;
-
-  @override
-  State<_MapPin> createState() => _MapPinState();
-}
-
-class _MapPinState extends State<_MapPin> {
-  bool _hovered = false;
-
-  @override
-  Widget build(BuildContext context) {
-    final size = widget.isBest ? 50.0 : 40.0;
-    return MouseRegion(
-      onEnter: (_) => setState(() => _hovered = true),
-      onExit: (_) => setState(() => _hovered = false),
-      cursor: SystemMouseCursors.click,
-      child: GestureDetector(
-        onTap: widget.onTap,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          width: size,
-          height: size,
-          transform: Matrix4.diagonal3Values(
-              _hovered ? 1.1 : 1.0, _hovered ? 1.1 : 1.0, 1.0),
-          decoration: BoxDecoration(
-            color: widget.color,
-            shape: BoxShape.circle,
-            border: Border.all(
-                color: Colors.white, width: 3),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.15),
-                blurRadius: 8,
-                offset: const Offset(0, 2),
-              ),
-            ],
-          ),
-          alignment: Alignment.center,
-          child: Text(
-            '${widget.index}',
-            style: _outfit(
-              fontWeight: FontWeight.w800,
-              fontSize: widget.isBest ? 16 : 13,
-              color: widget.darkText
-                  ? SupplyMapColors.textBlack
-                  : Colors.white,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-// ---------------------------------------------------------------------------
 // Map control button
 // ---------------------------------------------------------------------------
 
@@ -1766,157 +1727,102 @@ class _SelectedStorePopup extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Container(
+    return Container(
+      decoration: BoxDecoration(
+        color: SupplyMapColors.sidebarBg,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: SupplyMapColors.borderSubtle),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x151A1918),
+            blurRadius: 16,
+            offset: Offset(0, 4),
+          ),
+        ],
+      ),
+      padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.store,
+                  size: 16, color: SupplyMapColors.accentGreen),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  store.name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: _outfit(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 14,
+                    color: SupplyMapColors.textBlack,
+                  ),
+                ),
+              ),
+              GestureDetector(
+                onTap: onClose,
+                child: const Icon(Icons.close,
+                    size: 14, color: SupplyMapColors.textTertiary),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            '${store.priceLabel != null ? '${store.priceLabel} · ' : ''}'
+            '${formatDistance(store.distanceKm, useKm: settings.useKm)} away'
+            '${store.durationMinutes != null ? ' · ~${store.durationMinutes} min' : ''}'
+            '${_storeTypeLabel(store) != null ? ' · ${_storeTypeLabel(store)}' : ''}',
+            style: _outfit(
+                fontSize: 12, color: SupplyMapColors.textSecondary),
+          ),
+          if (store.openingHours != null) ...[
+            const SizedBox(height: 2),
+            Text(
+              store.openingHours!,
+              style: _outfit(
+                  fontSize: 11, color: SupplyMapColors.textTertiary),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
+          const SizedBox(height: 8),
+          GestureDetector(
+            onTap: onDirections,
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(
+                  horizontal: 12, vertical: 6),
               decoration: BoxDecoration(
-                color: SupplyMapColors.sidebarBg,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: SupplyMapColors.borderSubtle),
-                boxShadow: const [
-                  BoxShadow(
-                    color: Color(0x151A1918),
-                    blurRadius: 16,
-                    offset: Offset(0, 4),
-                  ),
-                ],
+                color: SupplyMapColors.accentGreen,
+                borderRadius:
+                    BorderRadius.circular(kRadiusPill),
               ),
-              padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  Row(
-                    children: [
-                      const Icon(Icons.store,
-                          size: 16, color: SupplyMapColors.accentGreen),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          store.name,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: _outfit(
-                            fontWeight: FontWeight.w700,
-                            fontSize: 14,
-                            color: SupplyMapColors.textBlack,
-                          ),
-                        ),
-                      ),
-                      GestureDetector(
-                        onTap: onClose,
-                        child: const Icon(Icons.close,
-                            size: 14, color: SupplyMapColors.textTertiary),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 4),
+                  const Icon(Icons.navigation,
+                      size: 12, color: Colors.white),
+                  const SizedBox(width: 6),
                   Text(
-                    '${store.priceLabel != null ? '${store.priceLabel} · ' : ''}'
-                    '${formatDistance(store.distanceKm, useKm: settings.useKm)} away'
-                    '${store.durationMinutes != null ? ' · ~${store.durationMinutes} min' : ''}'
-                    '${_storeTypeLabel(store) != null ? ' · ${_storeTypeLabel(store)}' : ''}',
+                    'Directions',
                     style: _outfit(
-                        fontSize: 12, color: SupplyMapColors.textSecondary),
-                  ),
-                  if (store.openingHours != null) ...[
-                    const SizedBox(height: 2),
-                    Text(
-                      store.openingHours!,
-                      style: _outfit(
-                          fontSize: 11, color: SupplyMapColors.textTertiary),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
-                  const SizedBox(height: 8),
-                  GestureDetector(
-                    onTap: onDirections,
-                    child: Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: SupplyMapColors.accentGreen,
-                        borderRadius:
-                            BorderRadius.circular(kRadiusPill),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(Icons.navigation,
-                              size: 12, color: Colors.white),
-                          const SizedBox(width: 6),
-                          Text(
-                            'Directions',
-                            style: _outfit(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.white,
-                            ),
-                          ),
-                        ],
-                      ),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
                     ),
                   ),
                 ],
               ),
-        ),
-        CustomPaint(
-          size: const Size(18, 8),
-          painter: _PopupArrowPainter(color: SupplyMapColors.sidebarBg),
-        ),
-      ],
+            ),
+          ),
+        ],
+      ),
     );
   }
-}
-
-// ---------------------------------------------------------------------------
-// Grid painter for map background
-// ---------------------------------------------------------------------------
-
-class _GridPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = SupplyMapColors.borderSubtle.withValues(alpha: 0.3)
-      ..strokeWidth = 1;
-    const step = 40.0;
-    for (double x = 0; x < size.width; x += step) {
-      canvas.drawLine(Offset(x, 0), Offset(x, size.height), paint);
-    }
-    for (double y = 0; y < size.height; y += step) {
-      canvas.drawLine(Offset(0, y), Offset(size.width, y), paint);
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
-}
-
-// ---------------------------------------------------------------------------
-// Popup arrow painter
-// ---------------------------------------------------------------------------
-
-class _PopupArrowPainter extends CustomPainter {
-  _PopupArrowPainter({required this.color});
-
-  final Color color;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final p = ui.Path()
-      ..moveTo(0, 0)
-      ..lineTo(size.width / 2, size.height)
-      ..lineTo(size.width, 0)
-      ..close();
-    canvas.drawPath(p, Paint()..color = color);
-  }
-
-  @override
-  bool shouldRepaint(covariant _PopupArrowPainter old) =>
-      old.color != color;
 }
 
 // ---------------------------------------------------------------------------

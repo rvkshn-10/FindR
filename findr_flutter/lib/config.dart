@@ -13,8 +13,7 @@ const List<String> kOverpassEndpoints = [
   'https://overpass-api.de/api/interpreter',
   'https://overpass.kumi.systems/api/interpreter',
 ];
-const String kTileUrl = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
-const String kTileUserAgent = 'com.findr.findr_flutter';
+const String kGoogleMapsApiKey = 'AIzaSyBAWClIVWMDhCIJzCNmrj7weEcDJGXod48';
 
 // ---------------------------------------------------------------------------
 // HTTP user-agent

@@ -9,6 +9,10 @@
         android:label="FindR"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
+        <!-- Google Maps API key -->
+        <meta-data
+            android:name="com.google.android.geo.API_KEY"
+            android:value="AIzaSyBAWClIVWMDhCIJzCNmrj7weEcDJGXod48" />
         <activity
             android:name=".MainActivity"
             android:exported="true"
