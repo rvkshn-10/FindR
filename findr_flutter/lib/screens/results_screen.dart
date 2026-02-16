@@ -1,8 +1,8 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../models/search_models.dart';
 import '../services/search_service.dart';
@@ -140,8 +140,7 @@ class _ResultsScreenState extends State<ResultsScreen> {
   SearchResult? _result;
   bool _loading = true;
   String? _error;
-  GoogleMapController? _mapController;
-  final Completer<GoogleMapController> _mapCompleter = Completer();
+  final MapController _mapController = MapController();
   String? _selectedStoreId;
   late String _currentItem;
   bool _settingsOpen = false;
@@ -160,15 +159,8 @@ class _ResultsScreenState extends State<ResultsScreen> {
 
   @override
   void dispose() {
-    _mapController?.dispose();
+    _mapController.dispose();
     super.dispose();
-  }
-
-  void _onMapCreated(GoogleMapController controller) {
-    _mapController = controller;
-    if (!_mapCompleter.isCompleted) {
-      _mapCompleter.complete(controller);
-    }
   }
 
   Future<void> _load() async {
@@ -319,12 +311,7 @@ class _ResultsScreenState extends State<ResultsScreen> {
 
   void _onSelectStore(Store store) {
     setState(() => _selectedStoreId = store.id);
-    _mapController?.animateCamera(
-      CameraUpdate.newLatLngZoom(
-        LatLng(store.lat, store.lng),
-        kMapSelectZoom,
-      ),
-    );
+    _mapController.move(LatLng(store.lat, store.lng), kMapSelectZoom);
   }
 
   void _fitMapToClosestStores(List<Store> stores) {
@@ -333,26 +320,9 @@ class _ResultsScreenState extends State<ResultsScreen> {
       LatLng(widget.lat, widget.lng),
       ...stores.take(5).map((s) => LatLng(s.lat, s.lng)),
     ];
-    final bounds = _boundsFromPoints(points);
-    _mapController?.animateCamera(
-      CameraUpdate.newLatLngBounds(bounds, 50),
-    );
-  }
-
-  LatLngBounds _boundsFromPoints(List<LatLng> points) {
-    double minLat = points.first.latitude;
-    double maxLat = points.first.latitude;
-    double minLng = points.first.longitude;
-    double maxLng = points.first.longitude;
-    for (final p in points) {
-      if (p.latitude < minLat) minLat = p.latitude;
-      if (p.latitude > maxLat) maxLat = p.latitude;
-      if (p.longitude < minLng) minLng = p.longitude;
-      if (p.longitude > maxLng) maxLng = p.longitude;
-    }
-    return LatLngBounds(
-      southwest: LatLng(minLat, minLng),
-      northeast: LatLng(maxLat, maxLng),
+    final bounds = LatLngBounds.fromPoints(points);
+    _mapController.fitCamera(
+      CameraFit.bounds(bounds: bounds, padding: const EdgeInsets.all(50)),
     );
   }
 
@@ -821,22 +791,30 @@ class _ResultsScreenState extends State<ResultsScreen> {
   }
 
   // -----------------------------------------------------------------------
-  // Build Google Maps markers set
+  // Build flutter_map markers
   // -----------------------------------------------------------------------
-  Set<Marker> _buildGoogleMarkers(
-    List<Store> stores,
-    Store? selectedStore,
-    SettingsProvider settings,
-  ) {
-    final markers = <Marker>{};
+  List<Marker> _buildMarkers(List<Store> stores) {
+    final markers = <Marker>[];
 
     // User location marker
     markers.add(
       Marker(
-        markerId: const MarkerId('user_location'),
-        position: LatLng(widget.lat, widget.lng),
-        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure),
-        zIndex: 2,
+        point: LatLng(widget.lat, widget.lng),
+        width: 28,
+        height: 28,
+        child: Container(
+          decoration: BoxDecoration(
+            color: SupplyMapColors.blue,
+            shape: BoxShape.circle,
+            border: Border.all(color: Colors.white, width: 2.5),
+            boxShadow: [
+              BoxShadow(
+                color: SupplyMapColors.blue.withValues(alpha: 0.4),
+                blurRadius: 8,
+              ),
+            ],
+          ),
+        ),
       ),
     );
 
@@ -847,56 +825,57 @@ class _ResultsScreenState extends State<ResultsScreen> {
       final style = _styleForStore(i, s, stores);
       final isSelected = s.id == _selectedStoreId;
 
-      double hue;
+      Color pinColor;
       switch (style) {
         case _CardStyle.closest:
-          hue = BitmapDescriptor.hueRed;
-          break;
+          pinColor = SupplyMapColors.red;
         case _CardStyle.fastest:
-          hue = BitmapDescriptor.hueViolet;
-          break;
+          pinColor = SupplyMapColors.purple;
         case _CardStyle.nearby:
-          hue = BitmapDescriptor.hueGreen;
-          break;
+          pinColor = SupplyMapColors.accentGreen;
         case _CardStyle.standard:
-          hue = BitmapDescriptor.hueOrange;
-          break;
+          pinColor = SupplyMapColors.accentWarm;
       }
 
       markers.add(
         Marker(
-          markerId: MarkerId(s.id),
-          position: LatLng(s.lat, s.lng),
-          icon: BitmapDescriptor.defaultMarkerWithHue(hue),
-          zIndex: isSelected ? 3 : 1,
-          onTap: () => _onSelectStore(s),
-          infoWindow: InfoWindow(
-            title: s.name,
-            snippet: '${formatDistance(s.distanceKm, useKm: settings.useKm)} away'
-                '${s.durationMinutes != null ? ' · ~${s.durationMinutes} min' : ''}',
-            onTap: () => _openDirections(s),
+          point: LatLng(s.lat, s.lng),
+          width: isSelected ? 40 : 32,
+          height: isSelected ? 40 : 32,
+          child: GestureDetector(
+            onTap: () => _onSelectStore(s),
+            child: Container(
+              decoration: BoxDecoration(
+                color: pinColor,
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: isSelected ? Colors.white : Colors.white70,
+                  width: isSelected ? 3 : 2,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: pinColor.withValues(alpha: 0.5),
+                    blurRadius: isSelected ? 12 : 6,
+                  ),
+                ],
+              ),
+              child: Center(
+                child: Text(
+                  '${i + 1}',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ),
           ),
         ),
       );
     }
 
     return markers;
-  }
-
-  // -----------------------------------------------------------------------
-  // Build Google Maps circles set (search radius)
-  // -----------------------------------------------------------------------
-  Set<Circle> _buildGoogleCircles(double searchRadiusMeters) {
-    return {
-      Circle(
-        circleId: const CircleId('search_radius'),
-        center: LatLng(widget.lat, widget.lng),
-        radius: searchRadiusMeters,
-        fillColor: SupplyMapColors.blue.withValues(alpha: 0.08),
-        strokeColor: SupplyMapColors.blue.withValues(alpha: 0.25),
-        strokeWidth: 2,
-      ),
-    };
   }
 
   // -----------------------------------------------------------------------
@@ -915,20 +894,32 @@ class _ResultsScreenState extends State<ResultsScreen> {
           ? const Center(child: _EmptyState())
           : Stack(
               children: [
-                GoogleMap(
-                  onMapCreated: _onMapCreated,
-                  initialCameraPosition: CameraPosition(
-                    target: LatLng(widget.lat, widget.lng),
-                    zoom: kMapInitialZoom,
+                FlutterMap(
+                  mapController: _mapController,
+                  options: MapOptions(
+                    initialCenter: LatLng(widget.lat, widget.lng),
+                    initialZoom: kMapInitialZoom,
+                    onTap: (_, __) => setState(() => _selectedStoreId = null),
                   ),
-                  markers: _buildGoogleMarkers(stores, selectedStore, settings),
-                  circles: _buildGoogleCircles(searchRadiusMeters),
-                  myLocationEnabled: false,
-                  myLocationButtonEnabled: false,
-                  zoomControlsEnabled: false,
-                  mapToolbarEnabled: false,
-                  compassEnabled: true,
-                  onTap: (_) => setState(() => _selectedStoreId = null),
+                  children: [
+                    TileLayer(
+                      urlTemplate: kTileUrl,
+                      userAgentPackageName: kTileUserAgent,
+                    ),
+                    CircleLayer(
+                      circles: [
+                        CircleMarker(
+                          point: LatLng(widget.lat, widget.lng),
+                          radius: searchRadiusMeters,
+                          useRadiusInMeter: true,
+                          color: SupplyMapColors.blue.withValues(alpha: 0.08),
+                          borderColor: SupplyMapColors.blue.withValues(alpha: 0.25),
+                          borderStrokeWidth: 2,
+                        ),
+                      ],
+                    ),
+                    MarkerLayer(markers: _buildMarkers(stores)),
+                  ],
                 ),
                 // Selected store popup overlay
                 if (selectedStore != null)
@@ -954,22 +945,20 @@ class _ResultsScreenState extends State<ResultsScreen> {
                           icon: Icons.add,
                           tooltip: 'Zoom in',
                           onTap: () {
-                            _mapController?.animateCamera(
-                              CameraUpdate.zoomIn(),
-                            );
+                            final cam = _mapController.camera;
+                            _mapController.move(cam.center, cam.zoom + 1);
                           }),
                       const SizedBox(height: 8),
                       _MapControlBtn(
                           icon: Icons.remove,
                           tooltip: 'Zoom out',
                           onTap: () {
-                            _mapController?.animateCamera(
-                              CameraUpdate.zoomOut(),
-                            );
+                            final cam = _mapController.camera;
+                            _mapController.move(cam.center, cam.zoom - 1);
                           }),
                       const SizedBox(height: 8),
                       _MapControlBtn(
-                          icon: Icons.navigation,
+                          icon: Icons.my_location,
                           tooltip: 'Fit to results',
                           onTap: () {
                             _fitMapToClosestStores(stores);
