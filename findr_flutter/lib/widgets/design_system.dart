@@ -241,18 +241,32 @@ class _TopoPainter extends CustomPainter {
       final cx = baseCx + px * strength;
       final cy = baseCy + py * strength;
 
-      // Lines get thicker and slightly greener when typing.
+      // Proximity boost: thicken & brighten rings near the cursor.
+      double proximity = 0.0;
+      if (mousePos != null) {
+        // Approximate distance from the mouse to this elliptical ring.
+        final dx = (mousePos!.dx - cx) / rx;
+        final dy = (mousePos!.dy - cy) / ry;
+        final normalDist = math.sqrt(dx * dx + dy * dy);
+        // normalDist ≈ 1.0 means right on the ring; < 1 inside, > 1 outside.
+        final distFromRing = (normalDist - 1.0).abs();
+        // Map 0..0.4 → 1..0 (fade over ~40% of the ring radius).
+        proximity = (1.0 - distFromRing / 0.4).clamp(0.0, 1.0);
+      }
+
+      // Lines get thicker and slightly greener when typing or hovered.
       final baseAlpha = (i > 6) ? (0.5 - (i - 6) * 0.08) : 0.5;
-      final alpha = (baseAlpha + breathe * 0.25).clamp(0.0, 0.85);
+      final alpha = (baseAlpha + breathe * 0.25 + proximity * 0.35).clamp(0.0, 0.95);
+      final greenAmount = (breathe * 0.35 + proximity * 0.5).clamp(0.0, 1.0);
       final color = Color.lerp(
         SupplyMapColors.borderStrong,
         SupplyMapColors.accentGreen,
-        breathe * 0.35,
+        greenAmount,
       )!;
 
       final paint = Paint()
         ..style = PaintingStyle.stroke
-        ..strokeWidth = 1.2 + breathe * 1.0
+        ..strokeWidth = 1.2 + breathe * 1.0 + proximity * 1.8
         ..color = color.withValues(alpha: alpha);
 
       final path = Path();
