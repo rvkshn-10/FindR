@@ -138,7 +138,6 @@ class ResultsScreen extends StatefulWidget {
   final double lng;
   final double maxDistanceMiles;
   final SearchFilters? filters;
-  final bool embedInBackground;
   final VoidCallback? onNewSearch;
 
   const ResultsScreen({
@@ -148,7 +147,6 @@ class ResultsScreen extends StatefulWidget {
     required this.lng,
     required this.maxDistanceMiles,
     this.filters,
-    this.embedInBackground = true,
     this.onNewSearch,
   });
 

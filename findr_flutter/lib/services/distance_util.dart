@@ -21,7 +21,6 @@ double haversineKm(
 
 double _rad(double deg) => deg * pi / 180;
 
-double kmToMilesFn(double km) => km * kmToMiles;
 double milesToKmFn(double mi) => mi * milesToKm;
 
 /// Format distance in km as short string (e.g. "1.2 mi" or "2 km").
@@ -37,13 +36,4 @@ String formatDistance(double km, {bool useKm = false}) {
   if (mi < 1) return '${mi.toStringAsFixed(1)} mi';
   if (mi < 10) return '${(mi * 10).round() / 10} mi';
   return '${mi.round()} mi';
-}
-
-/// Format max distance filter (e.g. "5 mi" or "8 km").
-String formatMaxDistance(double miles, {bool useKm = false}) {
-  if (useKm) {
-    final km = miles * milesToKm;
-    return km < 1 ? '${km.toStringAsFixed(1)} km' : '${km.round()} km';
-  }
-  return '${miles.round()} mi';
 }

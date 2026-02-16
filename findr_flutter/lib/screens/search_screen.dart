@@ -41,12 +41,10 @@ const _kRadiusKey = 'search_radius_miles';
 const _kMaxRecent = 8;
 
 class SearchScreen extends StatefulWidget {
-  final bool embedInBackground;
   final void Function(SearchResultParams)? onSearchResult;
 
   const SearchScreen({
     super.key,
-    this.embedInBackground = true,
     this.onSearchResult,
   });
 

@@ -129,26 +129,3 @@ Future<SearchResult> enrichWithRoadDistances({
   // OSRM failed — return fast results as-is.
   return fastResult;
 }
-
-/// Full search (backward compatible) — runs both phases sequentially.
-Future<SearchResult> search({
-  required String item,
-  required double lat,
-  required double lng,
-  double maxDistanceKm = 8.0,
-  SearchFilters? filters,
-}) async {
-  final fast = await searchFast(
-    item: item,
-    lat: lat,
-    lng: lng,
-    maxDistanceKm: maxDistanceKm,
-    filters: filters,
-  );
-  return enrichWithRoadDistances(
-    fastResult: fast,
-    lat: lat,
-    lng: lng,
-    maxDistanceKm: maxDistanceKm,
-  );
-}

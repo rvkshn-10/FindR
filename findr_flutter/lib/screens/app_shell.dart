@@ -65,7 +65,6 @@ class _SupplyMapShellState extends State<SupplyMapShell> {
             ? KeyedSubtree(
                 key: const ValueKey<String>('search'),
                 child: SearchScreen(
-                  embedInBackground: false,
                   onSearchResult: _onSearchResult,
                 ),
               )
@@ -77,7 +76,6 @@ class _SupplyMapShellState extends State<SupplyMapShell> {
                   lng: _resultParams!.lng,
                   maxDistanceMiles: _resultParams!.maxDistanceMiles,
                   filters: _resultParams!.filters,
-                  embedInBackground: false,
                   onNewSearch: _onNewSearch,
                 ),
               ),

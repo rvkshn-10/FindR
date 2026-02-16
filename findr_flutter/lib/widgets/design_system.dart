@@ -12,13 +12,10 @@ class SupplyMapColors {
 
   // Core accent palette (warm, nature-inspired)
   static const Color red = Color(0xFFE85D4A);
-  static const Color yellow = Color(0xFFF2D96B);
   static const Color purple = Color(0xFF9B7FD4);
   static const Color blue = Color(0xFF6BA3E8);
-  static const Color green = Color(0xFF3D8A5A);
 
   // Backgrounds (warm cream)
-  static const Color darkBg = Color(0xFFEDECEA); // muted surface
   static const Color bodyBg = Color(0xFFF5F4F1); // warm cream primary
 
   // Glass → now soft white / muted fills
@@ -26,7 +23,6 @@ class SupplyMapColors {
   static const Color glassBorder = Color(0xFFE5E4E1); // border-subtle
 
   // Text
-  static const Color textWhite = Color(0xFF1A1918); // now dark for light bg
   static const Color textBlack = Color(0xFF1A1918);
 
   // Secondary / tertiary text
@@ -122,17 +118,17 @@ class _GradientBackgroundState extends State<GradientBackground>
   void _addRipple(Offset position) {
     final now = _stopwatch.elapsedMilliseconds / 1000.0;
     _ripples.add(_Ripple(position, now));
-    // Cap to 8 concurrent ripples.
-    if (_ripples.length > 8) _ripples.removeAt(0);
-    // Start/keep the ticker running so the painter repaints.
-    if (!_rippleTicker.isAnimating) {
-      _rippleTicker.repeat();
-    }
-    // Auto-stop the ticker after all ripples have expired (~2s lifespan).
+    if (_ripples.length > 6) _ripples.removeAt(0);
+    if (!_rippleTicker.isAnimating) _rippleTicker.repeat();
+    // Schedule cleanup 2.1s after this ripple will expire.
     _rippleCleanupTimer?.cancel();
-    _rippleCleanupTimer = Timer(const Duration(seconds: 3), () {
-      _ripples.clear();
-      if (_rippleTicker.isAnimating) _rippleTicker.stop();
+    _rippleCleanupTimer = Timer(const Duration(milliseconds: 2100), () {
+      // Remove expired ripples.
+      final now = _stopwatch.elapsedMilliseconds / 1000.0;
+      _ripples.removeWhere((r) => (now - r.startTime) > 2.0);
+      if (_ripples.isEmpty && _rippleTicker.isAnimating) {
+        _rippleTicker.stop();
+      }
       if (mounted) setState(() {});
     });
   }
@@ -270,6 +266,11 @@ class _TopoPainter extends CustomPainter {
   /// Current time in seconds (from stopwatch).
   final double time;
 
+  // Pre-filter ripples that are still alive to avoid per-point checks.
+  late final List<_Ripple> _activeRipples = ripples
+      .where((r) => (time - r.startTime) >= 0 && (time - r.startTime) <= 2.0)
+      .toList(growable: false);
+
   @override
   void paint(Canvas canvas, Size size) {
     final baseCx = size.width * 0.5;
@@ -284,16 +285,21 @@ class _TopoPainter extends CustomPainter {
       py = (mousePos!.dy - size.height / 2) / (size.height / 2);
     }
 
+    // Reusable paint object.
+    final paint = Paint()..style = PaintingStyle.stroke;
+
+    const segments = 36;
+    const twoPi = 2 * math.pi;
+    const invSeg = 1.0 / segments;
+
     for (int i = 1; i <= 10; i++) {
       final baseRx = 55.0 * i + rng.nextDouble() * 12;
       final baseRy = 40.0 * i + rng.nextDouble() * 12;
 
-      // Scale up when typing – outer rings expand more.
       final scale = 1.0 + breathe * (0.10 + 0.03 * i);
       final rx = baseRx * scale;
       final ry = baseRy * scale;
 
-      // Parallax shift: outer rings move more than inner.
       final strength = 15.0 + i * 8.0;
       final cx = baseCx + px * strength;
       final cy = baseCy + py * strength;
@@ -301,17 +307,13 @@ class _TopoPainter extends CustomPainter {
       // Proximity boost: thicken & brighten rings near the cursor.
       double proximity = 0.0;
       if (mousePos != null) {
-        // Approximate distance from the mouse to this elliptical ring.
         final dx = (mousePos!.dx - cx) / rx;
         final dy = (mousePos!.dy - cy) / ry;
         final normalDist = math.sqrt(dx * dx + dy * dy);
-        // normalDist ≈ 1.0 means right on the ring; < 1 inside, > 1 outside.
         final distFromRing = (normalDist - 1.0).abs();
-        // Map 0..0.4 → 1..0 (fade over ~40% of the ring radius).
-        proximity = (1.0 - distFromRing / 0.4).clamp(0.0, 1.0);
+        proximity = (1.0 - distFromRing * 2.5).clamp(0.0, 1.0); // 1/0.4=2.5
       }
 
-      // Lines get thicker and slightly greener when typing or hovered.
       final baseAlpha = (i > 6) ? (0.7 - (i - 6) * 0.06) : 0.7;
       final alpha = (baseAlpha + breathe * 0.2 + proximity * 0.25).clamp(0.0, 0.95);
       final greenAmount = (breathe * 0.35 + proximity * 0.5).clamp(0.0, 1.0);
@@ -321,50 +323,46 @@ class _TopoPainter extends CustomPainter {
         greenAmount,
       )!;
 
-      final paint = Paint()
-        ..style = PaintingStyle.stroke
+      paint
         ..strokeWidth = 1.6 + breathe * 1.0 + proximity * 1.8
         ..color = color.withValues(alpha: alpha);
 
       final path = Path();
 
-      const segments = 64;
       for (int s = 0; s <= segments; s++) {
-        final angle = (s / segments) * 2 * math.pi;
+        final angle = s * invSeg * twoPi;
+        final cosA = math.cos(angle);
+        final sinA = math.sin(angle);
         final noise = 1.0 + (rng.nextDouble() - 0.5) * 0.12;
-        var x = cx + rx * noise * math.cos(angle);
-        var y = cy + ry * noise * math.sin(angle);
+        var x = cx + rx * noise * cosA;
+        var y = cy + ry * noise * sinA;
 
-        // Apply ripple displacement from touch events.
-        for (final ripple in ripples) {
+        // Ripple displacement (only when there are active ripples).
+        for (final ripple in _activeRipples) {
           final age = time - ripple.startTime;
-          if (age < 0 || age > 2.0) continue;
-          // Ripple wave expands at 300px/s.
           final waveRadius = age * 300.0;
-          final dist = (Offset(x, y) - ripple.origin).distance;
-          // How close is this point to the wave front?
+          final rdx = x - ripple.origin.dx;
+          final rdy = y - ripple.origin.dy;
+          final dist = math.sqrt(rdx * rdx + rdy * rdy);
           final waveDelta = (dist - waveRadius).abs();
           if (waveDelta > 60) continue;
-          // Strength peaks at the wave front and fades with age.
-          final waveFade = 1.0 - (age / 2.0);
-          final spatialFade = 1.0 - (waveDelta / 60.0);
-          final jiggle = waveFade * spatialFade * 12.0;
-          // Push outward from ripple origin.
+          final jiggle =
+              (1.0 - age * 0.5) * (1.0 - waveDelta / 60.0) * 12.0;
           if (dist > 1) {
-            final dx = (x - ripple.origin.dx) / dist;
-            final dy = (y - ripple.origin.dy) / dist;
-            x += dx * jiggle * math.sin(age * 18.0);
-            y += dy * jiggle * math.sin(age * 18.0);
+            final sinJiggle = jiggle * math.sin(age * 18.0);
+            x += (rdx / dist) * sinJiggle;
+            y += (rdy / dist) * sinJiggle;
           }
         }
 
         if (s == 0) {
           path.moveTo(x, y);
         } else {
-          final prevAngle = ((s - 1) / segments) * 2 * math.pi;
+          final prevAngle = (s - 1) * invSeg * twoPi;
+          final midAngle = (prevAngle + angle) * 0.5;
           final prevNoise = 1.0 + (rng.nextDouble() - 0.5) * 0.10;
-          final cpx = cx + rx * prevNoise * math.cos((prevAngle + angle) / 2);
-          final cpy = cy + ry * prevNoise * math.sin((prevAngle + angle) / 2);
+          final cpx = cx + rx * prevNoise * math.cos(midAngle);
+          final cpy = cy + ry * prevNoise * math.sin(midAngle);
           path.quadraticBezierTo(cpx, cpy, x, y);
         }
       }
@@ -378,7 +376,7 @@ class _TopoPainter extends CustomPainter {
   bool shouldRepaint(covariant _TopoPainter oldDelegate) =>
       oldDelegate.breathe != breathe ||
       oldDelegate.mousePos != mousePos ||
-      oldDelegate.time != time;
+      (ripples.isNotEmpty && oldDelegate.time != time);
 }
 
 // ---------------------------------------------------------------------------
@@ -412,45 +410,3 @@ class _SearchGlowPainter extends CustomPainter {
       oldDelegate.mousePos != mousePos;
 }
 
-// ---------------------------------------------------------------------------
-// Glass container (sidebar / panel style)
-// ---------------------------------------------------------------------------
-
-class GlassPanel extends StatelessWidget {
-  const GlassPanel({
-    super.key,
-    required this.child,
-    this.borderRadius = kRadiusLg,
-    this.padding,
-    this.color,
-    this.border = true,
-  });
-
-  final Widget child;
-  final double borderRadius;
-  final EdgeInsetsGeometry? padding;
-  final Color? color;
-  final bool border;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: padding,
-      decoration: BoxDecoration(
-        color: color ?? SupplyMapColors.sidebarBg,
-        borderRadius: BorderRadius.circular(borderRadius),
-        border: border
-            ? Border.all(color: SupplyMapColors.borderSubtle, width: 1)
-            : null,
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x081A1918),
-            blurRadius: 12,
-            offset: Offset(0, 2),
-          ),
-        ],
-      ),
-      child: child,
-    );
-  }
-}
