@@ -117,13 +117,22 @@ Future<List<OverpassStore>> _fetchFromEndpoint(
   return stores;
 }
 
-/// Race all Overpass endpoints in parallel and return the first success.
-Future<List<OverpassStore>> fetchNearbyStores(
-  double lat,
-  double lng, {
-  int radiusM = kDefaultOverpassRadiusM,
-}) async {
-  final query = '''
+/// Build an Overpass QL query. When [shopTags] or [amenityTags] are provided
+/// (from the AI query enhancer) the query is scoped to those specific store
+/// types instead of the broad default ("any shop").
+String buildOverpassQuery({
+  required double lat,
+  required double lng,
+  required int radiusM,
+  List<String>? shopTags,
+  List<String>? amenityTags,
+}) {
+  final hasShop = shopTags != null && shopTags.isNotEmpty;
+  final hasAmenity = amenityTags != null && amenityTags.isNotEmpty;
+
+  if (!hasShop && !hasAmenity) {
+    // Fallback: broad search (original behaviour).
+    return '''
 [out:json][timeout:10];
 (
   nwr["shop"](around:$radiusM,$lat,$lng);
@@ -131,6 +140,38 @@ Future<List<OverpassStore>> fetchNearbyStores(
 );
 out center;
 ''';
+  }
+
+  final buf = StringBuffer('[out:json][timeout:10];\n(\n');
+  if (hasShop) {
+    final regex = shopTags!.join('|');
+    buf.writeln('  nwr["shop"~"$regex"](around:$radiusM,$lat,$lng);');
+  }
+  if (hasAmenity) {
+    final regex = amenityTags!.join('|');
+    buf.writeln('  nwr["amenity"~"$regex"](around:$radiusM,$lat,$lng);');
+  }
+  // Always include a broad shop fallback so results aren't empty
+  buf.writeln('  nwr["shop"](around:$radiusM,$lat,$lng);');
+  buf.writeln(');\nout center;');
+  return buf.toString();
+}
+
+/// Race all Overpass endpoints in parallel and return the first success.
+Future<List<OverpassStore>> fetchNearbyStores(
+  double lat,
+  double lng, {
+  int radiusM = kDefaultOverpassRadiusM,
+  List<String>? shopTags,
+  List<String>? amenityTags,
+}) async {
+  final query = buildOverpassQuery(
+    lat: lat,
+    lng: lng,
+    radiusM: radiusM,
+    shopTags: shopTags,
+    amenityTags: amenityTags,
+  );
 
   // Fire all endpoints in parallel, return the first successful result.
   final futures = kOverpassEndpoints.map(

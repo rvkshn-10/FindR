@@ -8,6 +8,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../models/search_models.dart';
 import '../services/search_service.dart';
 import '../services/distance_util.dart';
+import '../services/ai_service.dart';
 import '../providers/settings_provider.dart';
 import '../widgets/design_system.dart';
 import '../widgets/settings_panel.dart';
@@ -163,6 +164,8 @@ class _ResultsScreenState extends State<ResultsScreen> {
   late String _currentItem;
   bool _settingsOpen = false;
   bool _enriching = false;
+  bool _aiLoading = false;
+  AiResultSummary? _aiSummary;
 
   @override
   void initState() {
@@ -203,19 +206,52 @@ class _ResultsScreenState extends State<ResultsScreen> {
         _fitMapToClosestStores(fastResult.stores);
       });
 
-      // Phase 2: Enrich with road distances in background.
+      // Phase 2 + 3 run in parallel: road distances & AI summary.
       if (fastResult.stores.isNotEmpty) {
-        if (mounted) setState(() => _enriching = true);
-        final enriched = await enrichWithRoadDistances(
+        if (mounted) {
+          setState(() {
+            _enriching = true;
+            _aiLoading = true;
+            _aiSummary = null;
+          });
+        }
+
+        // Fire both in parallel.
+        final enrichFuture = enrichWithRoadDistances(
           fastResult: fastResult,
           lat: widget.lat,
           lng: widget.lng,
           maxDistanceKm: maxKm,
         );
+
+        final aiFuture = generateResultSummary(
+          query: _currentItem,
+          storeData: fastResult.stores.take(6).map((s) => {
+            'name': s.name,
+            'distanceKm': s.distanceKm,
+            'durationMinutes': s.durationMinutes,
+            'address': s.address,
+            'openingHours': s.openingHours,
+            'brand': s.brand,
+          }).toList(),
+        );
+
+        // Wait for both.
+        final results = await Future.wait([
+          enrichFuture,
+          aiFuture,
+        ]);
+
         if (!mounted) return;
+
+        final enriched = results[0] as SearchResult;
+        final aiSummary = results[1] as AiResultSummary?;
+
         setState(() {
           _result = enriched;
           _enriching = false;
+          _aiSummary = aiSummary;
+          _aiLoading = false;
         });
       }
     } catch (e) {
@@ -233,6 +269,8 @@ class _ResultsScreenState extends State<ResultsScreen> {
     setState(() {
       _currentItem = newItem.trim();
       _selectedStoreId = null;
+      _aiSummary = null;
+      _aiLoading = false;
     });
     _load();
   }
@@ -377,6 +415,8 @@ class _ResultsScreenState extends State<ResultsScreen> {
                 onDirections: _openDirections,
                 onReSearch: _reSearch,
                 enriching: _enriching,
+                aiSummary: _aiSummary,
+                aiLoading: _aiLoading,
                 onNewSearch: () {
                   if (widget.onNewSearch != null) {
                     widget.onNewSearch!();
@@ -458,6 +498,16 @@ class _ResultsScreenState extends State<ResultsScreen> {
                           SliverToBoxAdapter(
                             child: _buildSheetHeader(stores),
                           ),
+                          // AI Insight in the bottom sheet
+                          if (_aiLoading || _aiSummary != null)
+                            SliverToBoxAdapter(
+                              child: Padding(
+                                padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                                child: _aiLoading
+                                    ? _AiInsightCard.loading()
+                                    : _AiInsightCard(summary: _aiSummary!),
+                              ),
+                            ),
                           SliverPadding(
                             padding: EdgeInsets.fromLTRB(
                                 16,
@@ -818,6 +868,8 @@ class _Sidebar extends StatefulWidget {
     required this.onReSearch,
     required this.onNewSearch,
     this.enriching = false,
+    this.aiSummary,
+    this.aiLoading = false,
   });
 
   final String query;
@@ -830,6 +882,8 @@ class _Sidebar extends StatefulWidget {
   final void Function(String) onReSearch;
   final VoidCallback onNewSearch;
   final bool enriching;
+  final AiResultSummary? aiSummary;
+  final bool aiLoading;
 
   @override
   State<_Sidebar> createState() => _SidebarState();
@@ -1010,7 +1064,13 @@ class _SidebarState extends State<_Sidebar> {
                     ],
                   ),
                 ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 16),
+              // AI Insight card
+              if (widget.aiLoading)
+                _AiInsightCard.loading()
+              else if (widget.aiSummary != null)
+                _AiInsightCard(summary: widget.aiSummary!),
+              const SizedBox(height: 16),
               // Results list
               Expanded(
                 child: widget.stores.isEmpty
@@ -1660,6 +1720,145 @@ class _PopupArrowPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant _PopupArrowPainter old) =>
       old.color != color;
+}
+
+// ---------------------------------------------------------------------------
+// AI Insight card
+// ---------------------------------------------------------------------------
+
+class _AiInsightCard extends StatelessWidget {
+  const _AiInsightCard({required this.summary}) : _loading = false;
+  const _AiInsightCard.loading()
+      : summary = null,
+        _loading = true;
+
+  final AiResultSummary? summary;
+  final bool _loading;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFFF0F7F3), Color(0xFFEDF5F0)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(kRadiusMd),
+        border: Border.all(
+          color: SupplyMapColors.accentGreen.withValues(alpha: 0.25),
+        ),
+      ),
+      padding: const EdgeInsets.all(16),
+      child: _loading ? _buildLoading() : _buildContent(),
+    );
+  }
+
+  Widget _buildLoading() {
+    return Row(
+      children: [
+        const SizedBox(
+          width: 16,
+          height: 16,
+          child: CircularProgressIndicator(
+            strokeWidth: 2,
+            color: SupplyMapColors.accentGreen,
+          ),
+        ),
+        const SizedBox(width: 12),
+        Text(
+          'AI is analyzing your results…',
+          style: _outfit(
+            fontSize: 13,
+            fontWeight: FontWeight.w500,
+            color: SupplyMapColors.textSecondary,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildContent() {
+    final s = summary!;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Header
+        Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(5),
+              decoration: BoxDecoration(
+                color: SupplyMapColors.accentGreen.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: const Icon(Icons.auto_awesome,
+                  size: 14, color: SupplyMapColors.accentGreen),
+            ),
+            const SizedBox(width: 8),
+            Text(
+              'AI Recommendation',
+              style: _outfit(
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 0.5,
+                color: SupplyMapColors.accentGreen,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        // Recommendation
+        Text(
+          s.recommendation,
+          style: _outfit(
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+            color: SupplyMapColors.textBlack,
+            height: 1.4,
+          ),
+        ),
+        if (s.reasoning.isNotEmpty) ...[
+          const SizedBox(height: 6),
+          Text(
+            s.reasoning,
+            style: _outfit(
+              fontSize: 12,
+              color: SupplyMapColors.textSecondary,
+              height: 1.4,
+            ),
+          ),
+        ],
+        if (s.tips.isNotEmpty) ...[
+          const SizedBox(height: 10),
+          ...s.tips.map((tip) => Padding(
+                padding: const EdgeInsets.only(bottom: 4),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Padding(
+                      padding: EdgeInsets.only(top: 2),
+                      child: Icon(Icons.lightbulb_outline,
+                          size: 13, color: SupplyMapColors.accentGreen),
+                    ),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        tip,
+                        style: _outfit(
+                          fontSize: 12,
+                          color: SupplyMapColors.textSecondary,
+                          height: 1.3,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              )),
+        ],
+      ],
+    );
+  }
 }
 
 // ---------------------------------------------------------------------------

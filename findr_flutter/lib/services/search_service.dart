@@ -1,7 +1,9 @@
+import 'package:flutter/foundation.dart';
 import 'distance_util.dart';
 import 'store_filters.dart';
 import 'nearby_stores_service.dart';
 import 'road_distance_service.dart';
+import 'ai_service.dart';
 import '../models/search_models.dart';
 import '../config.dart';
 
@@ -40,6 +42,7 @@ SearchResult _buildResult(List<Store> candidates, double lat, double lng) {
 
 /// Phase 1: Fetch from Overpass, filter, return haversine-sorted results.
 /// This is the fast path — no OSRM call.
+/// Optionally uses AI to enhance the Overpass query with targeted store types.
 Future<SearchResult> searchFast({
   required String item,
   required double lat,
@@ -48,9 +51,29 @@ Future<SearchResult> searchFast({
   SearchFilters? filters,
 }) async {
   final radiusM = (maxDistanceKm * 1000).clamp(1000.0, 25000.0);
+
+  // Run AI query enhancement in parallel with a timeout —
+  // if it finishes fast enough we use targeted tags, otherwise fall back.
+  AiQueryEnhancement? aiEnhancement;
+  try {
+    aiEnhancement = await enhanceSearchQuery(item);
+    if (aiEnhancement != null) {
+      debugPrint('AI tags: shop=${aiEnhancement.shopTags}, '
+          'amenity=${aiEnhancement.amenityTags}');
+    }
+  } catch (_) {
+    // AI is best-effort; failures don't block the search.
+  }
+
   List<OverpassStore> overpassStores;
   try {
-    overpassStores = await fetchNearbyStores(lat, lng, radiusM: radiusM.toInt());
+    overpassStores = await fetchNearbyStores(
+      lat,
+      lng,
+      radiusM: radiusM.toInt(),
+      shopTags: aiEnhancement?.shopTags,
+      amenityTags: aiEnhancement?.amenityTags,
+    );
   } catch (e) {
     return const SearchResult(
       stores: [],

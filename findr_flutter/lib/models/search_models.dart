@@ -66,12 +66,44 @@ class SearchResult {
   final String summary;
   final List<String>? alternatives;
 
+  /// AI-generated recommendation (populated asynchronously after results load).
+  final String? aiRecommendation;
+
+  /// AI reasoning for the recommendation.
+  final String? aiReasoning;
+
+  /// AI tips for the user.
+  final List<String>? aiTips;
+
   const SearchResult({
     required this.stores,
     required this.bestOptionId,
     required this.summary,
     this.alternatives,
+    this.aiRecommendation,
+    this.aiReasoning,
+    this.aiTips,
   });
+
+  SearchResult copyWith({
+    List<Store>? stores,
+    String? bestOptionId,
+    String? summary,
+    List<String>? alternatives,
+    String? aiRecommendation,
+    String? aiReasoning,
+    List<String>? aiTips,
+  }) {
+    return SearchResult(
+      stores: stores ?? this.stores,
+      bestOptionId: bestOptionId ?? this.bestOptionId,
+      summary: summary ?? this.summary,
+      alternatives: alternatives ?? this.alternatives,
+      aiRecommendation: aiRecommendation ?? this.aiRecommendation,
+      aiReasoning: aiReasoning ?? this.aiReasoning,
+      aiTips: aiTips ?? this.aiTips,
+    );
+  }
 }
 
 /// Filters applied to search: quality tier, membership-only, specific store names.
