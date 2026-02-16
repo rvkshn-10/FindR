@@ -131,15 +131,15 @@ Future<AiResultSummary?> generateResultSummary({
 
 $storesJson
 
-Each store has: name, distanceKm, durationMinutes (drive time, may be null), address, openingHours (may be null), brand.
+Each store has: name, distanceKm, durationMinutes (drive time, may be null), address, openingHours (may be null), brand, rating (Google rating 1-5, may be null), reviewCount (number of Google reviews, may be null), priceLevel ("\$", "\$\$", "\$\$\$", may be null), shopType (store category).
 
-Analyze these results and provide:
-1. A short (1-2 sentence) recommendation for the user — which store should they go to and why
-2. Brief reasoning (1 sentence)
-3. 1-2 practical tips (e.g., "Call ahead to confirm stock", "This store is walkable")
+Analyze these results considering distance, ratings, store type relevance, and price level. Provide:
+1. A short (1-2 sentence) recommendation for the user — which store should they go to and why. Factor in ratings, store type, and distance.
+2. Brief reasoning (1 sentence) explaining why this is the best pick
+3. 1-2 practical tips (e.g., "Call ahead to confirm stock", "This store has great reviews")
 
 IMPORTANT: Return ONLY valid JSON, no markdown. Use this exact format:
-{"recommendation":"Go to [Store] — it's the closest at [distance] and likely has [item].","reasoning":"[Store] is a [type] that typically stocks [category].","tips":["Call ahead to confirm availability","Consider [Store2] as a backup"]}''';
+{"recommendation":"Go to [Store] — it's [distance] away with [rating] stars and likely has [item].","reasoning":"[Store] is a [type] that typically stocks [category] and has strong reviews.","tips":["Call ahead to confirm availability","Consider [Store2] as a backup"]}''';
 
     final response = await _getSummaryModel
         .generateContent([Content.text(prompt)])

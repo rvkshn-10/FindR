@@ -19,6 +19,12 @@ class Store {
   final String? priceLabel;    // e.g. "$8.99" or "avg ~$9.50"
   final bool priceIsAvg;       // true if this is an average, not a store-specific match
 
+  // Google Maps store details
+  final double? rating;        // 1-5 star rating
+  final int? reviewCount;      // number of Google reviews
+  final String? priceLevel;    // "$", "$$", "$$$"
+  final String? thumbnail;     // URL to store photo
+
   const Store({
     required this.id,
     required this.name,
@@ -36,6 +42,10 @@ class Store {
     this.price,
     this.priceLabel,
     this.priceIsAvg = false,
+    this.rating,
+    this.reviewCount,
+    this.priceLevel,
+    this.thumbnail,
   });
 
   Store copyWith({
@@ -55,6 +65,10 @@ class Store {
     double? price,
     String? priceLabel,
     bool? priceIsAvg,
+    double? rating,
+    int? reviewCount,
+    String? priceLevel,
+    String? thumbnail,
   }) {
     return Store(
       id: id ?? this.id,
@@ -73,6 +87,10 @@ class Store {
       price: price ?? this.price,
       priceLabel: priceLabel ?? this.priceLabel,
       priceIsAvg: priceIsAvg ?? this.priceIsAvg,
+      rating: rating ?? this.rating,
+      reviewCount: reviewCount ?? this.reviewCount,
+      priceLevel: priceLevel ?? this.priceLevel,
+      thumbnail: thumbnail ?? this.thumbnail,
     );
   }
 }

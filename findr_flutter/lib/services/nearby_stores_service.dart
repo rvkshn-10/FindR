@@ -18,6 +18,10 @@ class OverpassStore {
   final String? brand;
   final String? shopType;   // OSM shop=* tag value (e.g. "supermarket", "bakery")
   final String? amenityType; // OSM amenity=* tag value (e.g. "pharmacy", "fuel")
+  final double? rating;      // Google Maps rating (1-5)
+  final int? reviewCount;    // Google Maps review count
+  final String? priceLevel;  // Google Maps price level ("$", "$$", "$$$")
+  final String? thumbnail;   // URL to store photo
 
   OverpassStore({
     required this.id,
@@ -32,6 +36,10 @@ class OverpassStore {
     this.brand,
     this.shopType,
     this.amenityType,
+    this.rating,
+    this.reviewCount,
+    this.priceLevel,
+    this.thumbnail,
   });
 }
 

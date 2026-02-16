@@ -98,6 +98,18 @@ Future<void> _safeLaunch(String url) async {
   }
 }
 
+/// Format review count with K suffix for large numbers.
+String _formatReviewCount(int count) {
+  if (count >= 1000) {
+    final k = count / 1000;
+    return '${k.toStringAsFixed(k >= 10 ? 0 : 1)}K reviews';
+  }
+  return '$count reviews';
+}
+
+/// Sort mode for search results.
+enum SortMode { distance, priceLow, rating }
+
 /// Returns a human-friendly label for the store's OSM type, or null if unknown.
 String? _storeTypeLabel(Store store) {
   final raw = store.shopType ?? store.amenityType;
@@ -149,6 +161,7 @@ class _ResultsScreenState extends State<ResultsScreen> {
   AiResultSummary? _aiSummary;
   PriceData? _priceData;
   bool _pricesLoading = false;
+  SortMode _sortMode = SortMode.distance;
 
   @override
   void initState() {
@@ -218,6 +231,10 @@ class _ResultsScreenState extends State<ResultsScreen> {
             'address': s.address,
             'openingHours': s.openingHours,
             'brand': s.brand,
+            'rating': s.rating,
+            'reviewCount': s.reviewCount,
+            'priceLevel': s.priceLevel,
+            'shopType': s.shopType,
           }).toList(),
         );
 
@@ -327,6 +344,36 @@ class _ResultsScreenState extends State<ResultsScreen> {
   }
 
   // -----------------------------------------------------------------------
+  // Sorting
+  // -----------------------------------------------------------------------
+
+  List<Store> _sortedStores(List<Store> stores) {
+    final sorted = List<Store>.from(stores);
+    switch (_sortMode) {
+      case SortMode.distance:
+        sorted.sort((a, b) => a.distanceKm.compareTo(b.distanceKm));
+        break;
+      case SortMode.priceLow:
+        sorted.sort((a, b) {
+          if (a.price == null && b.price == null) return 0;
+          if (a.price == null) return 1;
+          if (b.price == null) return -1;
+          return a.price!.compareTo(b.price!);
+        });
+        break;
+      case SortMode.rating:
+        sorted.sort((a, b) {
+          if (a.rating == null && b.rating == null) return 0;
+          if (a.rating == null) return 1;
+          if (b.rating == null) return -1;
+          return b.rating!.compareTo(a.rating!); // higher first
+        });
+        break;
+    }
+    return sorted;
+  }
+
+  // -----------------------------------------------------------------------
   // Build
   // -----------------------------------------------------------------------
 
@@ -405,7 +452,7 @@ class _ResultsScreenState extends State<ResultsScreen> {
     }
 
     final result = _result!;
-    final stores = result.stores;
+    final stores = _sortedStores(result.stores);
     final searchRadiusMeters = widget.maxDistanceMiles * 1609.34;
 
     Store? selectedStore;
@@ -445,6 +492,8 @@ class _ResultsScreenState extends State<ResultsScreen> {
                 aiLoading: _aiLoading,
                 priceData: _priceData,
                 pricesLoading: _pricesLoading,
+                sortMode: _sortMode,
+                onSortChanged: (mode) => setState(() => _sortMode = mode),
                 onNewSearch: () {
                   if (widget.onNewSearch != null) {
                     widget.onNewSearch!();
@@ -703,7 +752,44 @@ class _ResultsScreenState extends State<ResultsScreen> {
               ),
             ),
           ),
-        const SizedBox(height: 12),
+        // Sort chips (mobile)
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+          child: Row(
+            children: [
+              Text(
+                'Sort',
+                style: _outfit(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w500,
+                  color: SupplyMapColors.textTertiary,
+                ),
+              ),
+              const SizedBox(width: 6),
+              _SortChip(
+                label: 'Distance',
+                icon: Icons.near_me_outlined,
+                selected: _sortMode == SortMode.distance,
+                onTap: () => setState(() => _sortMode = SortMode.distance),
+              ),
+              const SizedBox(width: 4),
+              _SortChip(
+                label: 'Price',
+                icon: Icons.attach_money,
+                selected: _sortMode == SortMode.priceLow,
+                onTap: () => setState(() => _sortMode = SortMode.priceLow),
+              ),
+              const SizedBox(width: 4),
+              _SortChip(
+                label: 'Rating',
+                icon: Icons.star_outline_rounded,
+                selected: _sortMode == SortMode.rating,
+                onTap: () => setState(() => _sortMode = SortMode.rating),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 6),
       ],
     );
   }
@@ -992,6 +1078,8 @@ class _Sidebar extends StatefulWidget {
     this.aiLoading = false,
     this.priceData,
     this.pricesLoading = false,
+    required this.sortMode,
+    required this.onSortChanged,
   });
 
   final String query;
@@ -1008,6 +1096,8 @@ class _Sidebar extends StatefulWidget {
   final bool aiLoading;
   final PriceData? priceData;
   final bool pricesLoading;
+  final SortMode sortMode;
+  final ValueChanged<SortMode> onSortChanged;
 
   @override
   State<_Sidebar> createState() => _SidebarState();
@@ -1250,7 +1340,7 @@ class _SidebarState extends State<_Sidebar> {
                             ),
                           ),
                         ),
-                        Tooltip(
+                        const Tooltip(
                           message: 'Prices from Google Shopping (online)',
                           child: Icon(Icons.info_outline,
                               size: 14,
@@ -1261,6 +1351,43 @@ class _SidebarState extends State<_Sidebar> {
                   ),
                 ),
               const SizedBox(height: 4),
+              // Sort chips
+              Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: Row(
+                  children: [
+                    Text(
+                      'Sort by',
+                      style: _outfit(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                        color: SupplyMapColors.textTertiary,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    _SortChip(
+                      label: 'Distance',
+                      icon: Icons.near_me_outlined,
+                      selected: widget.sortMode == SortMode.distance,
+                      onTap: () => widget.onSortChanged(SortMode.distance),
+                    ),
+                    const SizedBox(width: 6),
+                    _SortChip(
+                      label: 'Price',
+                      icon: Icons.attach_money,
+                      selected: widget.sortMode == SortMode.priceLow,
+                      onTap: () => widget.onSortChanged(SortMode.priceLow),
+                    ),
+                    const SizedBox(width: 6),
+                    _SortChip(
+                      label: 'Rating',
+                      icon: Icons.star_outline_rounded,
+                      selected: widget.sortMode == SortMode.rating,
+                      onTap: () => widget.onSortChanged(SortMode.rating),
+                    ),
+                  ],
+                ),
+              ),
               // Results list
               Expanded(
                 child: widget.stores.isEmpty
@@ -1449,6 +1576,59 @@ class _ResultCardState extends State<_ResultCard> {
                   color: fg.withValues(alpha: isGlass ? 0.9 : 1.0),
                 ),
               ),
+              // Rating row
+              if (widget.store.rating != null) ...[
+                const SizedBox(height: 6),
+                Row(
+                  children: [
+                    ...List.generate(5, (i) {
+                      final starVal = widget.store.rating!;
+                      IconData icon;
+                      if (i < starVal.floor()) {
+                        icon = Icons.star_rounded;
+                      } else if (i < starVal.ceil() && starVal % 1 >= 0.3) {
+                        icon = Icons.star_half_rounded;
+                      } else {
+                        icon = Icons.star_outline_rounded;
+                      }
+                      return Icon(icon,
+                          size: 16,
+                          color: dark
+                              ? const Color(0xFFFFD54F)
+                              : Colors.white.withValues(alpha: 0.9));
+                    }),
+                    const SizedBox(width: 4),
+                    Text(
+                      widget.store.rating!.toStringAsFixed(1),
+                      style: _outfit(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: fg.withValues(alpha: 0.85),
+                      ),
+                    ),
+                    if (widget.store.reviewCount != null) ...[
+                      Text(
+                        ' (${_formatReviewCount(widget.store.reviewCount!)})',
+                        style: _outfit(
+                          fontSize: 11,
+                          color: fg.withValues(alpha: 0.6),
+                        ),
+                      ),
+                    ],
+                    if (widget.store.priceLevel != null) ...[
+                      const SizedBox(width: 8),
+                      Text(
+                        widget.store.priceLevel!,
+                        style: _outfit(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: fg.withValues(alpha: 0.7),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ],
               // Price + store type badges
               const SizedBox(height: 8),
               Wrap(
@@ -1767,6 +1947,23 @@ class _SelectedStorePopup extends StatelessWidget {
             style: _outfit(
                 fontSize: 12, color: SupplyMapColors.textSecondary),
           ),
+          if (store.rating != null) ...[
+            const SizedBox(height: 2),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.star_rounded,
+                    size: 13, color: Color(0xFFFFD54F)),
+                const SizedBox(width: 2),
+                Text(
+                  '${store.rating!.toStringAsFixed(1)}'
+                  '${store.reviewCount != null ? ' (${_formatReviewCount(store.reviewCount!)})' : ''}',
+                  style: _outfit(
+                      fontSize: 11, color: SupplyMapColors.textTertiary),
+                ),
+              ],
+            ),
+          ],
           if (store.openingHours != null) ...[
             const SizedBox(height: 2),
             Text(
@@ -2075,6 +2272,63 @@ class _StaggeredFadeIn extends StatelessWidget {
 // ---------------------------------------------------------------------------
 // Empty state widget
 // ---------------------------------------------------------------------------
+
+class _SortChip extends StatelessWidget {
+  const _SortChip({
+    required this.label,
+    required this.icon,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final IconData icon;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+        decoration: BoxDecoration(
+          color: selected
+              ? SupplyMapColors.accentGreen.withValues(alpha: 0.15)
+              : SupplyMapColors.glass,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: selected
+                ? SupplyMapColors.accentGreen.withValues(alpha: 0.5)
+                : SupplyMapColors.borderSubtle,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon,
+                size: 14,
+                color: selected
+                    ? SupplyMapColors.accentGreen
+                    : SupplyMapColors.textTertiary),
+            const SizedBox(width: 4),
+            Text(
+              label,
+              style: _outfit(
+                fontSize: 11,
+                fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
+                color: selected
+                    ? SupplyMapColors.accentGreen
+                    : SupplyMapColors.textSecondary,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
 
 class _EmptyState extends StatelessWidget {
   const _EmptyState();

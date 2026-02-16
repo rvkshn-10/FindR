@@ -127,6 +127,12 @@ List<OverpassStore> _parseLocalResults(
       openingHours = operatingHours[today]?.toString();
     }
 
+    // Extract rating, reviews, price level, thumbnail.
+    final rating = (m['rating'] as num?)?.toDouble();
+    final reviewCount = (m['reviews'] as num?)?.toInt();
+    final priceLevel = m['price']?.toString(); // "$", "$$", "$$$"
+    final thumbnail = m['thumbnail']?.toString();
+
     stores.add(OverpassStore(
       id: 'gm/$placeId',
       name: name,
@@ -140,6 +146,10 @@ List<OverpassStore> _parseLocalResults(
       brand: null,
       shopType: shopType,
       amenityType: null,
+      rating: rating,
+      reviewCount: reviewCount,
+      priceLevel: priceLevel,
+      thumbnail: thumbnail,
     ));
   }
 
