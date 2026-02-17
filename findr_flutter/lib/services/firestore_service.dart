@@ -1,29 +1,56 @@
 /// Firestore service for persisting user data.
 ///
 /// Collections:
-///   users/{uid}/searches    — search history
-///   users/{uid}/favorites   — favorited stores
-///   users/{uid}/recommendations — AI-generated personalized recommendations
+///   users/{deviceId}/searches    — search history
+///   users/{deviceId}/favorites   — favorited stores
+///   users/{deviceId}/recommendations — AI-generated personalized recommendations
 library;
 
+import 'dart:math';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
-import 'auth_service.dart' as auth;
+import 'package:shared_preferences/shared_preferences.dart';
 
 final _db = FirebaseFirestore.instance;
+
+const _kDeviceIdKey = 'findr_device_id';
+String? _cachedDeviceId;
+
+/// Returns a stable device identifier, creating one on first launch.
+Future<String> _getDeviceId() async {
+  if (_cachedDeviceId != null) return _cachedDeviceId!;
+  final prefs = await SharedPreferences.getInstance();
+  var id = prefs.getString(_kDeviceIdKey);
+  if (id == null) {
+    id = _generateUuid();
+    await prefs.setString(_kDeviceIdKey, id);
+  }
+  _cachedDeviceId = id;
+  return id;
+}
+
+String _generateUuid() {
+  final r = Random.secure();
+  return List.generate(32, (_) => r.nextInt(16).toRadixString(16)).join();
+}
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
-DocumentReference? _userDoc() {
-  final uid = auth.currentUser?.uid;
-  if (uid == null) return null;
-  return _db.collection('users').doc(uid);
+Future<DocumentReference?> _userDoc() async {
+  try {
+    final uid = await _getDeviceId();
+    return _db.collection('users').doc(uid);
+  } catch (e) {
+    debugPrint('Firestore: _userDoc failed: $e');
+    return null;
+  }
 }
 
-CollectionReference? _subcollection(String name) {
-  return _userDoc()?.collection(name);
+Future<CollectionReference?> _subcollection(String name) async {
+  final doc = await _userDoc();
+  return doc?.collection(name);
 }
 
 // ---------------------------------------------------------------------------
@@ -32,14 +59,10 @@ CollectionReference? _subcollection(String name) {
 
 /// Ensure user document exists and update last-seen timestamp.
 Future<void> ensureUserDoc() async {
-  final doc = _userDoc();
+  final doc = await _userDoc();
   if (doc == null) return;
   await doc.set({
-    'displayName': auth.displayName,
-    'email': auth.email,
-    'photoUrl': auth.photoUrl,
     'lastSeen': FieldValue.serverTimestamp(),
-    'isAnonymous': auth.isAnonymous,
   }, SetOptions(merge: true));
 }
 
@@ -55,7 +78,7 @@ Future<void> saveSearch({
   required String locationLabel,
   int resultCount = 0,
 }) async {
-  final col = _subcollection('searches');
+  final col = await _subcollection('searches');
   if (col == null) return;
   try {
     await col.add({
@@ -74,7 +97,7 @@ Future<void> saveSearch({
 
 /// Get recent searches (newest first), limited to [limit].
 Future<List<Map<String, dynamic>>> getRecentSearches({int limit = 20}) async {
-  final col = _subcollection('searches');
+  final col = await _subcollection('searches');
   if (col == null) return [];
   try {
     final snap = await col
@@ -93,10 +116,13 @@ Future<List<Map<String, dynamic>>> getRecentSearches({int limit = 20}) async {
 }
 
 /// Stream of recent searches (real-time updates).
-Stream<List<Map<String, dynamic>>> watchRecentSearches({int limit = 20}) {
-  final col = _subcollection('searches');
-  if (col == null) return Stream.value([]);
-  return col
+Stream<List<Map<String, dynamic>>> watchRecentSearches({int limit = 20}) async* {
+  final col = await _subcollection('searches');
+  if (col == null) {
+    yield [];
+    return;
+  }
+  yield* col
       .orderBy('timestamp', descending: true)
       .limit(limit)
       .snapshots()
@@ -109,7 +135,7 @@ Stream<List<Map<String, dynamic>>> watchRecentSearches({int limit = 20}) {
 
 /// Delete a search from history.
 Future<void> deleteSearch(String docId) async {
-  final col = _subcollection('searches');
+  final col = await _subcollection('searches');
   if (col == null) return;
   try {
     await col.doc(docId).delete();
@@ -120,11 +146,10 @@ Future<void> deleteSearch(String docId) async {
 
 /// Clear all search history (batched in groups of 500).
 Future<void> clearSearchHistory() async {
-  final col = _subcollection('searches');
+  final col = await _subcollection('searches');
   if (col == null) return;
   try {
     final snap = await col.get();
-    // Firestore batches max out at 500 operations.
     for (var i = 0; i < snap.docs.length; i += 500) {
       final batch = _db.batch();
       final end = (i + 500 > snap.docs.length) ? snap.docs.length : i + 500;
@@ -161,10 +186,9 @@ Future<void> addFavorite({
   String? priceLevel,
   String? thumbnail,
 }) async {
-  final col = _subcollection('favorites');
+  final col = await _subcollection('favorites');
   if (col == null) return;
   try {
-    // Use storeId as doc ID to prevent duplicates.
     await col.doc(storeId.replaceAll('/', '_')).set({
       'storeId': storeId,
       'storeName': storeName,
@@ -191,7 +215,7 @@ Future<void> addFavorite({
 
 /// Remove a store from favorites.
 Future<void> removeFavorite(String storeId) async {
-  final col = _subcollection('favorites');
+  final col = await _subcollection('favorites');
   if (col == null) return;
   try {
     await col.doc(storeId.replaceAll('/', '_')).delete();
@@ -203,7 +227,7 @@ Future<void> removeFavorite(String storeId) async {
 
 /// Check if a store is favorited.
 Future<bool> isFavorite(String storeId) async {
-  final col = _subcollection('favorites');
+  final col = await _subcollection('favorites');
   if (col == null) return false;
   try {
     final doc = await col.doc(storeId.replaceAll('/', '_')).get();
@@ -216,7 +240,7 @@ Future<bool> isFavorite(String storeId) async {
 
 /// Get all favorites.
 Future<List<Map<String, dynamic>>> getFavorites() async {
-  final col = _subcollection('favorites');
+  final col = await _subcollection('favorites');
   if (col == null) return [];
   try {
     final snap = await col
@@ -234,10 +258,13 @@ Future<List<Map<String, dynamic>>> getFavorites() async {
 }
 
 /// Stream of favorites (real-time updates).
-Stream<List<Map<String, dynamic>>> watchFavorites() {
-  final col = _subcollection('favorites');
-  if (col == null) return Stream.value([]);
-  return col
+Stream<List<Map<String, dynamic>>> watchFavorites() async* {
+  final col = await _subcollection('favorites');
+  if (col == null) {
+    yield [];
+    return;
+  }
+  yield* col
       .orderBy('timestamp', descending: true)
       .snapshots()
       .map((snap) => snap.docs.map((d) {
@@ -257,7 +284,7 @@ Future<void> saveRecommendation({
   required String content,
   required String basedOn,
 }) async {
-  final col = _subcollection('recommendations');
+  final col = await _subcollection('recommendations');
   if (col == null) return;
   try {
     await col.add({
@@ -273,7 +300,7 @@ Future<void> saveRecommendation({
 
 /// Get recent recommendations.
 Future<List<Map<String, dynamic>>> getRecommendations({int limit = 10}) async {
-  final col = _subcollection('recommendations');
+  final col = await _subcollection('recommendations');
   if (col == null) return [];
   try {
     final snap = await col

@@ -1,10 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import '../models/search_models.dart';
-import '../providers/auth_provider.dart';
-import '../services/auth_service.dart' as auth;
 import '../widgets/design_system.dart';
-import 'auth_screen.dart';
 import 'profile_screen.dart';
 import 'results_screen.dart';
 import 'search_screen.dart';
@@ -26,7 +22,7 @@ class SearchResultParams {
   });
 }
 
-/// Shell: gradient background stays fixed, search/results/profile/auth animate.
+/// Shell: gradient background stays fixed, search/results/profile animate.
 class SupplyMapShell extends StatefulWidget {
   const SupplyMapShell({super.key});
 
@@ -34,26 +30,11 @@ class SupplyMapShell extends StatefulWidget {
   State<SupplyMapShell> createState() => _SupplyMapShellState();
 }
 
-enum _Page { search, results, profile, auth }
+enum _Page { search, results, profile }
 
 class _SupplyMapShellState extends State<SupplyMapShell> {
   _Page _currentPage = _Page.search;
   SearchResultParams? _resultParams;
-
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _ensureSignedIn();
-    });
-  }
-
-  void _ensureSignedIn() {
-    if (!auth.isSignedIn) {
-      final authProv = Provider.of<AuthProvider>(context, listen: false);
-      authProv.signInAnonymously();
-    }
-  }
 
   void _onSearchResult(SearchResultParams params) {
     setState(() {
@@ -71,10 +52,6 @@ class _SupplyMapShellState extends State<SupplyMapShell> {
 
   void _openProfile() {
     setState(() => _currentPage = _Page.profile);
-  }
-
-  void _openAuth() {
-    setState(() => _currentPage = _Page.auth);
   }
 
   void _searchAgain(String item) {
@@ -117,7 +94,6 @@ class _SupplyMapShellState extends State<SupplyMapShell> {
           child: SearchScreen(
             onSearchResult: _onSearchResult,
             onOpenProfile: _openProfile,
-            onOpenAuth: _openAuth,
           ),
         );
       case _Page.results:
@@ -138,15 +114,6 @@ class _SupplyMapShellState extends State<SupplyMapShell> {
           child: ProfileScreen(
             onBack: _onNewSearch,
             onSearchAgain: _searchAgain,
-            onOpenAuth: _openAuth,
-          ),
-        );
-      case _Page.auth:
-        return KeyedSubtree(
-          key: const ValueKey<String>('auth'),
-          child: AuthScreen(
-            onBack: _onNewSearch,
-            onSuccess: _openProfile,
           ),
         );
     }

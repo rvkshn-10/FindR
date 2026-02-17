@@ -19,7 +19,6 @@ dependencies:
   url_launcher: ^6.2.0
   shared_preferences: ^2.5.4
   google_generative_ai: ^0.4.7
-  firebase_auth: ^6.1.4
   cloud_firestore: ^6.1.2
 
 dev_dependencies:

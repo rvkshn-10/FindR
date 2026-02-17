@@ -44,13 +44,11 @@ const _kMaxRecent = 8;
 class SearchScreen extends StatefulWidget {
   final void Function(SearchResultParams)? onSearchResult;
   final VoidCallback? onOpenProfile;
-  final VoidCallback? onOpenAuth;
 
   const SearchScreen({
     super.key,
     this.onSearchResult,
     this.onOpenProfile,
-    this.onOpenAuth,
   });
 
   @override
