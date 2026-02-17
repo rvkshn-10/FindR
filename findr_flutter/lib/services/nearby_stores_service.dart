@@ -153,28 +153,40 @@ Future<List<OverpassStore>> fetchNearbyStores(
   // Build Overpass union clauses based on what the mapper returned.
   final clauses = <String>[];
 
-  if (filterResult.shopFilter != null) {
-    clauses.add('nwr["shop"~"${filterResult.shopFilter}"](around:$radiusM,$lat,$lng);');
-  } else if (!filterResult.isDining) {
-    // No shop types matched and not a dining search → fallback to big-box retail.
-    const fallbackShop =
-        'department_store|variety_store|general|wholesale|mall|discount|electronics|hardware|doityourself';
-    clauses.add('nwr["shop"~"$fallbackShop"](around:$radiusM,$lat,$lng);');
-  }
-
-  if (filterResult.amenityFilter != null) {
-    clauses.add('nwr["amenity"~"${filterResult.amenityFilter}"](around:$radiusM,$lat,$lng);');
-  } else if (!filterResult.isDining) {
-    // Non-dining fallback amenities.
-    clauses.add('nwr["amenity"~"marketplace"](around:$radiusM,$lat,$lng);');
-  }
-
-  // For dining searches, also search by cuisine/name tags for better results.
   if (filterResult.isDining && item != null) {
+    // --- DINING SEARCH ---
+    // Do NOT use broad "amenity~restaurant|fast_food" — that returns every
+    // restaurant in the area (thousands) and causes Overpass to timeout.
+    // Instead use targeted searches: name match, cuisine match, and shop match.
     final lower = item.toLowerCase().trim();
-    clauses.add('nwr["amenity"="restaurant"]["name"~"$lower",i](around:$radiusM,$lat,$lng);');
-    clauses.add('nwr["amenity"="fast_food"]["name"~"$lower",i](around:$radiusM,$lat,$lng);');
-    clauses.add('nwr["amenity"="cafe"]["name"~"$lower",i](around:$radiusM,$lat,$lng);');
+    final amenities = filterResult.amenityFilter ?? 'restaurant|fast_food|cafe';
+
+    // 1. Match by name (e.g. "Burger King", "Five Guys Burgers").
+    clauses.add('nwr["amenity"~"$amenities"]["name"~"$lower",i](around:$radiusM,$lat,$lng);');
+    // 2. Match by brand tag (e.g. brand=Burger King).
+    clauses.add('nwr["amenity"~"$amenities"]["brand"~"$lower",i](around:$radiusM,$lat,$lng);');
+    // 3. Match by cuisine tag (OSM tags like cuisine=burger, cuisine=pizza).
+    clauses.add('nwr["amenity"~"$amenities"]["cuisine"~"$lower",i](around:$radiusM,$lat,$lng);');
+    // 4. Match bakery/confectionery shops if relevant (e.g. "cookie" → shop=bakery).
+    if (filterResult.shopFilter != null) {
+      clauses.add('nwr["shop"~"${filterResult.shopFilter}"](around:$radiusM,$lat,$lng);');
+    }
+  } else {
+    // --- PRODUCT / RETAIL SEARCH ---
+    if (filterResult.shopFilter != null) {
+      clauses.add('nwr["shop"~"${filterResult.shopFilter}"](around:$radiusM,$lat,$lng);');
+    } else {
+      // No shop types matched → fallback to big-box retail.
+      const fallbackShop =
+          'department_store|variety_store|general|wholesale|mall|discount|electronics|hardware|doityourself';
+      clauses.add('nwr["shop"~"$fallbackShop"](around:$radiusM,$lat,$lng);');
+    }
+
+    if (filterResult.amenityFilter != null) {
+      clauses.add('nwr["amenity"~"${filterResult.amenityFilter}"](around:$radiusM,$lat,$lng);');
+    } else {
+      clauses.add('nwr["amenity"~"marketplace"](around:$radiusM,$lat,$lng);');
+    }
   }
 
   final query = '''

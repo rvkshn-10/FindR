@@ -4,6 +4,7 @@ import 'store_filters.dart';
 import 'nearby_stores_service.dart';
 import 'google_maps_search_service.dart';
 import 'kroger_service.dart';
+import 'product_store_mapper.dart';
 import 'road_distance_service.dart';
 import '../models/search_models.dart';
 import '../config.dart';
@@ -56,10 +57,13 @@ Future<SearchResult> searchFast({
   SearchFilters? filters,
 }) async {
   final radiusM = (maxDistanceKm * 1000).clamp(1000.0, 25000.0);
+  final isDining = filtersForItem(item).isDining;
 
   List<OverpassStore> allStores = [];
 
-  // --- Fire SerpApi + Kroger in parallel ---
+  // --- Fire SerpApi, Kroger, AND Overpass all in parallel ---
+  // This way if SerpApi/Kroger fail (CORS), Overpass results still come through
+  // without the user waiting for sequential timeouts.
   final serpFuture = fetchStoresFromGoogleMaps(
     item: item, lat: lat, lng: lng, maxDistanceKm: maxDistanceKm,
   ).catchError((e) {
@@ -67,7 +71,7 @@ Future<SearchResult> searchFast({
     return null;
   });
 
-  final krogerFuture = krogerEnabled
+  final krogerFuture = (krogerEnabled && !isDining)
       ? fetchKrogerLocations(
           lat: lat, lng: lng, radiusMiles: (maxDistanceKm * 0.621371).ceil(),
         ).catchError((e) {
@@ -76,10 +80,19 @@ Future<SearchResult> searchFast({
         })
       : Future<List<KrogerLocation>?>.value(null);
 
-  final results = await Future.wait([serpFuture, krogerFuture]);
+  final overpassFuture = fetchNearbyStores(
+    lat, lng, radiusM: radiusM.toInt(), item: item,
+  ).catchError((e) {
+    debugPrint('Overpass search failed: $e');
+    return <OverpassStore>[];
+  });
+
+  final results = await Future.wait([serpFuture, krogerFuture, overpassFuture]);
   final gmStores = results[0] as List<OverpassStore>?;
   final krogerLocs = results[1] as List<KrogerLocation>?;
+  final overpassStores = results[2] as List<OverpassStore>;
 
+  // Prefer SerpApi (best quality), then merge Kroger + Overpass.
   if (gmStores != null && gmStores.isNotEmpty) {
     debugPrint('Using Google Maps results: ${gmStores.length} stores');
     allStores = gmStores;
@@ -98,29 +111,37 @@ Future<SearchResult> searchFast({
     }
   }
 
-  // --- Fallback: Overpass (OpenStreetMap) ---
-  // Only use product-specific search.  Do NOT fall back to a broad "any shop"
-  // query — that returns irrelevant stores like Whole Foods for "macbooks".
-  if (allStores.isEmpty) {
-    try {
-      debugPrint('Falling back to Overpass for store search');
-      allStores = await fetchNearbyStores(lat, lng, radiusM: radiusM.toInt(), item: item);
-    } catch (e) {
-      debugPrint('Overpass targeted search failed: $e');
+  // Merge Overpass stores (avoid duplicates by proximity).
+  if (overpassStores.isNotEmpty) {
+    debugPrint('Overpass: found ${overpassStores.length} stores');
+    for (final os in overpassStores) {
+      // Skip if a SerpApi/Kroger store already exists within 100m with similar name.
+      final isDuplicate = allStores.any((existing) {
+        final dist = haversineKm(existing.lat, existing.lng, os.lat, os.lng);
+        if (dist > 0.1) return false; // > 100m apart
+        final eName = existing.name.toLowerCase();
+        final oName = os.name.toLowerCase();
+        return eName.contains(oName) || oName.contains(eName);
+      });
+      if (!isDuplicate) allStores.add(os);
     }
+  }
 
-    if (allStores.isEmpty) {
-      return SearchResult(
-        stores: const [],
-        bestOptionId: '',
-        summary: 'No stores found that sell "$item" nearby.',
-        alternatives: [
+  if (allStores.isEmpty) {
+    final verb = isDining ? 'serving' : 'that sell';
+    return SearchResult(
+      stores: const [],
+      bestOptionId: '',
+      summary: 'No places found $verb "$item" nearby.',
+      alternatives: [
+        if (isDining)
+          'Try a more general term (e.g. "pizza" instead of a specific restaurant)'
+        else
           'Try a broader search term (e.g. "laptop" instead of a specific model)',
-          'Increase the search radius',
-          'Try searching while on a stronger network connection',
-        ],
-      );
-    }
+        'Increase the search radius',
+        'Try searching while on a stronger network connection',
+      ],
+    );
   }
 
   final filtered = allStores.where((s) => _passesFilters(s, filters)).toList();
