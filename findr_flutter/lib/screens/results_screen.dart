@@ -10,6 +10,7 @@ import '../services/distance_util.dart';
 import '../services/ai_service.dart';
 import '../services/price_service.dart';
 import '../services/kroger_service.dart';
+import '../services/firestore_service.dart' as db;
 import '../providers/settings_provider.dart';
 import '../widgets/design_system.dart';
 import '../widgets/settings_panel.dart';
@@ -646,6 +647,7 @@ class _ResultsScreenState extends State<ResultsScreen> {
                                         settings: settings,
                                         isSelected: s.id == _selectedStoreId,
                                         onTap: () => _onSelectStore(s),
+                                        searchItem: _currentItem,
                                       ),
                                     ),
                                   );
@@ -1449,6 +1451,7 @@ class _SidebarState extends State<_Sidebar> {
                               isSelected:
                                   s.id == widget.selectedStoreId,
                               onTap: () => widget.onSelectStore(s),
+                              searchItem: widget.query,
                             ),
                           );
                         },
@@ -1471,6 +1474,7 @@ class _SafeResultCard extends StatelessWidget {
     required this.settings,
     required this.isSelected,
     required this.onTap,
+    this.searchItem = '',
   });
 
   final Store store;
@@ -1478,6 +1482,7 @@ class _SafeResultCard extends StatelessWidget {
   final SettingsProvider settings;
   final bool isSelected;
   final VoidCallback onTap;
+  final String searchItem;
 
   @override
   Widget build(BuildContext context) {
@@ -1493,6 +1498,7 @@ class _SafeResultCard extends StatelessWidget {
         settings: settings,
         isSelected: isSelected,
         onTap: onTap,
+        searchItem: searchItem,
       ),
     );
   }
@@ -1509,6 +1515,7 @@ class _ResultCard extends StatefulWidget {
     required this.settings,
     required this.isSelected,
     required this.onTap,
+    this.searchItem = '',
   });
 
   final Store store;
@@ -1516,6 +1523,7 @@ class _ResultCard extends StatefulWidget {
   final SettingsProvider settings;
   final bool isSelected;
   final VoidCallback onTap;
+  final String searchItem;
 
   @override
   State<_ResultCard> createState() => _ResultCardState();
@@ -1523,6 +1531,59 @@ class _ResultCard extends StatefulWidget {
 
 class _ResultCardState extends State<_ResultCard> {
   bool _hovered = false;
+  bool _isFavorite = false;
+  bool _favLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkFavorite();
+  }
+
+  @override
+  void didUpdateWidget(covariant _ResultCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.store.id != widget.store.id) _checkFavorite();
+  }
+
+  Future<void> _checkFavorite() async {
+    final fav = await db.isFavorite(widget.store.id);
+    if (mounted) setState(() => _isFavorite = fav);
+  }
+
+  Future<void> _toggleFavorite() async {
+    if (_favLoading) return;
+    setState(() => _favLoading = true);
+
+    if (_isFavorite) {
+      await db.removeFavorite(widget.store.id);
+    } else {
+      await db.addFavorite(
+        storeId: widget.store.id,
+        storeName: widget.store.name,
+        address: widget.store.address,
+        lat: widget.store.lat,
+        lng: widget.store.lng,
+        searchItem: widget.searchItem,
+        phone: widget.store.phone,
+        website: widget.store.website,
+        openingHours: widget.store.openingHours,
+        brand: widget.store.brand,
+        shopType: widget.store.shopType,
+        rating: widget.store.rating,
+        reviewCount: widget.store.reviewCount,
+        priceLevel: widget.store.priceLevel,
+        thumbnail: widget.store.thumbnail,
+      );
+    }
+
+    if (mounted) {
+      setState(() {
+        _isFavorite = !_isFavorite;
+        _favLoading = false;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -1575,7 +1636,7 @@ class _ResultCardState extends State<_ResultCard> {
               // Thumbnail image (if available)
               if (widget.store.thumbnail != null)
                 ClipRRect(
-                  borderRadius: BorderRadius.vertical(
+                  borderRadius: const BorderRadius.vertical(
                     top: Radius.circular(kRadiusLg),
                   ),
                   child: SizedBox(
@@ -1616,12 +1677,44 @@ class _ResultCardState extends State<_ResultCard> {
                       ),
                     ),
                   ),
-                  if (widget.store.durationMinutes != null)
-                    Text(
-                      '~${widget.store.durationMinutes} min',
-                      style: _outfit(
-                          fontSize: 13, fontWeight: FontWeight.w600, color: fg),
-                    ),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (widget.store.durationMinutes != null)
+                        Text(
+                          '~${widget.store.durationMinutes} min',
+                          style: _outfit(
+                              fontSize: 13, fontWeight: FontWeight.w600, color: fg),
+                        ),
+                      const SizedBox(width: 8),
+                      // Favorite button
+                      GestureDetector(
+                        onTap: _toggleFavorite,
+                        child: AnimatedSwitcher(
+                          duration: const Duration(milliseconds: 250),
+                          child: _favLoading
+                              ? SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 1.5,
+                                    color: fg.withValues(alpha: 0.5),
+                                  ),
+                                )
+                              : Icon(
+                                  _isFavorite
+                                      ? Icons.favorite
+                                      : Icons.favorite_border,
+                                  key: ValueKey(_isFavorite),
+                                  size: 20,
+                                  color: _isFavorite
+                                      ? SupplyMapColors.red
+                                      : fg.withValues(alpha: 0.6),
+                                ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ],
               ),
               const SizedBox(height: 12),

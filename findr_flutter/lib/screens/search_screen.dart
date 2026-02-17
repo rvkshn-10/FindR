@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/search_models.dart';
 import '../services/geocode_service.dart';
+import '../services/firestore_service.dart' as db;
 import '../services/store_filters.dart';
 import '../widgets/design_system.dart';
 import '../widgets/settings_panel.dart';
@@ -42,10 +43,12 @@ const _kMaxRecent = 8;
 
 class SearchScreen extends StatefulWidget {
   final void Function(SearchResultParams)? onSearchResult;
+  final VoidCallback? onOpenProfile;
 
   const SearchScreen({
     super.key,
     this.onSearchResult,
+    this.onOpenProfile,
   });
 
   @override
@@ -186,6 +189,18 @@ class _SearchScreenState extends State<SearchScreen> {
       );
       if (!mounted) return;
       _saveRecentSearch(item);
+
+      // Save to Firestore (fire-and-forget, don't block navigation).
+      final locationLabel = _useMyLocation
+          ? 'Current location'
+          : _locationController.text.trim();
+      db.saveSearch(
+        item: item,
+        lat: lat,
+        lng: lng,
+        locationLabel: locationLabel,
+      );
+
       final params = SearchResultParams(
         item: item,
         lat: lat,
@@ -258,32 +273,62 @@ class _SearchScreenState extends State<SearchScreen> {
                 ),
               ),
             ),
-            // Settings gear – pinned top-right
+            // Profile + Settings – pinned top-right
             Positioned(
               top: 16,
               right: 16,
-              child: Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  shape: BoxShape.circle,
-                  border: Border.all(color: SupplyMapColors.borderSubtle),
-                  boxShadow: const [
-                    BoxShadow(
-                      color: Color(0x081A1918),
-                      blurRadius: 6,
-                      offset: Offset(0, 1),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Profile button
+                  Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: SupplyMapColors.borderSubtle),
+                      boxShadow: const [
+                        BoxShadow(
+                          color: Color(0x081A1918),
+                          blurRadius: 6,
+                          offset: Offset(0, 1),
+                        ),
+                      ],
                     ),
-                  ],
-                ),
-                child: IconButton(
-                  icon: const Icon(Icons.settings,
-                      color: SupplyMapColors.textSecondary, size: 20),
-                  tooltip: 'Settings',
-                  onPressed: () =>
-                      setState(() => _settingsOpen = !_settingsOpen),
-                ),
+                    child: IconButton(
+                      icon: const Icon(Icons.person_outline,
+                          color: SupplyMapColors.textSecondary, size: 20),
+                      tooltip: 'Profile & History',
+                      onPressed: widget.onOpenProfile,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  // Settings gear
+                  Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: SupplyMapColors.borderSubtle),
+                      boxShadow: const [
+                        BoxShadow(
+                          color: Color(0x081A1918),
+                          blurRadius: 6,
+                          offset: Offset(0, 1),
+                        ),
+                      ],
+                    ),
+                    child: IconButton(
+                      icon: const Icon(Icons.settings,
+                          color: SupplyMapColors.textSecondary, size: 20),
+                      tooltip: 'Settings',
+                      onPressed: () =>
+                          setState(() => _settingsOpen = !_settingsOpen),
+                    ),
+                  ),
+                ],
               ),
             ),
             // Centered content

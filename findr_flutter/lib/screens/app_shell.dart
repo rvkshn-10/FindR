@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../models/search_models.dart';
+import '../providers/auth_provider.dart';
+import '../services/auth_service.dart' as auth;
 import '../widgets/design_system.dart';
+import 'profile_screen.dart';
 import 'results_screen.dart';
 import 'search_screen.dart';
 
@@ -21,7 +25,7 @@ class SearchResultParams {
   });
 }
 
-/// Shell: gradient background stays fixed, search ↔ results animate inside.
+/// Shell: gradient background stays fixed, search/results/profile animate inside.
 class SupplyMapShell extends StatefulWidget {
   const SupplyMapShell({super.key});
 
@@ -29,15 +33,52 @@ class SupplyMapShell extends StatefulWidget {
   State<SupplyMapShell> createState() => _SupplyMapShellState();
 }
 
+enum _Page { search, results, profile }
+
 class _SupplyMapShellState extends State<SupplyMapShell> {
+  _Page _currentPage = _Page.search;
   SearchResultParams? _resultParams;
 
+  @override
+  void initState() {
+    super.initState();
+    // Auto sign-in anonymously so we can save searches immediately.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _ensureSignedIn();
+    });
+  }
+
+  void _ensureSignedIn() {
+    if (!auth.isSignedIn) {
+      final authProv = Provider.of<AuthProvider>(context, listen: false);
+      authProv.signInAnonymously();
+    }
+  }
+
   void _onSearchResult(SearchResultParams params) {
-    setState(() => _resultParams = params);
+    setState(() {
+      _resultParams = params;
+      _currentPage = _Page.results;
+    });
   }
 
   void _onNewSearch() {
-    setState(() => _resultParams = null);
+    setState(() {
+      _resultParams = null;
+      _currentPage = _Page.search;
+    });
+  }
+
+  void _openProfile() {
+    setState(() => _currentPage = _Page.profile);
+  }
+
+  void _searchAgain(String item) {
+    // Navigate back to search and pre-fill the item.
+    setState(() {
+      _resultParams = null;
+      _currentPage = _Page.search;
+    });
   }
 
   @override
@@ -48,7 +89,6 @@ class _SupplyMapShellState extends State<SupplyMapShell> {
         switchInCurve: Curves.easeOutCubic,
         switchOutCurve: Curves.easeInCubic,
         transitionBuilder: (Widget child, Animation<double> animation) {
-          // Home fades + scales; Results fades in
           if (child.key == const ValueKey<String>('search')) {
             return FadeTransition(
               opacity: animation,
@@ -61,25 +101,41 @@ class _SupplyMapShellState extends State<SupplyMapShell> {
           }
           return FadeTransition(opacity: animation, child: child);
         },
-        child: _resultParams == null
-            ? KeyedSubtree(
-                key: const ValueKey<String>('search'),
-                child: SearchScreen(
-                  onSearchResult: _onSearchResult,
-                ),
-              )
-            : KeyedSubtree(
-                key: const ValueKey<String>('results'),
-                child: ResultsScreen(
-                  item: _resultParams!.item,
-                  lat: _resultParams!.lat,
-                  lng: _resultParams!.lng,
-                  maxDistanceMiles: _resultParams!.maxDistanceMiles,
-                  filters: _resultParams!.filters,
-                  onNewSearch: _onNewSearch,
-                ),
-              ),
+        child: _buildCurrentPage(),
       ),
     );
+  }
+
+  Widget _buildCurrentPage() {
+    switch (_currentPage) {
+      case _Page.search:
+        return KeyedSubtree(
+          key: const ValueKey<String>('search'),
+          child: SearchScreen(
+            onSearchResult: _onSearchResult,
+            onOpenProfile: _openProfile,
+          ),
+        );
+      case _Page.results:
+        return KeyedSubtree(
+          key: const ValueKey<String>('results'),
+          child: ResultsScreen(
+            item: _resultParams!.item,
+            lat: _resultParams!.lat,
+            lng: _resultParams!.lng,
+            maxDistanceMiles: _resultParams!.maxDistanceMiles,
+            filters: _resultParams!.filters,
+            onNewSearch: _onNewSearch,
+          ),
+        );
+      case _Page.profile:
+        return KeyedSubtree(
+          key: const ValueKey<String>('profile'),
+          child: ProfileScreen(
+            onBack: _onNewSearch,
+            onSearchAgain: _searchAgain,
+          ),
+        );
+    }
   }
 }
