@@ -346,10 +346,10 @@ class _SearchScreenState extends State<SearchScreen> {
                   return Text(
                     'Wayvio',
                     textAlign: TextAlign.center,
-                    style: _outfit(
+                    style: GoogleFonts.quicksand(
                       fontSize: isNarrow ? 56 : 96,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: isNarrow ? -2 : -4,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: isNarrow ? -1 : -2,
                       height: 0.95,
                       color: SupplyMapColors.textBlack,
                     ),
