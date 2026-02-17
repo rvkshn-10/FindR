@@ -195,10 +195,21 @@ Future<List<OverpassStore>> fetchNearbyStores(
     } else {
       clauses.add('nwr["amenity"~"marketplace"](around:$radiusM,$lat,$lng);');
     }
+
+    // Also search by store name for retail products (catches lumber yards,
+    // specialty suppliers, etc. whose OSM tags don't match but names do).
+    if (item != null && item.trim().isNotEmpty) {
+      final lower = item.toLowerCase().trim();
+      clauses.add('nwr["shop"]["name"~"$lower",i](around:$radiusM,$lat,$lng);');
+      clauses.add('nwr["trade"]["name"~"$lower",i](around:$radiusM,$lat,$lng);');
+    }
   }
 
+  // Use a longer timeout when many shop types are queried (e.g. construction).
+  final timeoutSec = clauses.length > 4 ? 15 : 10;
+
   final query = '''
-[out:json][timeout:10];
+[out:json][timeout:$timeoutSec];
 (
   ${clauses.join('\n  ')}
 );
