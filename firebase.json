@@ -3,6 +3,7 @@
     "rules": "firestore.rules"
   },
   "hosting": {
+    "site": "wayvio",
     "public": "findr_flutter/build/web",
     "ignore": [
       "firebase.json",
