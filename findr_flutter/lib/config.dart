@@ -81,21 +81,27 @@ const Duration kSerpApiTimeout = Duration(seconds: 15);
 
 /// Build a SerpApi URL.
 ///
-/// On **web** the request routes through our Firebase Cloud Function proxy
-/// at `/api/serpapi` (same origin → no CORS).  The proxy injects the API key
-/// server-side, so the client never sends it directly to serpapi.com.
+/// On **web** the request routes through a CORS proxy because browsers block
+/// direct cross-origin requests to serpapi.com.
+/// When the Firebase project is upgraded to the Blaze plan, the Cloud Function
+/// proxy at `/api/serpapi` can be used instead (uncomment the block below).
 ///
 /// On **native** (macOS, iOS, Android) we call serpapi.com directly because
 /// there are no CORS restrictions.
 Uri buildSerpApiUri(Map<String, String> params) {
-  if (kIsWeb) {
-    // Proxy: same-origin relative URL.  Don't send the API key — the
-    // Cloud Function adds it server-side.
-    final cleanParams = Map<String, String>.from(params)..remove('api_key');
-    return Uri(path: '/api/serpapi', queryParameters: cleanParams);
-  }
-  // Native: direct to serpapi.com with the key.
   final fullParams = Map<String, String>.from(params);
   fullParams['api_key'] = kSerpApiKey;
-  return Uri.https('serpapi.com', '/search.json', fullParams);
+  final directUrl = Uri.https('serpapi.com', '/search.json', fullParams);
+
+  if (kIsWeb) {
+    // Route through a CORS proxy on web.
+    // Once Firebase is on Blaze plan, switch to the Cloud Function proxy:
+    //   final cleanParams = Map<String, String>.from(params)..remove('api_key');
+    //   return Uri(path: '/api/serpapi', queryParameters: cleanParams);
+    return Uri.parse(
+      'https://corsproxy.io/?${Uri.encodeComponent(directUrl.toString())}',
+    );
+  }
+
+  return directUrl;
 }

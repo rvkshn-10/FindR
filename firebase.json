@@ -1,7 +1,4 @@
 {
-  "functions": {
-    "source": "functions"
-  },
   "hosting": {
     "public": "findr_flutter/build/web",
     "ignore": [
@@ -10,10 +7,6 @@
       "**/node_modules/**"
     ],
     "rewrites": [
-      {
-        "source": "/api/serpapi",
-        "function": "serpapi"
-      },
       {
         "source": "**",
         "destination": "/index.html"
