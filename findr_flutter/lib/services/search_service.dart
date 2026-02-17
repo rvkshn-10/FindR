@@ -3,6 +3,7 @@ import 'distance_util.dart';
 import 'store_filters.dart';
 import 'nearby_stores_service.dart';
 import 'google_maps_search_service.dart';
+import 'kroger_service.dart';
 import 'road_distance_service.dart';
 import '../models/search_models.dart';
 import '../config.dart';
@@ -58,20 +59,43 @@ Future<SearchResult> searchFast({
 
   List<OverpassStore> allStores = [];
 
-  // --- Primary: SerpApi Google Maps ---
-  try {
-    final gmStores = await fetchStoresFromGoogleMaps(
-      item: item,
-      lat: lat,
-      lng: lng,
-      maxDistanceKm: maxDistanceKm,
-    );
-    if (gmStores != null && gmStores.isNotEmpty) {
-      debugPrint('Using Google Maps results: ${gmStores.length} stores');
-      allStores = gmStores;
+  // --- Fire SerpApi + Kroger in parallel ---
+  final serpFuture = fetchStoresFromGoogleMaps(
+    item: item, lat: lat, lng: lng, maxDistanceKm: maxDistanceKm,
+  ).catchError((e) {
+    debugPrint('Google Maps search failed: $e');
+    return null;
+  });
+
+  final krogerFuture = krogerEnabled
+      ? fetchKrogerLocations(
+          lat: lat, lng: lng, radiusMiles: (maxDistanceKm * 0.621371).ceil(),
+        ).catchError((e) {
+          debugPrint('Kroger Locations failed: $e');
+          return null;
+        })
+      : Future<List<KrogerLocation>?>.value(null);
+
+  final results = await Future.wait([serpFuture, krogerFuture]);
+  final gmStores = results[0] as List<OverpassStore>?;
+  final krogerLocs = results[1] as List<KrogerLocation>?;
+
+  if (gmStores != null && gmStores.isNotEmpty) {
+    debugPrint('Using Google Maps results: ${gmStores.length} stores');
+    allStores = gmStores;
+  }
+
+  // Merge Kroger stores (avoid duplicates by name similarity).
+  if (krogerLocs != null && krogerLocs.isNotEmpty) {
+    final krogerStores = krogerLocationsToStores(krogerLocs);
+    debugPrint('Kroger: found ${krogerStores.length} stores');
+    final existingNames = allStores.map((s) => s.name.toLowerCase()).toSet();
+    for (final ks in krogerStores) {
+      if (!existingNames.any((n) => n.contains(ks.brand?.toLowerCase() ?? '') &&
+          n.contains(ks.name.split(' - ').last.toLowerCase().trim()))) {
+        allStores.add(ks);
+      }
     }
-  } catch (e) {
-    debugPrint('Google Maps search failed, falling back to Overpass: $e');
   }
 
   // --- Fallback: Overpass (OpenStreetMap) ---

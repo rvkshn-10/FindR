@@ -9,6 +9,7 @@ import '../services/search_service.dart';
 import '../services/distance_util.dart';
 import '../services/ai_service.dart';
 import '../services/price_service.dart';
+import '../services/kroger_service.dart';
 import '../providers/settings_provider.dart';
 import '../widgets/design_system.dart';
 import '../widgets/settings_panel.dart';
@@ -245,11 +246,22 @@ class _ResultsScreenState extends State<ResultsScreen> {
           lng: widget.lng,
         );
 
-        // Wait for all three.
+        // Also fetch Kroger in-store prices for any Kroger stores.
+        final krogerStores = fastResult.stores
+            .where((s) => s.id.startsWith('kroger/'))
+            .toList();
+        final krogerPriceFutures = krogerStores.map((s) {
+          final locId = s.id.replaceFirst('kroger/', '');
+          return fetchKrogerProducts(query: _currentItem, locationId: locId)
+              .catchError((_) => null);
+        }).toList();
+
+        // Wait for all.
         final results = await Future.wait([
           enrichFuture,
           aiFuture,
           priceFuture,
+          Future.wait(krogerPriceFutures),
         ]);
 
         if (!mounted) return;
@@ -257,9 +269,16 @@ class _ResultsScreenState extends State<ResultsScreen> {
         final enriched = results[0] as SearchResult;
         final aiSummary = results[1] as AiResultSummary?;
         final prices = results[2] as PriceData?;
+        final krogerPrices = results[3] as List<KrogerPriceData?>;
 
-        // Merge price data into store results.
-        final storesWithPrices = _applyPrices(enriched.stores, prices);
+        // Build a map of Kroger locationId → price data.
+        final krogerPriceMap = <String, KrogerPriceData>{};
+        for (final kp in krogerPrices) {
+          if (kp != null) krogerPriceMap[kp.locationId] = kp;
+        }
+
+        // Merge price data into store results (Google Shopping + Kroger).
+        final storesWithPrices = _applyPrices(enriched.stores, prices, krogerPriceMap);
 
         setState(() {
           _result = enriched.copyWith(stores: storesWithPrices);
@@ -294,29 +313,48 @@ class _ResultsScreenState extends State<ResultsScreen> {
   }
 
   /// Merge Google Shopping prices into the store list.
-  List<Store> _applyPrices(List<Store> stores, PriceData? prices) {
-    if (prices == null || prices.prices.isEmpty) return stores;
-
+  List<Store> _applyPrices(
+    List<Store> stores,
+    PriceData? prices, [
+    Map<String, KrogerPriceData>? krogerPrices,
+  ]) {
     final settings = Provider.of<SettingsProvider>(context, listen: false);
     final currency = settings.currency;
 
     return stores.map((store) {
-      final matched = matchPriceToStore(store, prices);
-      if (matched != null) {
-        return store.copyWith(
-          price: matched.price,
-          priceLabel: formatPrice(matched.price, currency),
-          priceIsAvg: false,
-        );
+      // --- Kroger in-store price (most accurate) ---
+      if (store.id.startsWith('kroger/') && krogerPrices != null) {
+        final locId = store.id.replaceFirst('kroger/', '');
+        final kp = krogerPrices[locId];
+        if (kp != null && kp.lowPrice != null) {
+          return store.copyWith(
+            price: kp.lowPrice,
+            priceLabel: formatPrice(kp.lowPrice!, currency),
+            priceIsAvg: false,
+          );
+        }
       }
-      // No direct match — show the average price across all results.
-      if (prices.avgPrice > 0) {
-        return store.copyWith(
-          price: prices.avgPrice,
-          priceLabel: 'avg ~${formatPrice(prices.avgPrice, currency)}',
-          priceIsAvg: true,
-        );
+
+      // --- Google Shopping price match ---
+      if (prices != null && prices.prices.isNotEmpty) {
+        final matched = matchPriceToStore(store, prices);
+        if (matched != null) {
+          return store.copyWith(
+            price: matched.price,
+            priceLabel: formatPrice(matched.price, currency),
+            priceIsAvg: false,
+          );
+        }
+        // No direct match — show the average price across all results.
+        if (prices.avgPrice > 0) {
+          return store.copyWith(
+            price: prices.avgPrice,
+            priceLabel: 'avg ~${formatPrice(prices.avgPrice, currency)}',
+            priceIsAvg: true,
+          );
+        }
       }
+
       return store;
     }).toList();
   }

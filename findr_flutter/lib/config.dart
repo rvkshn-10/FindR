@@ -79,6 +79,20 @@ const String kSerpApiKey = '3c98c1ad2a12891b404f04b5183fc31781b0fd08aed9da9a2d5a
 
 const Duration kSerpApiTimeout = Duration(seconds: 15);
 
+// ---------------------------------------------------------------------------
+// Kroger API (Locations + Products)
+// ---------------------------------------------------------------------------
+
+/// Kroger API Client ID.  Register at https://developer.kroger.com
+const String kKrogerClientId = '61jjPy8_xnYsa8jQWb-FqGIBW9KI-fJVeiNzXBoY';
+
+/// Kroger API Client Secret.  Set this from the developer portal.
+/// Leave empty to disable Kroger integration.
+const String kKrogerClientSecret = '';
+
+const String kKrogerBaseUrl = 'https://api.kroger.com/v1';
+const Duration kKrogerTimeout = Duration(seconds: 12);
+
 /// Build a SerpApi URL.
 ///
 /// On **web** the request routes through a CORS proxy because browsers block
