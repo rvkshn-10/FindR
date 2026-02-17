@@ -84,11 +84,10 @@ const Duration kSerpApiTimeout = Duration(seconds: 15);
 // ---------------------------------------------------------------------------
 
 /// Kroger API Client ID.  Register at https://developer.kroger.com
-const String kKrogerClientId = '61jjPy8_xnYsa8jQWb-FqGIBW9KI-fJVeiNzXBoY';
+const String kKrogerClientId = 'findr-bbccpcdg';
 
-/// Kroger API Client Secret.  Set this from the developer portal.
-/// Leave empty to disable Kroger integration.
-const String kKrogerClientSecret = '';
+/// Kroger API Client Secret.
+const String kKrogerClientSecret = '61jjPy8_xnYsa8jQWb-FqGIBW9KI-fJVeiNzXBoY';
 
 const String kKrogerBaseUrl = 'https://api.kroger.com/v1';
 const Duration kKrogerTimeout = Duration(seconds: 12);
