@@ -1,0 +1,14 @@
+{
+  "flutter": {
+    "platforms": {
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "supplymapper",
+          "configurations": {
+            "web": "1:1053711084660:web:62622b2b429cb76658b521"
+          }
+        }
+      }
+    }
+  }
+}

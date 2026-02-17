@@ -26,6 +26,7 @@ class DefaultFirebaseOptions {
     projectId: 'supplymapper',
     authDomain: 'supplymapper.firebaseapp.com',
     storageBucket: 'supplymapper.firebasestorage.app',
+    measurementId: 'G-4NLTRCF3JF',
   );
 
   static const FirebaseOptions android = FirebaseOptions(
