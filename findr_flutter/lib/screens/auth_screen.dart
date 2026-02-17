@@ -183,7 +183,7 @@ class _AuthScreenState extends State<AuthScreen> {
 
                   // Logo
                   Text(
-                    'FindR',
+                    'Waymark',
                     style: _outfit(
                       fontSize: 48,
                       fontWeight: FontWeight.w800,

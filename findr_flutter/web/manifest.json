@@ -1,6 +1,6 @@
 {
-  "name": "FindR Supply Map",
-  "short_name": "FindR",
+  "name": "Waymark",
+  "short_name": "Waymark",
   "start_url": ".",
   "display": "standalone",
   "background_color": "#fefdfb",

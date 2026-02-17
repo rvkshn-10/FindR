@@ -346,7 +346,7 @@ class _SearchScreenState extends State<SearchScreen> {
                 Builder(builder: (context) {
                   final isNarrow = MediaQuery.of(context).size.width < 600;
                   return Text(
-                    'FindR',
+                    'Waymark',
                     textAlign: TextAlign.center,
                     style: _outfit(
                       fontSize: isNarrow ? 56 : 96,

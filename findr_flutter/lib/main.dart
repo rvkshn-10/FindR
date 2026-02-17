@@ -17,7 +17,7 @@ void main() async {
   } catch (e) {
     debugPrint('Firebase init failed (run flutterfire configure): $e');
   }
-  runApp(const FindRApp());
+  runApp(const WaymarkApp());
 }
 
 /// Strip/clamp text shadows to avoid blurRadius assertion (e.g. on hover).
@@ -87,8 +87,8 @@ ThemeData get _supplyMapTheme {
   );
 }
 
-class FindRApp extends StatelessWidget {
-  const FindRApp({super.key});
+class WaymarkApp extends StatelessWidget {
+  const WaymarkApp({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -98,7 +98,7 @@ class FindRApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => AuthProvider()),
       ],
       child: MaterialApp(
-        title: 'FindR',
+        title: 'Waymark',
         theme: _supplyMapTheme,
         builder: (context, child) {
           // Force no text shadows app-wide to avoid blurRadius assertion on hover.
