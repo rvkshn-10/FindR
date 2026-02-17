@@ -57,7 +57,9 @@ Future<SearchResult> searchFast({
   SearchFilters? filters,
 }) async {
   final radiusM = (maxDistanceKm * 1000).clamp(1000.0, 25000.0);
-  final isDining = filtersForItem(item).isDining;
+  final filterInfo = filtersForItem(item);
+  final isDining = filterInfo.isDining;
+  final isService = filterInfo.isService;
 
   List<OverpassStore> allStores = [];
 
@@ -71,7 +73,7 @@ Future<SearchResult> searchFast({
     return null;
   });
 
-  final krogerFuture = (krogerEnabled && !isDining)
+  final krogerFuture = (krogerEnabled && !isDining && !isService)
       ? fetchKrogerLocations(
           lat: lat, lng: lng, radiusMiles: (maxDistanceKm * 0.621371).ceil(),
         ).catchError((e) {
@@ -128,7 +130,7 @@ Future<SearchResult> searchFast({
   }
 
   if (allStores.isEmpty) {
-    final verb = isDining ? 'serving' : 'that sell';
+    final verb = isDining ? 'serving' : isService ? 'for' : 'that sell';
     return SearchResult(
       stores: const [],
       bestOptionId: '',
@@ -136,6 +138,8 @@ Future<SearchResult> searchFast({
       alternatives: [
         if (isDining)
           'Try a more general term (e.g. "pizza" instead of a specific restaurant)'
+        else if (isService)
+          'Try a more general term (e.g. "dentist" instead of a specific clinic)'
         else
           'Try a broader search term (e.g. "laptop" instead of a specific model)',
         'Increase the search radius',

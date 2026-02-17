@@ -153,21 +153,30 @@ Future<List<OverpassStore>> fetchNearbyStores(
   // Build Overpass union clauses based on what the mapper returned.
   final clauses = <String>[];
 
-  if (filterResult.isDining && item != null) {
-    // --- DINING SEARCH ---
+  if ((filterResult.isDining || filterResult.isService) && item != null) {
+    // --- DINING / SERVICE SEARCH ---
     // Do NOT use broad "amenity~restaurant|fast_food" — that returns every
-    // restaurant in the area (thousands) and causes Overpass to timeout.
-    // Instead use targeted searches: name match, cuisine match, and shop match.
+    // restaurant/service in the area (thousands) and causes Overpass to timeout.
+    // Instead use targeted searches: name match, brand match, and type match.
     final lower = item.toLowerCase().trim();
-    final amenities = filterResult.amenityFilter ?? 'restaurant|fast_food|cafe';
 
-    // 1. Match by name (e.g. "Burger King", "Five Guys Burgers").
-    clauses.add('nwr["amenity"~"$amenities"]["name"~"$lower",i](around:$radiusM,$lat,$lng);');
-    // 2. Match by brand tag (e.g. brand=Burger King).
-    clauses.add('nwr["amenity"~"$amenities"]["brand"~"$lower",i](around:$radiusM,$lat,$lng);');
-    // 3. Match by cuisine tag (OSM tags like cuisine=burger, cuisine=pizza).
-    clauses.add('nwr["amenity"~"$amenities"]["cuisine"~"$lower",i](around:$radiusM,$lat,$lng);');
-    // 4. Match bakery/confectionery shops if relevant (e.g. "cookie" → shop=bakery).
+    if (filterResult.amenityFilter != null) {
+      final amenities = filterResult.amenityFilter!;
+      // 1. Match by name.
+      clauses.add('nwr["amenity"~"$amenities"]["name"~"$lower",i](around:$radiusM,$lat,$lng);');
+      // 2. Match by brand tag.
+      clauses.add('nwr["amenity"~"$amenities"]["brand"~"$lower",i](around:$radiusM,$lat,$lng);');
+      if (filterResult.isDining) {
+        // 3. Match by cuisine tag for dining.
+        clauses.add('nwr["amenity"~"$amenities"]["cuisine"~"$lower",i](around:$radiusM,$lat,$lng);');
+      }
+      // 4. Also get all nearby places of the exact amenity type (limited scope).
+      //    For services like "dentist" or "bank", the amenity type IS specific enough.
+      if (filterResult.isService) {
+        clauses.add('nwr["amenity"~"$amenities"](around:$radiusM,$lat,$lng);');
+      }
+    }
+    // 5. Match shop types if relevant (e.g. "cookie" → shop=bakery, "salon" → shop=beauty).
     if (filterResult.shopFilter != null) {
       clauses.add('nwr["shop"~"${filterResult.shopFilter}"](around:$radiusM,$lat,$lng);');
     }
@@ -176,7 +185,6 @@ Future<List<OverpassStore>> fetchNearbyStores(
     if (filterResult.shopFilter != null) {
       clauses.add('nwr["shop"~"${filterResult.shopFilter}"](around:$radiusM,$lat,$lng);');
     } else {
-      // No shop types matched → fallback to big-box retail.
       const fallbackShop =
           'department_store|variety_store|general|wholesale|mall|discount|electronics|hardware|doityourself';
       clauses.add('nwr["shop"~"$fallbackShop"](around:$radiusM,$lat,$lng);');
