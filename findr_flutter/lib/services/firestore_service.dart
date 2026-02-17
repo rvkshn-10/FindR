@@ -1,70 +1,57 @@
-/// Firestore service for persisting user data.
+/// Local storage service for persisting user data on-device.
 ///
-/// Collections:
-///   users/{deviceId}/searches    — search history
-///   users/{deviceId}/favorites   — favorited stores
-///   users/{deviceId}/recommendations — AI-generated personalized recommendations
+/// Uses shared_preferences with JSON-encoded lists.
+/// Data keys:
+///   findr_searches        — search history
+///   findr_favorites       — favorited stores
+///   findr_recommendations — AI-generated personalized recommendations
 library;
 
+import 'dart:convert';
 import 'dart:math';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-final _db = FirebaseFirestore.instance;
-
-const _kDeviceIdKey = 'findr_device_id';
-String? _cachedDeviceId;
-
-/// Returns a stable device identifier, creating one on first launch.
-Future<String> _getDeviceId() async {
-  if (_cachedDeviceId != null) return _cachedDeviceId!;
-  final prefs = await SharedPreferences.getInstance();
-  var id = prefs.getString(_kDeviceIdKey);
-  if (id == null) {
-    id = _generateUuid();
-    await prefs.setString(_kDeviceIdKey, id);
-  }
-  _cachedDeviceId = id;
-  return id;
-}
-
-String _generateUuid() {
-  final r = Random.secure();
-  return List.generate(32, (_) => r.nextInt(16).toRadixString(16)).join();
-}
+const _kSearches = 'findr_searches';
+const _kFavorites = 'findr_favorites';
+const _kRecommendations = 'findr_recommendations';
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
-Future<DocumentReference?> _userDoc() async {
+Future<List<Map<String, dynamic>>> _readList(String key) async {
   try {
-    final uid = await _getDeviceId();
-    return _db.collection('users').doc(uid);
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(key);
+    if (raw == null) return [];
+    final decoded = jsonDecode(raw) as List;
+    return decoded.cast<Map<String, dynamic>>();
   } catch (e) {
-    debugPrint('Firestore: _userDoc failed: $e');
-    return null;
+    debugPrint('LocalStorage: _readList($key) failed: $e');
+    return [];
   }
 }
 
-Future<CollectionReference?> _subcollection(String name) async {
-  final doc = await _userDoc();
-  return doc?.collection(name);
+Future<void> _writeList(String key, List<Map<String, dynamic>> list) async {
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(key, jsonEncode(list));
+  } catch (e) {
+    debugPrint('LocalStorage: _writeList($key) failed: $e');
+  }
+}
+
+String _generateId() {
+  final r = Random.secure();
+  return List.generate(16, (_) => r.nextInt(16).toRadixString(16)).join();
 }
 
 // ---------------------------------------------------------------------------
-// User profile
+// User profile (no-op for local storage)
 // ---------------------------------------------------------------------------
 
-/// Ensure user document exists and update last-seen timestamp.
-Future<void> ensureUserDoc() async {
-  final doc = await _userDoc();
-  if (doc == null) return;
-  await doc.set({
-    'lastSeen': FieldValue.serverTimestamp(),
-  }, SetOptions(merge: true));
-}
+Future<void> ensureUserDoc() async {}
 
 // ---------------------------------------------------------------------------
 // Search history
@@ -78,89 +65,55 @@ Future<void> saveSearch({
   required String locationLabel,
   int resultCount = 0,
 }) async {
-  final col = await _subcollection('searches');
-  if (col == null) return;
   try {
-    await col.add({
+    final list = await _readList(_kSearches);
+    list.insert(0, {
+      'id': _generateId(),
       'item': item,
       'lat': lat,
       'lng': lng,
       'locationLabel': locationLabel,
       'resultCount': resultCount,
-      'timestamp': FieldValue.serverTimestamp(),
+      'timestamp': DateTime.now().millisecondsSinceEpoch,
     });
-    debugPrint('Firestore: saved search "$item"');
+    // Keep at most 100 entries.
+    if (list.length > 100) list.removeRange(100, list.length);
+    await _writeList(_kSearches, list);
+    debugPrint('LocalStorage: saved search "$item"');
   } catch (e) {
-    debugPrint('Firestore: saveSearch failed: $e');
+    debugPrint('LocalStorage: saveSearch failed: $e');
   }
 }
 
 /// Get recent searches (newest first), limited to [limit].
 Future<List<Map<String, dynamic>>> getRecentSearches({int limit = 20}) async {
-  final col = await _subcollection('searches');
-  if (col == null) return [];
-  try {
-    final snap = await col
-        .orderBy('timestamp', descending: true)
-        .limit(limit)
-        .get();
-    return snap.docs.map((d) {
-      final data = d.data() as Map<String, dynamic>;
-      data['id'] = d.id;
-      return data;
-    }).toList();
-  } catch (e) {
-    debugPrint('Firestore: getRecentSearches failed: $e');
-    return [];
-  }
+  final list = await _readList(_kSearches);
+  return list.take(limit).toList();
 }
 
-/// Stream of recent searches (real-time updates).
+/// Stream of recent searches (emits once — local storage has no live updates).
 Stream<List<Map<String, dynamic>>> watchRecentSearches({int limit = 20}) async* {
-  final col = await _subcollection('searches');
-  if (col == null) {
-    yield [];
-    return;
-  }
-  yield* col
-      .orderBy('timestamp', descending: true)
-      .limit(limit)
-      .snapshots()
-      .map((snap) => snap.docs.map((d) {
-            final data = d.data() as Map<String, dynamic>;
-            data['id'] = d.id;
-            return data;
-          }).toList());
+  yield await getRecentSearches(limit: limit);
 }
 
 /// Delete a search from history.
 Future<void> deleteSearch(String docId) async {
-  final col = await _subcollection('searches');
-  if (col == null) return;
   try {
-    await col.doc(docId).delete();
+    final list = await _readList(_kSearches);
+    list.removeWhere((e) => e['id'] == docId);
+    await _writeList(_kSearches, list);
   } catch (e) {
-    debugPrint('Firestore: deleteSearch failed: $e');
+    debugPrint('LocalStorage: deleteSearch failed: $e');
   }
 }
 
-/// Clear all search history (batched in groups of 500).
+/// Clear all search history.
 Future<void> clearSearchHistory() async {
-  final col = await _subcollection('searches');
-  if (col == null) return;
   try {
-    final snap = await col.get();
-    for (var i = 0; i < snap.docs.length; i += 500) {
-      final batch = _db.batch();
-      final end = (i + 500 > snap.docs.length) ? snap.docs.length : i + 500;
-      for (final doc in snap.docs.sublist(i, end)) {
-        batch.delete(doc.reference);
-      }
-      await batch.commit();
-    }
-    debugPrint('Firestore: cleared search history');
+    await _writeList(_kSearches, []);
+    debugPrint('LocalStorage: cleared search history');
   } catch (e) {
-    debugPrint('Firestore: clearSearchHistory failed: $e');
+    debugPrint('LocalStorage: clearSearchHistory failed: $e');
   }
 }
 
@@ -186,10 +139,13 @@ Future<void> addFavorite({
   String? priceLevel,
   String? thumbnail,
 }) async {
-  final col = await _subcollection('favorites');
-  if (col == null) return;
   try {
-    await col.doc(storeId.replaceAll('/', '_')).set({
+    final list = await _readList(_kFavorites);
+    final safeId = storeId.replaceAll('/', '_');
+    // Remove existing entry to prevent duplicates.
+    list.removeWhere((e) => (e['storeId'] as String?)?.replaceAll('/', '_') == safeId);
+    list.insert(0, {
+      'id': safeId,
       'storeId': storeId,
       'storeName': storeName,
       'address': address,
@@ -205,73 +161,48 @@ Future<void> addFavorite({
       'reviewCount': reviewCount,
       'priceLevel': priceLevel,
       'thumbnail': thumbnail,
-      'timestamp': FieldValue.serverTimestamp(),
+      'timestamp': DateTime.now().millisecondsSinceEpoch,
     });
-    debugPrint('Firestore: added favorite "$storeName"');
+    await _writeList(_kFavorites, list);
+    debugPrint('LocalStorage: added favorite "$storeName"');
   } catch (e) {
-    debugPrint('Firestore: addFavorite failed: $e');
+    debugPrint('LocalStorage: addFavorite failed: $e');
   }
 }
 
 /// Remove a store from favorites.
 Future<void> removeFavorite(String storeId) async {
-  final col = await _subcollection('favorites');
-  if (col == null) return;
   try {
-    await col.doc(storeId.replaceAll('/', '_')).delete();
-    debugPrint('Firestore: removed favorite "$storeId"');
+    final list = await _readList(_kFavorites);
+    final safeId = storeId.replaceAll('/', '_');
+    list.removeWhere((e) => (e['storeId'] as String?)?.replaceAll('/', '_') == safeId);
+    await _writeList(_kFavorites, list);
+    debugPrint('LocalStorage: removed favorite "$storeId"');
   } catch (e) {
-    debugPrint('Firestore: removeFavorite failed: $e');
+    debugPrint('LocalStorage: removeFavorite failed: $e');
   }
 }
 
 /// Check if a store is favorited.
 Future<bool> isFavorite(String storeId) async {
-  final col = await _subcollection('favorites');
-  if (col == null) return false;
   try {
-    final doc = await col.doc(storeId.replaceAll('/', '_')).get();
-    return doc.exists;
+    final list = await _readList(_kFavorites);
+    final safeId = storeId.replaceAll('/', '_');
+    return list.any((e) => (e['storeId'] as String?)?.replaceAll('/', '_') == safeId);
   } catch (e) {
-    debugPrint('Firestore: isFavorite failed: $e');
+    debugPrint('LocalStorage: isFavorite failed: $e');
     return false;
   }
 }
 
 /// Get all favorites.
 Future<List<Map<String, dynamic>>> getFavorites() async {
-  final col = await _subcollection('favorites');
-  if (col == null) return [];
-  try {
-    final snap = await col
-        .orderBy('timestamp', descending: true)
-        .get();
-    return snap.docs.map((d) {
-      final data = d.data() as Map<String, dynamic>;
-      data['id'] = d.id;
-      return data;
-    }).toList();
-  } catch (e) {
-    debugPrint('Firestore: getFavorites failed: $e');
-    return [];
-  }
+  return _readList(_kFavorites);
 }
 
-/// Stream of favorites (real-time updates).
+/// Stream of favorites (emits once — local storage has no live updates).
 Stream<List<Map<String, dynamic>>> watchFavorites() async* {
-  final col = await _subcollection('favorites');
-  if (col == null) {
-    yield [];
-    return;
-  }
-  yield* col
-      .orderBy('timestamp', descending: true)
-      .snapshots()
-      .map((snap) => snap.docs.map((d) {
-            final data = d.data() as Map<String, dynamic>;
-            data['id'] = d.id;
-            return data;
-          }).toList());
+  yield await getFavorites();
 }
 
 // ---------------------------------------------------------------------------
@@ -284,36 +215,24 @@ Future<void> saveRecommendation({
   required String content,
   required String basedOn,
 }) async {
-  final col = await _subcollection('recommendations');
-  if (col == null) return;
   try {
-    await col.add({
+    final list = await _readList(_kRecommendations);
+    list.insert(0, {
+      'id': _generateId(),
       'title': title,
       'content': content,
       'basedOn': basedOn,
-      'timestamp': FieldValue.serverTimestamp(),
+      'timestamp': DateTime.now().millisecondsSinceEpoch,
     });
+    if (list.length > 50) list.removeRange(50, list.length);
+    await _writeList(_kRecommendations, list);
   } catch (e) {
-    debugPrint('Firestore: saveRecommendation failed: $e');
+    debugPrint('LocalStorage: saveRecommendation failed: $e');
   }
 }
 
 /// Get recent recommendations.
 Future<List<Map<String, dynamic>>> getRecommendations({int limit = 10}) async {
-  final col = await _subcollection('recommendations');
-  if (col == null) return [];
-  try {
-    final snap = await col
-        .orderBy('timestamp', descending: true)
-        .limit(limit)
-        .get();
-    return snap.docs.map((d) {
-      final data = d.data() as Map<String, dynamic>;
-      data['id'] = d.id;
-      return data;
-    }).toList();
-  } catch (e) {
-    debugPrint('Firestore: getRecommendations failed: $e');
-    return [];
-  }
+  final list = await _readList(_kRecommendations);
+  return list.take(limit).toList();
 }

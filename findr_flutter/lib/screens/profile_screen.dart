@@ -588,45 +588,6 @@ class _CountBadge extends StatelessWidget {
   }
 }
 
-class _ActionButton extends StatelessWidget {
-  const _ActionButton({
-    required this.label,
-    required this.icon,
-    required this.onTap,
-    this.color,
-  });
-
-  final String label;
-  final IconData icon;
-  final VoidCallback onTap;
-  final Color? color;
-
-  @override
-  Widget build(BuildContext context) {
-    final c = color ?? SupplyMapColors.accentGreen;
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-        decoration: BoxDecoration(
-          color: c.withValues(alpha: 0.1),
-          borderRadius: BorderRadius.circular(kRadiusPill),
-          border: Border.all(color: c.withValues(alpha: 0.3)),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 16, color: c),
-            const SizedBox(width: 6),
-            Text(label,
-                style: _outfit(fontSize: 13, fontWeight: FontWeight.w600, color: c)),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
 class _HistoryCard extends StatelessWidget {
   const _HistoryCard({
     required this.item,

@@ -1,21 +1,12 @@
-import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
-import 'firebase_options.dart';
 import 'providers/settings_provider.dart';
 import 'screens/app_shell.dart';
 import 'widgets/design_system.dart';
 
-void main() async {
+void main() {
   WidgetsFlutterBinding.ensureInitialized();
-  try {
-    await Firebase.initializeApp(
-      options: DefaultFirebaseOptions.currentPlatform,
-    );
-  } catch (e) {
-    debugPrint('Firebase init failed (run flutterfire configure): $e');
-  }
   runApp(const WaymarkApp());
 }
 
