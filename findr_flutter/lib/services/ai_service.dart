@@ -1,8 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:google_generative_ai/google_generative_ai.dart';
-
-const String _geminiApiKey = 'AIzaSyDftV5e2WS8TKg7F8jOuvAxgv53_Jamsd8';
+import '../config.dart';
 
 /// Singleton-ish Gemini model instances (lazy).
 GenerativeModel? _queryModel;
@@ -10,7 +9,7 @@ GenerativeModel? _summaryModel;
 
 GenerativeModel get _getQueryModel => _queryModel ??= GenerativeModel(
       model: 'gemini-2.0-flash',
-      apiKey: _geminiApiKey,
+      apiKey: kGeminiApiKey,
       generationConfig: GenerationConfig(
         temperature: 0.1,
         maxOutputTokens: 300,
@@ -19,7 +18,7 @@ GenerativeModel get _getQueryModel => _queryModel ??= GenerativeModel(
 
 GenerativeModel get _getSummaryModel => _summaryModel ??= GenerativeModel(
       model: 'gemini-2.0-flash',
-      apiKey: _geminiApiKey,
+      apiKey: kGeminiApiKey,
       generationConfig: GenerationConfig(
         temperature: 0.6,
         maxOutputTokens: 400,

@@ -925,11 +925,3 @@ ItemFilterResult filtersForItem(String item) {
     isService: isService,
   );
 }
-
-String? shopFilterForItem(String item) => filtersForItem(item).shopFilter;
-
-String amenityFilterForItem(String item) {
-  final result = filtersForItem(item);
-  if (result.amenityFilter != null) return result.amenityFilter!;
-  return 'marketplace';
-}

@@ -102,6 +102,7 @@ Future<List<OverpassStore>> _fetchFromEndpoint(
     final m = el as Map<String, dynamic>;
     final type = m['type']?.toString() ?? '';
     final idNum = m['id'];
+    if (idNum == null) continue;
     final elLat = m['lat'] ?? (m['center'] as Map?)?['lat'];
     final elLon = m['lon'] ?? (m['center'] as Map?)?['lon'];
     if (elLat == null || elLon == null) continue;

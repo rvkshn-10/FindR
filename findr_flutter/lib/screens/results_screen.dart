@@ -279,7 +279,8 @@ class _ResultsScreenState extends State<ResultsScreen> {
         }
 
         // Merge price data into store results (Google Shopping + Kroger).
-        final storesWithPrices = _applyPrices(enriched.stores, prices, krogerPriceMap);
+        final settings = Provider.of<SettingsProvider>(context, listen: false);
+        final storesWithPrices = _applyPrices(enriched.stores, prices, krogerPriceMap, settings);
 
         setState(() {
           _result = enriched.copyWith(stores: storesWithPrices);
@@ -316,10 +317,10 @@ class _ResultsScreenState extends State<ResultsScreen> {
   /// Merge Google Shopping prices into the store list.
   List<Store> _applyPrices(
     List<Store> stores,
-    PriceData? prices, [
+    PriceData? prices,
     Map<String, KrogerPriceData>? krogerPrices,
-  ]) {
-    final settings = Provider.of<SettingsProvider>(context, listen: false);
+    SettingsProvider settings,
+  ) {
     final currency = settings.currency;
 
     return stores.map((store) {
@@ -620,7 +621,7 @@ class _ResultsScreenState extends State<ResultsScreen> {
                             SliverToBoxAdapter(
                               child: Padding(
                                 padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-                                child: _aiLoading
+                                child: (_aiLoading || _aiSummary == null)
                                     ? const _AiInsightCard.loading()
                                     : _AiInsightCard(summary: _aiSummary!),
                               ),
@@ -778,16 +779,19 @@ class _ResultsScreenState extends State<ResultsScreen> {
                       size: 14, color: SupplyMapColors.accentGreen),
                   const SizedBox(width: 6),
                   Expanded(
-                    child: Text(
-                      '${formatPrice(_priceData!.lowPrice, Provider.of<SettingsProvider>(context, listen: false).currency)}'
-                      ' – ${formatPrice(_priceData!.highPrice, Provider.of<SettingsProvider>(context, listen: false).currency)}'
-                      '  avg ${formatPrice(_priceData!.avgPrice, Provider.of<SettingsProvider>(context, listen: false).currency)}',
-                      style: _outfit(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                        color: SupplyMapColors.textBlack,
-                      ),
-                    ),
+                    child: Builder(builder: (ctx) {
+                      final currency = Provider.of<SettingsProvider>(ctx, listen: false).currency;
+                      return Text(
+                        '${formatPrice(_priceData!.lowPrice, currency)}'
+                        ' – ${formatPrice(_priceData!.highPrice, currency)}'
+                        '  avg ${formatPrice(_priceData!.avgPrice, currency)}',
+                        style: _outfit(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: SupplyMapColors.textBlack,
+                        ),
+                      );
+                    }),
                   ),
                 ],
               ),

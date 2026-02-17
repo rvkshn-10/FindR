@@ -67,6 +67,7 @@ const int kMaxLocationLength = 200;
 // AI (Gemini)
 // ---------------------------------------------------------------------------
 
+const String kGeminiApiKey = 'AIzaSyDftV5e2WS8TKg7F8jOuvAxgv53_Jamsd8';
 const Duration kAiTimeout = Duration(seconds: 10);
 
 // ---------------------------------------------------------------------------

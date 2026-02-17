@@ -1098,7 +1098,7 @@ class _SecurityTabState extends State<_SecurityTab> {
           ),
 
         // ── Email Verification ───────────────────────────────────────
-        _SectionHeader(title: 'Email Verification'),
+        const _SectionHeader(title: 'Email Verification'),
         _SecurityCard(
           icon: auth.isEmailVerified
               ? Icons.verified
@@ -1154,7 +1154,7 @@ class _SecurityTabState extends State<_SecurityTab> {
         const SizedBox(height: 16),
 
         // ── Change Email ─────────────────────────────────────────────
-        _SectionHeader(title: 'Change Email'),
+        const _SectionHeader(title: 'Change Email'),
         _SecurityInputRow(
           controller: _emailCtrl,
           hint: 'New email address',
@@ -1183,7 +1183,7 @@ class _SecurityTabState extends State<_SecurityTab> {
 
         // ── Change Password ──────────────────────────────────────────
         if (auth.hasPasswordProvider) ...[
-          _SectionHeader(title: 'Change Password'),
+          const _SectionHeader(title: 'Change Password'),
           Padding(
             padding: const EdgeInsets.only(bottom: 8),
             child: _SecurityInputField(
@@ -1235,7 +1235,7 @@ class _SecurityTabState extends State<_SecurityTab> {
         ],
 
         // ── Password Reset ───────────────────────────────────────────
-        _SectionHeader(title: 'Password Reset'),
+        const _SectionHeader(title: 'Password Reset'),
         _SecurityCard(
           icon: Icons.lock_reset,
           title: 'Forgot your password?',
@@ -1262,7 +1262,7 @@ class _SecurityTabState extends State<_SecurityTab> {
         const SizedBox(height: 16),
 
         // ── Phone / SMS Verification ─────────────────────────────────
-        _SectionHeader(title: 'Phone / SMS Verification'),
+        const _SectionHeader(title: 'Phone / SMS Verification'),
         if (auth.hasPhoneProvider)
           _SecurityCard(
             icon: Icons.phone_android,
@@ -1357,23 +1357,23 @@ class _SecurityTabState extends State<_SecurityTab> {
         const SizedBox(height: 16),
 
         // ── Linked Providers ─────────────────────────────────────────
-        _SectionHeader(title: 'Linked Sign-In Methods'),
+        const _SectionHeader(title: 'Linked Sign-In Methods'),
         Wrap(
           spacing: 8,
           runSpacing: 8,
           children: [
             if (auth.hasPasswordProvider)
-              _ProviderChip(label: 'Email/Password', icon: Icons.email),
+              const _ProviderChip(label: 'Email/Password', icon: Icons.email),
             if (auth.hasGoogleProvider)
-              _ProviderChip(label: 'Google', icon: Icons.g_mobiledata),
+              const _ProviderChip(label: 'Google', icon: Icons.g_mobiledata),
             if (auth.hasPhoneProvider)
-              _ProviderChip(label: 'Phone', icon: Icons.phone),
+              const _ProviderChip(label: 'Phone', icon: Icons.phone),
           ],
         ),
         const SizedBox(height: 24),
 
         // ── Delete Account ───────────────────────────────────────────
-        _SectionHeader(title: 'Danger Zone'),
+        const _SectionHeader(title: 'Danger Zone'),
         GestureDetector(
           onTap: () => _showDeleteConfirmation(context, auth),
           child: Container(

@@ -413,7 +413,7 @@ class _AuthScreenState extends State<AuthScreen> {
                             const SizedBox(height: 20),
                             Row(
                               children: [
-                                Expanded(
+                                const Expanded(
                                     child: Divider(
                                         color: SupplyMapColors
                                             .borderSubtle)),
@@ -429,7 +429,7 @@ class _AuthScreenState extends State<AuthScreen> {
                                     ),
                                   ),
                                 ),
-                                Expanded(
+                                const Expanded(
                                     child: Divider(
                                         color: SupplyMapColors
                                             .borderSubtle)),
