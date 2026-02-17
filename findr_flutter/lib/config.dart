@@ -92,29 +92,39 @@ const String kKrogerClientSecret = '61jjPy8_xnYsa8jQWb-FqGIBW9KI-fJVeiNzXBoY';
 const String kKrogerBaseUrl = 'https://api.kroger.com/v1';
 const Duration kKrogerTimeout = Duration(seconds: 12);
 
-/// Build a SerpApi URL.
+/// Build a SerpApi URL (direct, without proxy).
 ///
-/// On **web** the request routes through a CORS proxy because browsers block
-/// direct cross-origin requests to serpapi.com.
-/// When the Firebase project is upgraded to the Blaze plan, the Cloud Function
-/// proxy at `/api/serpapi` can be used instead (uncomment the block below).
-///
-/// On **native** (macOS, iOS, Android) we call serpapi.com directly because
-/// there are no CORS restrictions.
+/// On **web**, use [fetchSerpApiWithProxy] instead which tries multiple
+/// CORS proxies.  On **native** (macOS, iOS, Android) we call serpapi.com
+/// directly because there are no CORS restrictions.
 Uri buildSerpApiUri(Map<String, String> params) {
   final fullParams = Map<String, String>.from(params);
   fullParams['api_key'] = kSerpApiKey;
-  final directUrl = Uri.https('serpapi.com', '/search.json', fullParams);
+  return Uri.https('serpapi.com', '/search.json', fullParams);
+}
 
-  if (kIsWeb) {
-    // Route through a CORS proxy on web.
-    // Once Firebase is on Blaze plan, switch to the Cloud Function proxy:
-    //   final cleanParams = Map<String, String>.from(params)..remove('api_key');
-    //   return Uri(path: '/api/serpapi', queryParameters: cleanParams);
-    return Uri.parse(
-      'https://corsproxy.io/?${Uri.encodeComponent(directUrl.toString())}',
-    );
-  }
+/// CORS proxies to try in order on web.  Each wraps the SerpApi URL
+/// differently, so we template them with {URL} as a placeholder.
+const List<String> kCorsProxies = [
+  'https://corsproxy.io/?{URL}',
+  'https://api.allorigins.win/raw?url={URL}',
+  'https://api.codetabs.com/v1/proxy?quest={URL}',
+];
 
-  return directUrl;
+/// On web, try multiple CORS proxies to reach SerpApi.
+/// On native, calls serpapi.com directly.
+/// Returns the proxy-wrapped URI to use, or the direct URI on native.
+List<Uri> buildSerpApiUris(Map<String, String> params) {
+  final directUrl = buildSerpApiUri(params);
+
+  if (!kIsWeb) return [directUrl];
+
+  // Once Firebase is on Blaze plan, switch to the Cloud Function proxy:
+  //   final cleanParams = Map<String, String>.from(params)..remove('api_key');
+  //   return [Uri(path: '/api/serpapi', queryParameters: cleanParams)];
+
+  final encoded = Uri.encodeComponent(directUrl.toString());
+  return kCorsProxies
+      .map((template) => Uri.parse(template.replaceAll('{URL}', encoded)))
+      .toList();
 }

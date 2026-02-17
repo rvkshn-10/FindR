@@ -153,11 +153,12 @@ Future<List<OverpassStore>> fetchNearbyStores(
       ? amenityFilterForItem(item)
       : 'marketplace|pharmacy|fuel';
 
-  // If we have a product-specific filter, use regex matching on the shop tag.
-  // Otherwise fall back to the broad "any shop" query.
-  final shopClause = shopFilter != null
-      ? 'nwr["shop"~"$shopFilter"](around:$radiusM,$lat,$lng);'
-      : 'nwr["shop"](around:$radiusM,$lat,$lng);';
+  // If shopFilterForItem returned null (no keyword match), use big-box
+  // retail only — NOT "any shop" which returns bakeries, hair salons, etc.
+  const _fallbackFilter =
+      'department_store|variety_store|general|wholesale|mall|discount|electronics|hardware|doityourself';
+  final shopClause =
+      'nwr["shop"~"${shopFilter ?? _fallbackFilter}"](around:$radiusM,$lat,$lng);';
 
   final query = '''
 [out:json][timeout:10];

@@ -6,12 +6,11 @@
 /// electronics shops — not bakeries or hair salons.
 library;
 
-import 'dart:convert';
 import 'package:flutter/foundation.dart';
-import 'package:http/http.dart' as http;
 import '../config.dart';
 import 'distance_util.dart';
 import 'nearby_stores_service.dart';
+import 'serpapi_http.dart';
 
 /// Search Google Maps via SerpApi for stores that sell [item] near [lat],[lng].
 ///
@@ -37,25 +36,9 @@ Future<List<OverpassStore>?> fetchStoresFromGoogleMaps({
       'hl': 'en',
     };
 
-    final uri = buildSerpApiUri(params);
-    debugPrint('SerpApi Maps: searching "$query" near ($lat,$lng) via ${uri.toString().substring(0, 40)}...');
-
-    final res = await http
-        .get(uri, headers: {'Accept': 'application/json'})
-        .timeout(kSerpApiTimeout);
-
-    if (res.statusCode != 200) {
-      debugPrint('SerpApi Maps: HTTP ${res.statusCode}');
-      return null;
-    }
-
-    final data = jsonDecode(res.body) as Map<String, dynamic>;
-
-    // Check for errors in the response.
-    if (data.containsKey('error')) {
-      debugPrint('SerpApi Maps error: ${data['error']}');
-      return null;
-    }
+    debugPrint('SerpApi Maps: searching "$query" near ($lat,$lng)');
+    final data = await fetchSerpApi(params);
+    if (data == null) return null;
 
     final localResults = data['local_results'] as List<dynamic>?;
     if (localResults == null || localResults.isEmpty) {

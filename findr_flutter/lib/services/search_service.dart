@@ -99,6 +99,8 @@ Future<SearchResult> searchFast({
   }
 
   // --- Fallback: Overpass (OpenStreetMap) ---
+  // Only use product-specific search.  Do NOT fall back to a broad "any shop"
+  // query — that returns irrelevant stores like Whole Foods for "macbooks".
   if (allStores.isEmpty) {
     try {
       debugPrint('Falling back to Overpass for store search');
@@ -107,20 +109,17 @@ Future<SearchResult> searchFast({
       debugPrint('Overpass targeted search failed: $e');
     }
 
-    // If product-specific Overpass query returned nothing, try broad search.
     if (allStores.isEmpty) {
-      try {
-        debugPrint('Trying broad Overpass search (no product filter)');
-        allStores = await fetchNearbyStores(lat, lng, radiusM: radiusM.toInt());
-      } catch (e) {
-        debugPrint('Broad Overpass search also failed: $e');
-        return const SearchResult(
-          stores: [],
-          bestOptionId: '',
-          summary: 'Stores service is temporarily unavailable.',
-          alternatives: ['Try again in a moment or try a different location.'],
-        );
-      }
+      return SearchResult(
+        stores: const [],
+        bestOptionId: '',
+        summary: 'No stores found that sell "$item" nearby.',
+        alternatives: [
+          'Try a broader search term (e.g. "laptop" instead of a specific model)',
+          'Increase the search radius',
+          'Try searching while on a stronger network connection',
+        ],
+      );
     }
   }
 

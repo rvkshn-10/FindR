@@ -12,6 +12,62 @@ import '../config.dart';
 import 'distance_util.dart';
 import 'nearby_stores_service.dart';
 
+/// Try an HTTP request through multiple CORS proxies on web, direct on native.
+Future<http.Response?> _corsGet(
+  String directUrlStr, {
+  required Map<String, String> headers,
+  required Duration timeout,
+}) async {
+  final directUrl = Uri.parse(directUrlStr);
+  if (!kIsWeb) {
+    final res = await http.get(directUrl, headers: headers).timeout(timeout);
+    return res.statusCode == 200 ? res : null;
+  }
+
+  for (final template in kCorsProxies) {
+    try {
+      final proxyUrl = Uri.parse(
+        template.replaceAll('{URL}', Uri.encodeComponent(directUrlStr)),
+      );
+      final res = await http.get(proxyUrl, headers: headers).timeout(timeout);
+      if (res.statusCode == 200 && !res.body.trimLeft().startsWith('<')) {
+        return res;
+      }
+    } catch (_) {
+      continue;
+    }
+  }
+  return null;
+}
+
+Future<http.Response?> _corsPost(
+  String directUrlStr, {
+  required Map<String, String> headers,
+  required String body,
+  required Duration timeout,
+}) async {
+  final directUrl = Uri.parse(directUrlStr);
+  if (!kIsWeb) {
+    final res = await http.post(directUrl, headers: headers, body: body).timeout(timeout);
+    return res.statusCode == 200 ? res : null;
+  }
+
+  for (final template in kCorsProxies) {
+    try {
+      final proxyUrl = Uri.parse(
+        template.replaceAll('{URL}', Uri.encodeComponent(directUrlStr)),
+      );
+      final res = await http.post(proxyUrl, headers: headers, body: body).timeout(timeout);
+      if (res.statusCode == 200 && !res.body.trimLeft().startsWith('<')) {
+        return res;
+      }
+    } catch (_) {
+      continue;
+    }
+  }
+  return null;
+}
+
 // ---------------------------------------------------------------------------
 // OAuth2 token management
 // ---------------------------------------------------------------------------
@@ -38,22 +94,18 @@ Future<String?> _getAccessToken() async {
     final credentials =
         base64Encode(utf8.encode('$kKrogerClientId:$kKrogerClientSecret'));
 
-    final tokenUrl = kIsWeb
-        ? Uri.parse(
-            'https://corsproxy.io/?${Uri.encodeComponent('$kKrogerBaseUrl/connect/oauth2/token')}')
-        : Uri.parse('$kKrogerBaseUrl/connect/oauth2/token');
-
-    final res = await http.post(
-      tokenUrl,
+    final res = await _corsPost(
+      '$kKrogerBaseUrl/connect/oauth2/token',
       headers: {
         'Authorization': 'Basic $credentials',
         'Content-Type': 'application/x-www-form-urlencoded',
       },
       body: 'grant_type=client_credentials&scope=product.compact',
-    ).timeout(kKrogerTimeout);
+      timeout: kKrogerTimeout,
+    );
 
-    if (res.statusCode != 200) {
-      debugPrint('Kroger OAuth failed: HTTP ${res.statusCode} ${res.body}');
+    if (res == null) {
+      debugPrint('Kroger OAuth failed: no successful response');
       return null;
     }
 
@@ -116,18 +168,18 @@ Future<List<KrogerLocation>?> fetchKrogerLocations({
 
     final directUrl = Uri.parse('$kKrogerBaseUrl/locations')
         .replace(queryParameters: params);
-    final url = kIsWeb
-        ? Uri.parse(
-            'https://corsproxy.io/?${Uri.encodeComponent(directUrl.toString())}')
-        : directUrl;
 
-    final res = await http.get(url, headers: {
-      'Authorization': 'Bearer $token',
-      'Accept': 'application/json',
-    }).timeout(kKrogerTimeout);
+    final res = await _corsGet(
+      directUrl.toString(),
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Accept': 'application/json',
+      },
+      timeout: kKrogerTimeout,
+    );
 
-    if (res.statusCode != 200) {
-      debugPrint('Kroger Locations: HTTP ${res.statusCode}');
+    if (res == null) {
+      debugPrint('Kroger Locations: no successful response');
       return null;
     }
 
@@ -251,18 +303,18 @@ Future<KrogerPriceData?> fetchKrogerProducts({
 
     final directUrl = Uri.parse('$kKrogerBaseUrl/products')
         .replace(queryParameters: params);
-    final url = kIsWeb
-        ? Uri.parse(
-            'https://corsproxy.io/?${Uri.encodeComponent(directUrl.toString())}')
-        : directUrl;
 
-    final res = await http.get(url, headers: {
-      'Authorization': 'Bearer $token',
-      'Accept': 'application/json',
-    }).timeout(kKrogerTimeout);
+    final res = await _corsGet(
+      directUrl.toString(),
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Accept': 'application/json',
+      },
+      timeout: kKrogerTimeout,
+    );
 
-    if (res.statusCode != 200) {
-      debugPrint('Kroger Products: HTTP ${res.statusCode}');
+    if (res == null) {
+      debugPrint('Kroger Products: no successful response');
       return null;
     }
 

@@ -4,11 +4,10 @@
 /// stores so users see actual price data instead of placeholders.
 library;
 
-import 'dart:convert';
 import 'package:flutter/foundation.dart';
-import 'package:http/http.dart' as http;
 import '../config.dart';
 import '../models/search_models.dart';
+import 'serpapi_http.dart';
 
 // ---------------------------------------------------------------------------
 // Data models
@@ -88,17 +87,9 @@ Future<PriceData?> fetchProductPrices(String query, {double? lat, double? lng}) 
       params['location'] = '$lat,$lng';
     }
 
-    final uri = buildSerpApiUri(params);
-    final res = await http
-        .get(uri, headers: {'Accept': 'application/json'})
-        .timeout(kSerpApiTimeout);
+    final data = await fetchSerpApi(params);
+    if (data == null) return null;
 
-    if (res.statusCode != 200) {
-      debugPrint('SerpApi: HTTP ${res.statusCode}');
-      return null;
-    }
-
-    final data = jsonDecode(res.body) as Map<String, dynamic>;
     final results = data['shopping_results'] as List<dynamic>?;
     if (results == null || results.isEmpty) {
       debugPrint('SerpApi: no shopping results for "$query"');

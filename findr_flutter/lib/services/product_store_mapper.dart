@@ -1,241 +1,296 @@
 /// Maps product search terms to relevant OpenStreetMap shop/amenity types.
 ///
 /// Instead of querying Overpass for ALL shops (which returns bakeries,
-/// hair salons, etc. for a "batteries" search), this builds a targeted
+/// hair salons, etc. for a "macbooks" search), this builds a targeted
 /// regex filter so only stores that could plausibly sell the item appear.
 library;
 
 // ---------------------------------------------------------------------------
-// General-retail store types: these sell a wide range of products and should
-// ALWAYS be included regardless of what the user searches.
+// Two tiers of "general" retail:
+//
+// Tier 1 — Big-box / department stores that sell almost everything.
+//          Always included for ANY matched keyword.
+//
+// Tier 2 — Grocery / convenience stores.  Only included when the item
+//          is something you'd actually find at a grocery store (food,
+//          household, health, baby, cleaning, etc.).
 // ---------------------------------------------------------------------------
 
-const List<String> _generalRetailShops = [
-  'supermarket',
-  'convenience',
+const List<String> _bigBoxRetail = [
   'department_store',
   'variety_store',
   'general',
   'wholesale',
   'mall',
   'discount',
-  'trade',
 ];
 
+const List<String> _groceryRetail = [
+  'supermarket',
+  'convenience',
+];
+
+// Categories where grocery/convenience stores make sense.
+const Set<String> _groceryCategories = {
+  'grocery', 'food', 'health', 'baby', 'cleaning', 'household', 'personal_care',
+};
+
 // ---------------------------------------------------------------------------
-// Amenity types that are always included (pharmacies sell many general items,
-// fuel stations have convenience sections, marketplaces are general).
+// General amenities (always included).
 // ---------------------------------------------------------------------------
 
 const List<String> _generalAmenities = [
   'marketplace',
-  'pharmacy',
-  'fuel',
 ];
 
 // ---------------------------------------------------------------------------
-// Product keyword → additional specialty shop types to include.
-// Each list is ADDED on top of the general-retail set above.
+// Keyword → specialty shop types + a category tag.
+// The category is used to decide whether to include grocery stores.
 // ---------------------------------------------------------------------------
 
-const Map<String, List<String>> _keywordToShopTypes = {
-  // Electronics / batteries / tech
-  'battery': ['electronics', 'hardware', 'doityourself', 'mobile_phone', 'computer'],
-  'batteries': ['electronics', 'hardware', 'doityourself', 'mobile_phone', 'computer'],
-  'charger': ['electronics', 'mobile_phone', 'computer', 'hardware'],
-  'cable': ['electronics', 'mobile_phone', 'computer'],
-  'phone': ['electronics', 'mobile_phone', 'computer', 'telecommunication'],
-  'headphones': ['electronics', 'mobile_phone', 'computer'],
-  'earbuds': ['electronics', 'mobile_phone'],
-  'usb': ['electronics', 'mobile_phone', 'computer'],
-  'adapter': ['electronics', 'hardware', 'mobile_phone', 'computer'],
-  'lightbulb': ['electronics', 'hardware', 'doityourself', 'lighting'],
-  'light bulb': ['electronics', 'hardware', 'doityourself', 'lighting'],
-  'bulb': ['electronics', 'hardware', 'doityourself', 'lighting'],
-  'flashlight': ['electronics', 'hardware', 'doityourself', 'outdoor'],
-  'extension cord': ['electronics', 'hardware', 'doityourself'],
-  'power strip': ['electronics', 'hardware', 'doityourself'],
-  'sd card': ['electronics', 'mobile_phone', 'computer'],
-  'memory card': ['electronics', 'mobile_phone', 'computer'],
-  'speaker': ['electronics', 'mobile_phone', 'computer', 'hifi'],
-  'laptop': ['electronics', 'computer'],
-  'tablet': ['electronics', 'computer', 'mobile_phone'],
-  'printer': ['electronics', 'computer'],
-  'ink': ['electronics', 'computer', 'stationery'],
-  'toner': ['electronics', 'computer', 'stationery'],
+class _Mapping {
+  final List<String> shopTypes;
+  final String category; // used to decide grocery inclusion
+  const _Mapping(this.shopTypes, this.category);
+}
 
-  // Hardware / home improvement
-  'nail': ['hardware', 'doityourself', 'trade'],
-  'nails': ['hardware', 'doityourself', 'trade'],
-  'screw': ['hardware', 'doityourself', 'trade'],
-  'screws': ['hardware', 'doityourself', 'trade'],
-  'drill': ['hardware', 'doityourself', 'trade'],
-  'hammer': ['hardware', 'doityourself', 'trade'],
-  'wrench': ['hardware', 'doityourself', 'trade'],
-  'tool': ['hardware', 'doityourself', 'trade'],
-  'tools': ['hardware', 'doityourself', 'trade'],
-  'tape': ['hardware', 'doityourself', 'stationery'],
-  'duct tape': ['hardware', 'doityourself'],
-  'glue': ['hardware', 'doityourself', 'stationery', 'craft'],
-  'paint': ['hardware', 'doityourself', 'trade'],
-  'lock': ['hardware', 'doityourself'],
-  'padlock': ['hardware', 'doityourself'],
-  'plumbing': ['hardware', 'doityourself', 'trade'],
-  'pipe': ['hardware', 'doityourself', 'trade'],
-  'sandpaper': ['hardware', 'doityourself'],
+const Map<String, _Mapping> _keywordMap = {
+  // ---- Electronics / tech / computers ----
+  'battery': _Mapping(['electronics', 'hardware', 'doityourself', 'mobile_phone', 'computer'], 'electronics'),
+  'batteries': _Mapping(['electronics', 'hardware', 'doityourself', 'mobile_phone', 'computer'], 'electronics'),
+  'charger': _Mapping(['electronics', 'mobile_phone', 'computer', 'hardware'], 'electronics'),
+  'cable': _Mapping(['electronics', 'mobile_phone', 'computer'], 'electronics'),
+  'phone': _Mapping(['electronics', 'mobile_phone', 'computer', 'telecommunication'], 'electronics'),
+  'iphone': _Mapping(['electronics', 'mobile_phone', 'computer', 'telecommunication'], 'electronics'),
+  'samsung': _Mapping(['electronics', 'mobile_phone', 'computer', 'telecommunication'], 'electronics'),
+  'android': _Mapping(['electronics', 'mobile_phone', 'computer', 'telecommunication'], 'electronics'),
+  'headphones': _Mapping(['electronics', 'mobile_phone', 'computer', 'hifi'], 'electronics'),
+  'earbuds': _Mapping(['electronics', 'mobile_phone', 'hifi'], 'electronics'),
+  'airpods': _Mapping(['electronics', 'mobile_phone', 'hifi'], 'electronics'),
+  'usb': _Mapping(['electronics', 'mobile_phone', 'computer'], 'electronics'),
+  'adapter': _Mapping(['electronics', 'hardware', 'mobile_phone', 'computer'], 'electronics'),
+  'lightbulb': _Mapping(['electronics', 'hardware', 'doityourself', 'lighting'], 'electronics'),
+  'light bulb': _Mapping(['electronics', 'hardware', 'doityourself', 'lighting'], 'electronics'),
+  'bulb': _Mapping(['electronics', 'hardware', 'doityourself', 'lighting'], 'electronics'),
+  'flashlight': _Mapping(['electronics', 'hardware', 'doityourself', 'outdoor'], 'electronics'),
+  'extension cord': _Mapping(['electronics', 'hardware', 'doityourself'], 'electronics'),
+  'power strip': _Mapping(['electronics', 'hardware', 'doityourself'], 'electronics'),
+  'sd card': _Mapping(['electronics', 'mobile_phone', 'computer'], 'electronics'),
+  'memory card': _Mapping(['electronics', 'mobile_phone', 'computer'], 'electronics'),
+  'speaker': _Mapping(['electronics', 'mobile_phone', 'computer', 'hifi'], 'electronics'),
+  'laptop': _Mapping(['electronics', 'computer'], 'electronics'),
+  'macbook': _Mapping(['electronics', 'computer'], 'electronics'),
+  'chromebook': _Mapping(['electronics', 'computer'], 'electronics'),
+  'computer': _Mapping(['electronics', 'computer'], 'electronics'),
+  'pc': _Mapping(['electronics', 'computer'], 'electronics'),
+  'desktop': _Mapping(['electronics', 'computer'], 'electronics'),
+  'monitor': _Mapping(['electronics', 'computer'], 'electronics'),
+  'keyboard': _Mapping(['electronics', 'computer'], 'electronics'),
+  'mouse': _Mapping(['electronics', 'computer'], 'electronics'),
+  'webcam': _Mapping(['electronics', 'computer'], 'electronics'),
+  'tablet': _Mapping(['electronics', 'computer', 'mobile_phone'], 'electronics'),
+  'ipad': _Mapping(['electronics', 'computer', 'mobile_phone'], 'electronics'),
+  'printer': _Mapping(['electronics', 'computer'], 'electronics'),
+  'ink': _Mapping(['electronics', 'computer', 'stationery'], 'electronics'),
+  'toner': _Mapping(['electronics', 'computer', 'stationery'], 'electronics'),
+  'tv': _Mapping(['electronics', 'hifi'], 'electronics'),
+  'television': _Mapping(['electronics', 'hifi'], 'electronics'),
+  'roku': _Mapping(['electronics', 'hifi'], 'electronics'),
+  'firestick': _Mapping(['electronics', 'hifi'], 'electronics'),
+  'xbox': _Mapping(['electronics', 'computer', 'games'], 'electronics'),
+  'playstation': _Mapping(['electronics', 'computer', 'games'], 'electronics'),
+  'ps5': _Mapping(['electronics', 'computer', 'games'], 'electronics'),
+  'nintendo': _Mapping(['electronics', 'computer', 'games'], 'electronics'),
+  'switch': _Mapping(['electronics', 'computer', 'games'], 'electronics'),
+  'video game': _Mapping(['electronics', 'computer', 'games'], 'electronics'),
+  'game': _Mapping(['electronics', 'computer', 'games'], 'electronics'),
+  'controller': _Mapping(['electronics', 'computer', 'games'], 'electronics'),
+  'camera': _Mapping(['electronics', 'photo'], 'electronics'),
+  'gopro': _Mapping(['electronics', 'photo', 'outdoor'], 'electronics'),
+  'drone': _Mapping(['electronics', 'photo'], 'electronics'),
+  'smart watch': _Mapping(['electronics', 'mobile_phone'], 'electronics'),
+  'apple watch': _Mapping(['electronics', 'mobile_phone'], 'electronics'),
+  'fitbit': _Mapping(['electronics', 'mobile_phone', 'sports'], 'electronics'),
+  'router': _Mapping(['electronics', 'computer'], 'electronics'),
+  'wifi': _Mapping(['electronics', 'computer'], 'electronics'),
+  'hard drive': _Mapping(['electronics', 'computer'], 'electronics'),
+  'ssd': _Mapping(['electronics', 'computer'], 'electronics'),
 
-  // Medicine / health / first aid
-  'medicine': ['chemist'],
-  'aspirin': ['chemist'],
-  'ibuprofen': ['chemist'],
-  'tylenol': ['chemist'],
-  'advil': ['chemist'],
-  'bandaid': ['chemist'],
-  'band-aid': ['chemist'],
-  'bandage': ['chemist'],
-  'first aid': ['chemist'],
-  'thermometer': ['chemist', 'electronics'],
-  'cough': ['chemist'],
-  'cold medicine': ['chemist'],
-  'allergy': ['chemist'],
-  'vitamin': ['chemist', 'health_food'],
-  'vitamins': ['chemist', 'health_food'],
-  'sunscreen': ['chemist'],
-  'antacid': ['chemist'],
+  // ---- Hardware / home improvement ----
+  'nail': _Mapping(['hardware', 'doityourself', 'trade'], 'hardware'),
+  'nails': _Mapping(['hardware', 'doityourself', 'trade'], 'hardware'),
+  'screw': _Mapping(['hardware', 'doityourself', 'trade'], 'hardware'),
+  'screws': _Mapping(['hardware', 'doityourself', 'trade'], 'hardware'),
+  'drill': _Mapping(['hardware', 'doityourself', 'trade'], 'hardware'),
+  'hammer': _Mapping(['hardware', 'doityourself', 'trade'], 'hardware'),
+  'wrench': _Mapping(['hardware', 'doityourself', 'trade'], 'hardware'),
+  'tool': _Mapping(['hardware', 'doityourself', 'trade'], 'hardware'),
+  'tools': _Mapping(['hardware', 'doityourself', 'trade'], 'hardware'),
+  'tape': _Mapping(['hardware', 'doityourself', 'stationery'], 'hardware'),
+  'duct tape': _Mapping(['hardware', 'doityourself'], 'hardware'),
+  'glue': _Mapping(['hardware', 'doityourself', 'stationery', 'craft'], 'hardware'),
+  'paint': _Mapping(['hardware', 'doityourself', 'trade'], 'hardware'),
+  'lock': _Mapping(['hardware', 'doityourself'], 'hardware'),
+  'padlock': _Mapping(['hardware', 'doityourself'], 'hardware'),
+  'plumbing': _Mapping(['hardware', 'doityourself', 'trade'], 'hardware'),
+  'pipe': _Mapping(['hardware', 'doityourself', 'trade'], 'hardware'),
+  'sandpaper': _Mapping(['hardware', 'doityourself'], 'hardware'),
 
-  // Baby / childcare
-  'diaper': ['baby_goods', 'chemist'],
-  'diapers': ['baby_goods', 'chemist'],
-  'baby formula': ['baby_goods', 'chemist'],
-  'formula': ['baby_goods', 'chemist'],
-  'baby food': ['baby_goods', 'chemist'],
-  'baby wipes': ['baby_goods', 'chemist'],
-  'pacifier': ['baby_goods', 'chemist'],
-  'bottle': ['baby_goods', 'chemist'],
+  // ---- Medicine / health / first aid ----
+  'medicine': _Mapping(['chemist'], 'health'),
+  'aspirin': _Mapping(['chemist'], 'health'),
+  'ibuprofen': _Mapping(['chemist'], 'health'),
+  'tylenol': _Mapping(['chemist'], 'health'),
+  'advil': _Mapping(['chemist'], 'health'),
+  'bandaid': _Mapping(['chemist'], 'health'),
+  'band-aid': _Mapping(['chemist'], 'health'),
+  'bandage': _Mapping(['chemist'], 'health'),
+  'first aid': _Mapping(['chemist'], 'health'),
+  'thermometer': _Mapping(['chemist', 'electronics'], 'health'),
+  'cough': _Mapping(['chemist'], 'health'),
+  'cold medicine': _Mapping(['chemist'], 'health'),
+  'allergy': _Mapping(['chemist'], 'health'),
+  'vitamin': _Mapping(['chemist', 'health_food'], 'health'),
+  'vitamins': _Mapping(['chemist', 'health_food'], 'health'),
+  'sunscreen': _Mapping(['chemist'], 'health'),
+  'antacid': _Mapping(['chemist'], 'health'),
 
-  // Grocery / food
-  'milk': ['dairy', 'farm', 'greengrocer', 'bakery', 'deli'],
-  'bread': ['bakery', 'greengrocer', 'deli'],
-  'eggs': ['farm', 'greengrocer', 'deli'],
-  'water': ['beverages', 'outdoor'],
-  'fruit': ['greengrocer', 'farm'],
-  'vegetable': ['greengrocer', 'farm'],
-  'vegetables': ['greengrocer', 'farm'],
-  'meat': ['butcher', 'deli', 'farm'],
-  'chicken': ['butcher', 'deli', 'farm'],
-  'beef': ['butcher', 'deli', 'farm'],
-  'fish': ['seafood', 'deli', 'farm'],
-  'cheese': ['cheese', 'deli', 'farm'],
-  'rice': ['greengrocer', 'deli'],
-  'pasta': ['deli'],
-  'cereal': [],
-  'snack': ['bakery', 'confectionery'],
-  'snacks': ['bakery', 'confectionery'],
-  'candy': ['confectionery'],
-  'chocolate': ['confectionery', 'bakery'],
-  'coffee': ['coffee', 'beverages'],
-  'tea': ['tea', 'beverages', 'health_food'],
-  'juice': ['beverages', 'health_food'],
-  'soda': ['beverages'],
-  'beer': ['alcohol', 'beverages'],
-  'wine': ['alcohol', 'beverages'],
-  'liquor': ['alcohol', 'beverages'],
-  'ice cream': ['ice_cream', 'frozen_food'],
-  'frozen': ['frozen_food'],
+  // ---- Baby / childcare ----
+  'diaper': _Mapping(['baby_goods', 'chemist'], 'baby'),
+  'diapers': _Mapping(['baby_goods', 'chemist'], 'baby'),
+  'baby formula': _Mapping(['baby_goods', 'chemist'], 'baby'),
+  'formula': _Mapping(['baby_goods', 'chemist'], 'baby'),
+  'baby food': _Mapping(['baby_goods', 'chemist'], 'baby'),
+  'baby wipes': _Mapping(['baby_goods', 'chemist'], 'baby'),
+  'pacifier': _Mapping(['baby_goods', 'chemist'], 'baby'),
+  'bottle': _Mapping(['baby_goods', 'chemist'], 'baby'),
 
-  // Cleaning / household
-  'soap': ['chemist', 'cosmetics'],
-  'detergent': ['chemist'],
-  'bleach': ['chemist'],
-  'sponge': ['chemist', 'household'],
-  'trash bags': ['chemist', 'household'],
-  'paper towels': ['chemist', 'household'],
-  'paper towel': ['chemist', 'household'],
-  'toilet paper': ['chemist', 'household'],
-  'tissues': ['chemist', 'household'],
-  'cleaning': ['chemist', 'household'],
+  // ---- Grocery / food ----
+  'milk': _Mapping(['dairy', 'farm', 'greengrocer', 'bakery', 'deli'], 'grocery'),
+  'bread': _Mapping(['bakery', 'greengrocer', 'deli'], 'grocery'),
+  'eggs': _Mapping(['farm', 'greengrocer', 'deli'], 'grocery'),
+  'water': _Mapping(['beverages', 'outdoor'], 'grocery'),
+  'fruit': _Mapping(['greengrocer', 'farm'], 'grocery'),
+  'vegetable': _Mapping(['greengrocer', 'farm'], 'grocery'),
+  'vegetables': _Mapping(['greengrocer', 'farm'], 'grocery'),
+  'meat': _Mapping(['butcher', 'deli', 'farm'], 'grocery'),
+  'chicken': _Mapping(['butcher', 'deli', 'farm'], 'grocery'),
+  'beef': _Mapping(['butcher', 'deli', 'farm'], 'grocery'),
+  'fish': _Mapping(['seafood', 'deli', 'farm'], 'grocery'),
+  'cheese': _Mapping(['cheese', 'deli', 'farm'], 'grocery'),
+  'rice': _Mapping(['greengrocer', 'deli'], 'grocery'),
+  'pasta': _Mapping(['deli'], 'grocery'),
+  'cereal': _Mapping([], 'grocery'),
+  'snack': _Mapping(['bakery', 'confectionery'], 'grocery'),
+  'snacks': _Mapping(['bakery', 'confectionery'], 'grocery'),
+  'candy': _Mapping(['confectionery'], 'grocery'),
+  'chocolate': _Mapping(['confectionery', 'bakery'], 'grocery'),
+  'coffee': _Mapping(['coffee', 'beverages'], 'grocery'),
+  'tea': _Mapping(['tea', 'beverages', 'health_food'], 'grocery'),
+  'juice': _Mapping(['beverages', 'health_food'], 'grocery'),
+  'soda': _Mapping(['beverages'], 'grocery'),
+  'beer': _Mapping(['alcohol', 'beverages'], 'grocery'),
+  'wine': _Mapping(['alcohol', 'beverages'], 'grocery'),
+  'liquor': _Mapping(['alcohol', 'beverages'], 'grocery'),
+  'ice cream': _Mapping(['ice_cream', 'frozen_food'], 'grocery'),
+  'frozen': _Mapping(['frozen_food'], 'grocery'),
+  'food': _Mapping(['deli', 'bakery', 'greengrocer'], 'grocery'),
+  'grocery': _Mapping([], 'grocery'),
+  'groceries': _Mapping([], 'grocery'),
 
-  // Personal care
-  'shampoo': ['chemist', 'cosmetics'],
-  'conditioner': ['chemist', 'cosmetics'],
-  'toothbrush': ['chemist', 'cosmetics'],
-  'toothpaste': ['chemist', 'cosmetics'],
-  'deodorant': ['chemist', 'cosmetics'],
-  'razor': ['chemist', 'cosmetics'],
-  'lotion': ['chemist', 'cosmetics'],
-  'moisturizer': ['chemist', 'cosmetics'],
-  'makeup': ['cosmetics', 'chemist'],
-  'mascara': ['cosmetics', 'chemist'],
-  'lipstick': ['cosmetics', 'chemist'],
+  // ---- Cleaning / household ----
+  'soap': _Mapping(['chemist', 'cosmetics'], 'household'),
+  'detergent': _Mapping(['chemist'], 'household'),
+  'bleach': _Mapping(['chemist'], 'household'),
+  'sponge': _Mapping(['chemist', 'household'], 'household'),
+  'trash bags': _Mapping(['chemist', 'household'], 'household'),
+  'paper towels': _Mapping(['chemist', 'household'], 'household'),
+  'paper towel': _Mapping(['chemist', 'household'], 'household'),
+  'toilet paper': _Mapping(['chemist', 'household'], 'household'),
+  'tissues': _Mapping(['chemist', 'household'], 'household'),
+  'cleaning': _Mapping(['chemist', 'household'], 'cleaning'),
 
-  // Pet
-  'dog food': ['pet'],
-  'cat food': ['pet'],
-  'pet food': ['pet'],
-  'cat litter': ['pet'],
-  'leash': ['pet'],
-  'pet': ['pet'],
+  // ---- Personal care ----
+  'shampoo': _Mapping(['chemist', 'cosmetics'], 'personal_care'),
+  'conditioner': _Mapping(['chemist', 'cosmetics'], 'personal_care'),
+  'toothbrush': _Mapping(['chemist', 'cosmetics'], 'personal_care'),
+  'toothpaste': _Mapping(['chemist', 'cosmetics'], 'personal_care'),
+  'deodorant': _Mapping(['chemist', 'cosmetics'], 'personal_care'),
+  'razor': _Mapping(['chemist', 'cosmetics'], 'personal_care'),
+  'lotion': _Mapping(['chemist', 'cosmetics'], 'personal_care'),
+  'moisturizer': _Mapping(['chemist', 'cosmetics'], 'personal_care'),
+  'makeup': _Mapping(['cosmetics', 'chemist'], 'personal_care'),
+  'mascara': _Mapping(['cosmetics', 'chemist'], 'personal_care'),
+  'lipstick': _Mapping(['cosmetics', 'chemist'], 'personal_care'),
 
-  // Auto
-  'motor oil': ['car_parts', 'car_repair', 'car'],
-  'oil filter': ['car_parts', 'car_repair'],
-  'wiper': ['car_parts', 'car_repair', 'car'],
-  'antifreeze': ['car_parts', 'car_repair'],
-  'tire': ['car_parts', 'car_repair', 'tyres'],
-  'gas': ['car_parts', 'car_repair'],
-  'gasoline': [],
+  // ---- Pet ----
+  'dog food': _Mapping(['pet'], 'pet'),
+  'cat food': _Mapping(['pet'], 'pet'),
+  'pet food': _Mapping(['pet'], 'pet'),
+  'cat litter': _Mapping(['pet'], 'pet'),
+  'leash': _Mapping(['pet'], 'pet'),
+  'pet': _Mapping(['pet'], 'pet'),
 
-  // Clothing
-  'shirt': ['clothes', 'fashion', 'boutique'],
-  'pants': ['clothes', 'fashion', 'boutique'],
-  'shoes': ['shoes', 'clothes', 'fashion'],
-  'socks': ['clothes', 'fashion'],
-  'jacket': ['clothes', 'fashion', 'outdoor'],
-  'coat': ['clothes', 'fashion', 'outdoor'],
-  'hat': ['clothes', 'fashion'],
-  'gloves': ['clothes', 'fashion', 'outdoor', 'hardware', 'doityourself'],
-  'underwear': ['clothes', 'fashion'],
-  'dress': ['clothes', 'fashion', 'boutique'],
+  // ---- Auto ----
+  'motor oil': _Mapping(['car_parts', 'car_repair', 'car'], 'auto'),
+  'oil filter': _Mapping(['car_parts', 'car_repair'], 'auto'),
+  'wiper': _Mapping(['car_parts', 'car_repair', 'car'], 'auto'),
+  'antifreeze': _Mapping(['car_parts', 'car_repair'], 'auto'),
+  'tire': _Mapping(['car_parts', 'car_repair', 'tyres'], 'auto'),
+  'gas': _Mapping(['car_parts', 'car_repair'], 'auto'),
+  'gasoline': _Mapping([], 'auto'),
 
-  // Office / school
-  'pen': ['stationery', 'books'],
-  'pencil': ['stationery', 'books'],
-  'notebook': ['stationery', 'books'],
-  'paper': ['stationery', 'books'],
-  'envelope': ['stationery', 'books'],
-  'stapler': ['stationery'],
-  'binder': ['stationery', 'books'],
-  'folder': ['stationery', 'books'],
-  'backpack': ['bag', 'outdoor', 'clothes'],
+  // ---- Clothing ----
+  'shirt': _Mapping(['clothes', 'fashion', 'boutique'], 'clothing'),
+  'pants': _Mapping(['clothes', 'fashion', 'boutique'], 'clothing'),
+  'shoes': _Mapping(['shoes', 'clothes', 'fashion'], 'clothing'),
+  'socks': _Mapping(['clothes', 'fashion'], 'clothing'),
+  'jacket': _Mapping(['clothes', 'fashion', 'outdoor'], 'clothing'),
+  'coat': _Mapping(['clothes', 'fashion', 'outdoor'], 'clothing'),
+  'hat': _Mapping(['clothes', 'fashion'], 'clothing'),
+  'gloves': _Mapping(['clothes', 'fashion', 'outdoor', 'hardware', 'doityourself'], 'clothing'),
+  'underwear': _Mapping(['clothes', 'fashion'], 'clothing'),
+  'dress': _Mapping(['clothes', 'fashion', 'boutique'], 'clothing'),
 
-  // Outdoor / camping / safety
-  'mask': ['chemist', 'hardware', 'doityourself', 'outdoor', 'medical_supply'],
-  'masks': ['chemist', 'hardware', 'doityourself', 'outdoor', 'medical_supply'],
-  'n95': ['chemist', 'hardware', 'doityourself', 'outdoor', 'medical_supply'],
-  'tent': ['outdoor', 'sports'],
-  'sleeping bag': ['outdoor', 'sports'],
-  'camping': ['outdoor', 'sports'],
-  'propane': ['outdoor', 'hardware', 'doityourself'],
-  'fire extinguisher': ['hardware', 'doityourself'],
-  'lantern': ['outdoor', 'hardware'],
+  // ---- Office / school ----
+  'pen': _Mapping(['stationery', 'books'], 'office'),
+  'pencil': _Mapping(['stationery', 'books'], 'office'),
+  'notebook': _Mapping(['stationery', 'books'], 'office'),
+  'paper': _Mapping(['stationery', 'books'], 'office'),
+  'envelope': _Mapping(['stationery', 'books'], 'office'),
+  'stapler': _Mapping(['stationery'], 'office'),
+  'binder': _Mapping(['stationery', 'books'], 'office'),
+  'folder': _Mapping(['stationery', 'books'], 'office'),
+  'backpack': _Mapping(['bag', 'outdoor', 'clothes'], 'office'),
 
-  // Sports / fitness
-  'ball': ['sports'],
-  'weights': ['sports'],
-  'yoga': ['sports'],
-  'bicycle': ['bicycle'],
-  'bike': ['bicycle'],
-  'helmet': ['bicycle', 'sports', 'motorcycle'],
+  // ---- Outdoor / camping / safety ----
+  'mask': _Mapping(['chemist', 'hardware', 'doityourself', 'outdoor', 'medical_supply'], 'health'),
+  'masks': _Mapping(['chemist', 'hardware', 'doityourself', 'outdoor', 'medical_supply'], 'health'),
+  'n95': _Mapping(['chemist', 'hardware', 'doityourself', 'outdoor', 'medical_supply'], 'health'),
+  'tent': _Mapping(['outdoor', 'sports'], 'outdoor'),
+  'sleeping bag': _Mapping(['outdoor', 'sports'], 'outdoor'),
+  'camping': _Mapping(['outdoor', 'sports'], 'outdoor'),
+  'propane': _Mapping(['outdoor', 'hardware', 'doityourself'], 'outdoor'),
+  'fire extinguisher': _Mapping(['hardware', 'doityourself'], 'outdoor'),
+  'lantern': _Mapping(['outdoor', 'hardware'], 'outdoor'),
 
-  // Garden
-  'plant': ['garden_centre', 'florist'],
-  'plants': ['garden_centre', 'florist'],
-  'soil': ['garden_centre', 'doityourself'],
-  'fertilizer': ['garden_centre', 'doityourself'],
-  'seeds': ['garden_centre'],
-  'hose': ['garden_centre', 'hardware', 'doityourself'],
-  'lawn': ['garden_centre', 'hardware', 'doityourself'],
-  'mower': ['garden_centre', 'hardware', 'doityourself'],
+  // ---- Sports / fitness ----
+  'ball': _Mapping(['sports'], 'sports'),
+  'weights': _Mapping(['sports'], 'sports'),
+  'yoga': _Mapping(['sports'], 'sports'),
+  'bicycle': _Mapping(['bicycle'], 'sports'),
+  'bike': _Mapping(['bicycle'], 'sports'),
+  'helmet': _Mapping(['bicycle', 'sports', 'motorcycle'], 'sports'),
+
+  // ---- Garden ----
+  'plant': _Mapping(['garden_centre', 'florist'], 'garden'),
+  'plants': _Mapping(['garden_centre', 'florist'], 'garden'),
+  'soil': _Mapping(['garden_centre', 'doityourself'], 'garden'),
+  'fertilizer': _Mapping(['garden_centre', 'doityourself'], 'garden'),
+  'seeds': _Mapping(['garden_centre'], 'garden'),
+  'hose': _Mapping(['garden_centre', 'hardware', 'doityourself'], 'garden'),
+  'lawn': _Mapping(['garden_centre', 'hardware', 'doityourself'], 'garden'),
+  'mower': _Mapping(['garden_centre', 'hardware', 'doityourself'], 'garden'),
 };
 
 // ---------------------------------------------------------------------------
@@ -243,27 +298,40 @@ const Map<String, List<String>> _keywordToShopTypes = {
 // ---------------------------------------------------------------------------
 
 /// Given a user's search [item], returns an Overpass `shop` regex filter
-/// that targets only relevant store types (general retail + specialty).
+/// that targets only relevant store types.
 ///
-/// Example return: `"supermarket|convenience|department_store|electronics|hardware"`
-String shopFilterForItem(String item) {
+/// - Big-box retail (department_store, wholesale, mall) always included.
+/// - Grocery/convenience stores ONLY included for grocery/food/health/baby items.
+/// - Specialty types added based on keyword matches.
+/// - Returns null if no keywords matched (caller should use a broad search).
+String? shopFilterForItem(String item) {
   final lower = item.toLowerCase().trim();
 
-  // Collect specialty types from keyword matches.
   final specialtyTypes = <String>{};
-  _keywordToShopTypes.forEach((keyword, shopTypes) {
+  final categories = <String>{};
+
+  _keywordMap.forEach((keyword, mapping) {
     if (lower.contains(keyword)) {
-      specialtyTypes.addAll(shopTypes);
+      specialtyTypes.addAll(mapping.shopTypes);
+      categories.add(mapping.category);
     }
   });
 
-  // Combine general retail + matched specialty types.
-  final allTypes = <String>{..._generalRetailShops, ...specialtyTypes};
+  // If nothing matched, return null — the caller decides what to do.
+  if (specialtyTypes.isEmpty && categories.isEmpty) return null;
+
+  // Always include big-box retail.
+  final allTypes = <String>{..._bigBoxRetail, ...specialtyTypes};
+
+  // Only include grocery stores for items you'd actually find there.
+  if (categories.any((c) => _groceryCategories.contains(c))) {
+    allTypes.addAll(_groceryRetail);
+  }
+
   return allTypes.join('|');
 }
 
 /// Returns the amenity regex to use in the Overpass query.
-/// Always includes general amenities; may expand for certain products.
 String amenityFilterForItem(String item) {
   final lower = item.toLowerCase().trim();
   final amenities = <String>{..._generalAmenities};
@@ -279,6 +347,12 @@ String amenityFilterForItem(String item) {
   if (healthKeywords.any((k) => lower.contains(k))) {
     amenities.add('pharmacy');
     amenities.add('clinic');
+  }
+
+  // Add fuel for auto-related searches.
+  const autoKeywords = ['gas', 'gasoline', 'motor oil', 'antifreeze', 'wiper'];
+  if (autoKeywords.any((k) => lower.contains(k))) {
+    amenities.add('fuel');
   }
 
   return amenities.join('|');
