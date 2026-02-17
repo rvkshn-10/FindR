@@ -3,6 +3,8 @@
 // Keep all API URLs, timeouts, default values, and magic numbers here so
 // there is a single source of truth and they are easy to tune.
 
+import 'package:flutter/foundation.dart' show kIsWeb;
+
 // ---------------------------------------------------------------------------
 // API endpoints
 // ---------------------------------------------------------------------------
@@ -75,4 +77,25 @@ const Duration kAiTimeout = Duration(seconds: 10);
 /// Leave empty to disable price lookups and Google Maps store search.
 const String kSerpApiKey = '3c98c1ad2a12891b404f04b5183fc31781b0fd08aed9da9a2d5a21cb296426c0';
 
-const Duration kSerpApiTimeout = Duration(seconds: 12);
+const Duration kSerpApiTimeout = Duration(seconds: 15);
+
+/// Build a SerpApi URL.
+///
+/// On **web** the request routes through our Firebase Cloud Function proxy
+/// at `/api/serpapi` (same origin → no CORS).  The proxy injects the API key
+/// server-side, so the client never sends it directly to serpapi.com.
+///
+/// On **native** (macOS, iOS, Android) we call serpapi.com directly because
+/// there are no CORS restrictions.
+Uri buildSerpApiUri(Map<String, String> params) {
+  if (kIsWeb) {
+    // Proxy: same-origin relative URL.  Don't send the API key — the
+    // Cloud Function adds it server-side.
+    final cleanParams = Map<String, String>.from(params)..remove('api_key');
+    return Uri(path: '/api/serpapi', queryParameters: cleanParams);
+  }
+  // Native: direct to serpapi.com with the key.
+  final fullParams = Map<String, String>.from(params);
+  fullParams['api_key'] = kSerpApiKey;
+  return Uri.https('serpapi.com', '/search.json', fullParams);
+}

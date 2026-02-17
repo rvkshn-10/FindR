@@ -37,8 +37,8 @@ Future<List<OverpassStore>?> fetchStoresFromGoogleMaps({
       'hl': 'en',
     };
 
-    final uri = Uri.https('serpapi.com', '/search.json', params);
-    debugPrint('SerpApi Maps: searching "$query" near ($lat,$lng)');
+    final uri = buildSerpApiUri(params);
+    debugPrint('SerpApi Maps: searching "$query" near ($lat,$lng) via ${uri.toString().substring(0, 40)}...');
 
     final res = await http
         .get(uri, headers: {'Accept': 'application/json'})

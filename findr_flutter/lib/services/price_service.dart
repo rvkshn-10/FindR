@@ -88,7 +88,7 @@ Future<PriceData?> fetchProductPrices(String query, {double? lat, double? lng}) 
       params['location'] = '$lat,$lng';
     }
 
-    final uri = Uri.https('serpapi.com', '/search.json', params);
+    final uri = buildSerpApiUri(params);
     final res = await http
         .get(uri, headers: {'Accept': 'application/json'})
         .timeout(kSerpApiTimeout);

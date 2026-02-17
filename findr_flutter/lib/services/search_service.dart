@@ -80,12 +80,23 @@ Future<SearchResult> searchFast({
       debugPrint('Falling back to Overpass for store search');
       allStores = await fetchNearbyStores(lat, lng, radiusM: radiusM.toInt(), item: item);
     } catch (e) {
-      return const SearchResult(
-        stores: [],
-        bestOptionId: '',
-        summary: 'Stores service is temporarily unavailable.',
-        alternatives: ['Try again in a moment or try a different location.'],
-      );
+      debugPrint('Overpass targeted search failed: $e');
+    }
+
+    // If product-specific Overpass query returned nothing, try broad search.
+    if (allStores.isEmpty) {
+      try {
+        debugPrint('Trying broad Overpass search (no product filter)');
+        allStores = await fetchNearbyStores(lat, lng, radiusM: radiusM.toInt());
+      } catch (e) {
+        debugPrint('Broad Overpass search also failed: $e');
+        return const SearchResult(
+          stores: [],
+          bestOptionId: '',
+          summary: 'Stores service is temporarily unavailable.',
+          alternatives: ['Try again in a moment or try a different location.'],
+        );
+      }
     }
   }
 
@@ -145,18 +156,9 @@ Future<SearchResult> enrichWithRoadDistances({
           roadKm >= straightKm * 0.5 &&
           roadKm <= straightKm * 15 &&
           roadKm <= maxDistanceKm;
-      withRoad.add(Store(
-        id: s.id,
-        name: s.name,
-        lat: s.lat,
-        lng: s.lng,
-        address: s.address,
+      withRoad.add(s.copyWith(
         distanceKm: useRoad ? roadKm : s.distanceKm,
         durationMinutes: useRoad ? durMin : null,
-        phone: s.phone,
-        website: s.website,
-        openingHours: s.openingHours,
-        brand: s.brand,
       ));
     }
     withRoad.sort((a, b) => a.distanceKm.compareTo(b.distanceKm));
