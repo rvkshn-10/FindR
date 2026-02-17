@@ -7,7 +7,7 @@ import 'widgets/design_system.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
-  runApp(const WaymarkApp());
+  runApp(const WayvioApp());
 }
 
 /// Strip/clamp text shadows to avoid blurRadius assertion (e.g. on hover).
@@ -77,8 +77,8 @@ ThemeData get _supplyMapTheme {
   );
 }
 
-class WaymarkApp extends StatelessWidget {
-  const WaymarkApp({super.key});
+class WayvioApp extends StatelessWidget {
+  const WayvioApp({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -87,7 +87,7 @@ class WaymarkApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => SettingsProvider()..load()),
       ],
       child: MaterialApp(
-        title: 'Waymark',
+        title: 'Wayvio',
         theme: _supplyMapTheme,
         builder: (context, child) {
           // Force no text shadows app-wide to avoid blurRadius assertion on hover.

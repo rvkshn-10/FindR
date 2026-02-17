@@ -1,4 +1,4 @@
-// Centralised configuration constants for Waymark.
+// Centralised configuration constants for Wayvio.
 //
 // Keep all API URLs, timeouts, default values, and magic numbers here so
 // there is a single source of truth and they are easy to tune.
@@ -22,7 +22,7 @@ const String kTileUserAgent = 'com.findr.findr_flutter';
 // HTTP user-agent
 // ---------------------------------------------------------------------------
 
-const String kHttpUserAgent = 'Waymark/1.0 (Flutter; contact via project repo)';
+const String kHttpUserAgent = 'Wayvio/1.0 (Flutter; contact via project repo)';
 
 // ---------------------------------------------------------------------------
 // Timeouts

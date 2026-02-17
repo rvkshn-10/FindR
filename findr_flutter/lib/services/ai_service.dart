@@ -51,7 +51,7 @@ class AiQueryEnhancement {
 /// Overpass shop/amenity tags to find stores that carry the item.
 Future<AiQueryEnhancement?> enhanceSearchQuery(String userQuery) async {
   try {
-    final prompt = '''You are a search assistant for Waymark, an app that finds nearby stores using OpenStreetMap Overpass API.
+    final prompt = '''You are a search assistant for Wayvio, an app that finds nearby stores using OpenStreetMap Overpass API.
 
 Given the user's search query, determine:
 1. Which OpenStreetMap "shop" tag values are most likely to carry this item (e.g., supermarket, convenience, pharmacy, electronics, hardware, doityourself, clothes, etc.)
@@ -126,7 +126,7 @@ Future<AiResultSummary?> generateResultSummary({
 
   try {
     final storesJson = jsonEncode(storeData.take(6).toList());
-    final prompt = '''You are Waymark's AI assistant. The user searched for "$query" and found these nearby stores:
+    final prompt = '''You are Wayvio's AI assistant. The user searched for "$query" and found these nearby stores:
 
 $storesJson
 
