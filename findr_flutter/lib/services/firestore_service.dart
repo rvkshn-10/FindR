@@ -111,20 +111,32 @@ Stream<List<Map<String, dynamic>>> watchRecentSearches({int limit = 20}) {
 Future<void> deleteSearch(String docId) async {
   final col = _subcollection('searches');
   if (col == null) return;
-  await col.doc(docId).delete();
+  try {
+    await col.doc(docId).delete();
+  } catch (e) {
+    debugPrint('Firestore: deleteSearch failed: $e');
+  }
 }
 
-/// Clear all search history.
+/// Clear all search history (batched in groups of 500).
 Future<void> clearSearchHistory() async {
   final col = _subcollection('searches');
   if (col == null) return;
-  final snap = await col.get();
-  final batch = _db.batch();
-  for (final doc in snap.docs) {
-    batch.delete(doc.reference);
+  try {
+    final snap = await col.get();
+    // Firestore batches max out at 500 operations.
+    for (var i = 0; i < snap.docs.length; i += 500) {
+      final batch = _db.batch();
+      final end = (i + 500 > snap.docs.length) ? snap.docs.length : i + 500;
+      for (final doc in snap.docs.sublist(i, end)) {
+        batch.delete(doc.reference);
+      }
+      await batch.commit();
+    }
+    debugPrint('Firestore: cleared search history');
+  } catch (e) {
+    debugPrint('Firestore: clearSearchHistory failed: $e');
   }
-  await batch.commit();
-  debugPrint('Firestore: cleared search history');
 }
 
 // ---------------------------------------------------------------------------
@@ -181,16 +193,25 @@ Future<void> addFavorite({
 Future<void> removeFavorite(String storeId) async {
   final col = _subcollection('favorites');
   if (col == null) return;
-  await col.doc(storeId.replaceAll('/', '_')).delete();
-  debugPrint('Firestore: removed favorite "$storeId"');
+  try {
+    await col.doc(storeId.replaceAll('/', '_')).delete();
+    debugPrint('Firestore: removed favorite "$storeId"');
+  } catch (e) {
+    debugPrint('Firestore: removeFavorite failed: $e');
+  }
 }
 
 /// Check if a store is favorited.
 Future<bool> isFavorite(String storeId) async {
   final col = _subcollection('favorites');
   if (col == null) return false;
-  final doc = await col.doc(storeId.replaceAll('/', '_')).get();
-  return doc.exists;
+  try {
+    final doc = await col.doc(storeId.replaceAll('/', '_')).get();
+    return doc.exists;
+  } catch (e) {
+    debugPrint('Firestore: isFavorite failed: $e');
+    return false;
+  }
 }
 
 /// Get all favorites.

@@ -45,15 +45,27 @@ class AuthProvider extends ChangeNotifier {
   Future<void> signInAnonymously() async {
     _loading = true;
     notifyListeners();
-    await auth.signInAnonymously();
+    try {
+      await auth.signInAnonymously();
+    } catch (e) {
+      _loading = false;
+      notifyListeners();
+      rethrow;
+    }
   }
 
   // ── Google ─────────────────────────────────────────────────────────────
   Future<bool> signInWithGoogle() async {
     _loading = true;
     notifyListeners();
-    final user = await auth.signInWithGoogle();
-    return user != null;
+    try {
+      final user = await auth.signInWithGoogle();
+      return user != null;
+    } catch (e) {
+      _loading = false;
+      notifyListeners();
+      rethrow;
+    }
   }
 
   // ── Email / Password ──────────────────────────────────────────────────

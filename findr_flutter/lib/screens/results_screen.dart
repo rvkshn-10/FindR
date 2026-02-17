@@ -643,6 +643,7 @@ class _ResultsScreenState extends State<ResultsScreen> {
                                     child: _StaggeredFadeIn(
                                       index: i,
                                       child: _SafeResultCard(
+                                        key: ValueKey(s.id),
                                         store: s,
                                         style: style,
                                         settings: settings,
@@ -1449,6 +1450,7 @@ class _SidebarState extends State<_Sidebar> {
                           return _StaggeredFadeIn(
                             index: i,
                             child: _SafeResultCard(
+                              key: ValueKey(s.id),
                               store: s,
                               style: style,
                               settings: widget.settings,
@@ -1473,6 +1475,7 @@ class _SidebarState extends State<_Sidebar> {
 
 class _SafeResultCard extends StatelessWidget {
   const _SafeResultCard({
+    super.key,
     required this.store,
     required this.style,
     required this.settings,
@@ -1490,9 +1493,8 @@ class _SafeResultCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final noShadow = Theme.of(context)
-        .textTheme
-        .bodyMedium!
+    final noShadow = (Theme.of(context).textTheme.bodyMedium ??
+            const TextStyle())
         .copyWith(shadows: const <Shadow>[]);
     return DefaultTextStyle(
       style: noShadow,
@@ -1596,9 +1598,8 @@ class _ResultCardState extends State<_ResultCard> {
     final fg = dark ? SupplyMapColors.textBlack : Colors.white;
     final isGlass = widget.style == _CardStyle.standard;
 
-    final noShadowStyle = Theme.of(context)
-        .textTheme
-        .bodyLarge!
+    final noShadowStyle = (Theme.of(context).textTheme.bodyLarge ??
+            const TextStyle())
         .copyWith(shadows: const <Shadow>[]);
     return MouseRegion(
       onEnter: (_) => setState(() => _hovered = true),
@@ -2358,12 +2359,13 @@ class _ShimmerCardState extends State<_ShimmerCard>
   void initState() {
     super.initState();
     _ctrl = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 1200))
-      ..repeat();
+        vsync: this, duration: const Duration(milliseconds: 1200));
     if (widget.delay > 0) {
       Future.delayed(Duration(milliseconds: widget.delay), () {
-        if (mounted) _ctrl.forward(from: 0);
+        if (mounted) _ctrl.repeat();
       });
+    } else {
+      _ctrl.repeat();
     }
   }
 

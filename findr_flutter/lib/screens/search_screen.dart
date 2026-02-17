@@ -173,7 +173,7 @@ class _SearchScreenState extends State<SearchScreen> {
         final result = await geocode(loc);
         if (mounted) setState(() => _geocoding = false);
         if (result == null) {
-          setState(() => _loading = false);
+          if (mounted) setState(() => _loading = false);
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(content: Text('Could not find that location.')),

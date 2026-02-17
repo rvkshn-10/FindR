@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import '../config.dart';
 
@@ -15,48 +16,52 @@ Future<List<RoadDistanceResult>?> _fetchChunk(
   double originLng,
   List<MapEntry<double, double>> chunk,
 ) async {
-  final coords = [
-    '$originLng,$originLat',
-    ...chunk.map((e) => '${e.value},${e.key}'),
-  ].join(';');
-  final destIndices = List.generate(chunk.length, (j) => j + 1).join(';');
+  try {
+    final coords = [
+      '$originLng,$originLat',
+      ...chunk.map((e) => '${e.value},${e.key}'),
+    ].join(';');
+    final destIndices = List.generate(chunk.length, (j) => j + 1).join(';');
 
-  // Request duration and distance; some OSRM servers only support duration.
-  Uri uri = Uri.parse('$kOsrmBase/$coords').replace(
-    queryParameters: {'sources': '0', 'destinations': destIndices, 'annotations': 'duration,distance'},
-  );
-  var res = await http.get(uri).timeout(kOsrmTimeout);
-  var data = res.statusCode == 200 ? jsonDecode(res.body) as Map<String, dynamic>? : null;
-
-  // If server rejects annotations, retry without it.
-  if (data == null || data['code'] != 'Ok' || data['annotations'] == 'error') {
-    uri = Uri.parse('$kOsrmBase/$coords').replace(
-      queryParameters: {'sources': '0', 'destinations': destIndices},
+    Uri uri = Uri.parse('$kOsrmBase/$coords').replace(
+      queryParameters: {'sources': '0', 'destinations': destIndices, 'annotations': 'duration,distance'},
     );
-    res = await http.get(uri).timeout(kOsrmTimeout);
-    if (res.statusCode != 200) return null;
-    data = jsonDecode(res.body) as Map<String, dynamic>;
-    if (data['code'] != 'Ok') return null;
-  }
+    var res = await http.get(uri).timeout(kOsrmTimeout);
+    var data = res.statusCode == 200 ? jsonDecode(res.body) as Map<String, dynamic>? : null;
 
-  final durations = data['durations'] as List<dynamic>?;
-  final distances = data['distances'] as List<dynamic>?;
-  if (durations == null || distances == null) return null;
-  final durRow = durations[0] as List<dynamic>?;
-  final distRow = distances[0] as List<dynamic>?;
-  if (durRow == null || distRow == null || durRow.length != chunk.length) return null;
+    // If server rejects the request, retry without annotations.
+    if (data == null || data['code'] != 'Ok') {
+      uri = Uri.parse('$kOsrmBase/$coords').replace(
+        queryParameters: {'sources': '0', 'destinations': destIndices},
+      );
+      res = await http.get(uri).timeout(kOsrmTimeout);
+      if (res.statusCode != 200) return null;
+      data = jsonDecode(res.body) as Map<String, dynamic>;
+      if (data['code'] != 'Ok') return null;
+    }
 
-  final results = <RoadDistanceResult>[];
-  for (var j = 0; j < chunk.length; j++) {
-    final distM = distRow[j];
-    final durS = durRow[j];
-    final distanceKm = (distM != null && distM is num)
-        ? ((distM / 1000) * 100).round() / 100
-        : 0.0;
-    final durationMinutes = (durS != null && durS is num) ? (durS / 60).round() : null;
-    results.add(RoadDistanceResult(distanceKm: distanceKm, durationMinutes: durationMinutes));
+    final durations = data['durations'] as List<dynamic>?;
+    final distances = data['distances'] as List<dynamic>?;
+    if (durations == null || distances == null) return null;
+    final durRow = durations[0] as List<dynamic>?;
+    final distRow = distances[0] as List<dynamic>?;
+    if (durRow == null || distRow == null || durRow.length != chunk.length) return null;
+
+    final results = <RoadDistanceResult>[];
+    for (var j = 0; j < chunk.length; j++) {
+      final distM = distRow[j];
+      final durS = durRow[j];
+      final distanceKm = (distM != null && distM is num)
+          ? ((distM / 1000) * 100).round() / 100
+          : 0.0;
+      final durationMinutes = (durS != null && durS is num) ? (durS / 60).round() : null;
+      results.add(RoadDistanceResult(distanceKm: distanceKm, durationMinutes: durationMinutes));
+    }
+    return results;
+  } catch (e) {
+    debugPrint('OSRM chunk error: $e');
+    return null;
   }
-  return results;
 }
 
 /// Get road distances for all destinations, chunking into groups of [kMaxOsrmDest]

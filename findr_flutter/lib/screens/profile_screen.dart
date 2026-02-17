@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:google_generative_ai/google_generative_ai.dart';
 import 'package:provider/provider.dart';
+import '../config.dart';
 import '../providers/auth_provider.dart';
 import '../services/firestore_service.dart' as db;
 import '../widgets/design_system.dart';
@@ -25,7 +26,7 @@ TextStyle _outfit({
 
 GenerativeModel _getSummaryModelForRecs() => GenerativeModel(
       model: 'gemini-2.0-flash',
-      apiKey: 'AIzaSyDftV5e2WS8TKg7F8jOuvAxgv53_Jamsd8',
+      apiKey: kGeminiApiKey,
       generationConfig: GenerationConfig(
         temperature: 0.7,
         maxOutputTokens: 500,
@@ -448,7 +449,10 @@ class _ProfileScreenState extends State<ProfileScreen>
                   final id = search['id'] as String?;
                   if (id != null) {
                     await db.deleteSearch(id);
-                    if (mounted) setState(() => _searches.removeAt(i));
+                    if (mounted) {
+                      setState(() => _searches.removeWhere(
+                          (s) => s['id'] == id));
+                    }
                   }
                 },
               );
@@ -496,7 +500,10 @@ class _ProfileScreenState extends State<ProfileScreen>
           onRemove: () async {
             final storeId = fav['storeId'] as String? ?? '';
             await db.removeFavorite(storeId);
-            if (mounted) setState(() => _favorites.removeAt(i));
+            if (mounted) {
+              setState(() => _favorites.removeWhere(
+                  (f) => f['storeId'] == storeId));
+            }
           },
         );
       },
@@ -1118,6 +1125,7 @@ class _SecurityTabState extends State<_SecurityTab> {
                   onTap: () async {
                     setState(() => _loading = true);
                     final err = await auth.sendEmailVerification();
+                    if (!mounted) return;
                     setState(() => _loading = false);
                     if (err != null) {
                       _showMessage(err, isError: true);
@@ -1168,6 +1176,7 @@ class _SecurityTabState extends State<_SecurityTab> {
             }
             setState(() => _loading = true);
             final err = await auth.updateEmail(newEmail);
+            if (!mounted) return;
             setState(() => _loading = false);
             if (err != null) {
               _showMessage(err, isError: true);
@@ -1211,15 +1220,16 @@ class _SecurityTabState extends State<_SecurityTab> {
                 return;
               }
               setState(() => _loading = true);
-              // Re-authenticate first.
               var err = await auth
                   .reauthenticateWithPassword(_currentPasswordCtrl.text);
+              if (!mounted) return;
               if (err != null) {
                 setState(() => _loading = false);
                 _showMessage(err, isError: true);
                 return;
               }
               err = await auth.updatePassword(_newPasswordCtrl.text);
+              if (!mounted) return;
               setState(() => _loading = false);
               if (err != null) {
                 _showMessage(err, isError: true);
@@ -1249,6 +1259,7 @@ class _SecurityTabState extends State<_SecurityTab> {
               }
               setState(() => _loading = true);
               final err = await auth.sendPasswordReset(auth.email!);
+              if (!mounted) return;
               setState(() => _loading = false);
               if (err != null) {
                 _showMessage(err, isError: true);
@@ -1275,6 +1286,7 @@ class _SecurityTabState extends State<_SecurityTab> {
               onTap: () async {
                 setState(() => _loading = true);
                 final err = await auth.unlinkPhone();
+                if (!mounted) return;
                 setState(() => _loading = false);
                 if (err != null) {
                   _showMessage(err, isError: true);
@@ -1303,6 +1315,7 @@ class _SecurityTabState extends State<_SecurityTab> {
                 await auth.verifyPhoneNumber(
                   phoneNumber: phone,
                   onCodeSent: (vId) {
+                    if (!mounted) return;
                     setState(() {
                       _verificationId = vId;
                       _loading = false;
@@ -1310,6 +1323,7 @@ class _SecurityTabState extends State<_SecurityTab> {
                     _showMessage('SMS code sent to $phone');
                   },
                   onAutoVerified: (_) {
+                    if (!mounted) return;
                     setState(() {
                       _verificationId = null;
                       _loading = false;
@@ -1317,6 +1331,7 @@ class _SecurityTabState extends State<_SecurityTab> {
                     _showMessage('Phone verified automatically!');
                   },
                   onError: (err) {
+                    if (!mounted) return;
                     setState(() => _loading = false);
                     _showMessage(err, isError: true);
                   },
@@ -1341,6 +1356,7 @@ class _SecurityTabState extends State<_SecurityTab> {
                   verificationId: _verificationId!,
                   smsCode: _smsCodeCtrl.text.trim(),
                 );
+                if (!mounted) return;
                 setState(() => _loading = false);
                 if (err != null) {
                   _showMessage(err, isError: true);
