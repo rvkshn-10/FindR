@@ -4,6 +4,7 @@ import '../models/search_models.dart';
 import '../providers/auth_provider.dart';
 import '../services/auth_service.dart' as auth;
 import '../widgets/design_system.dart';
+import 'auth_screen.dart';
 import 'profile_screen.dart';
 import 'results_screen.dart';
 import 'search_screen.dart';
@@ -25,7 +26,7 @@ class SearchResultParams {
   });
 }
 
-/// Shell: gradient background stays fixed, search/results/profile animate inside.
+/// Shell: gradient background stays fixed, search/results/profile/auth animate.
 class SupplyMapShell extends StatefulWidget {
   const SupplyMapShell({super.key});
 
@@ -33,7 +34,7 @@ class SupplyMapShell extends StatefulWidget {
   State<SupplyMapShell> createState() => _SupplyMapShellState();
 }
 
-enum _Page { search, results, profile }
+enum _Page { search, results, profile, auth }
 
 class _SupplyMapShellState extends State<SupplyMapShell> {
   _Page _currentPage = _Page.search;
@@ -42,7 +43,6 @@ class _SupplyMapShellState extends State<SupplyMapShell> {
   @override
   void initState() {
     super.initState();
-    // Auto sign-in anonymously so we can save searches immediately.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _ensureSignedIn();
     });
@@ -73,8 +73,11 @@ class _SupplyMapShellState extends State<SupplyMapShell> {
     setState(() => _currentPage = _Page.profile);
   }
 
+  void _openAuth() {
+    setState(() => _currentPage = _Page.auth);
+  }
+
   void _searchAgain(String item) {
-    // Navigate back to search and pre-fill the item.
     setState(() {
       _resultParams = null;
       _currentPage = _Page.search;
@@ -114,6 +117,7 @@ class _SupplyMapShellState extends State<SupplyMapShell> {
           child: SearchScreen(
             onSearchResult: _onSearchResult,
             onOpenProfile: _openProfile,
+            onOpenAuth: _openAuth,
           ),
         );
       case _Page.results:
@@ -134,6 +138,15 @@ class _SupplyMapShellState extends State<SupplyMapShell> {
           child: ProfileScreen(
             onBack: _onNewSearch,
             onSearchAgain: _searchAgain,
+            onOpenAuth: _openAuth,
+          ),
+        );
+      case _Page.auth:
+        return KeyedSubtree(
+          key: const ValueKey<String>('auth'),
+          child: AuthScreen(
+            onBack: _onNewSearch,
+            onSuccess: _openProfile,
           ),
         );
     }
