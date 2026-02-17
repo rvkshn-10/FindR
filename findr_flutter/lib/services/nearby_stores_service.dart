@@ -146,25 +146,41 @@ Future<List<OverpassStore>> fetchNearbyStores(
   String? item,
 }) async {
   // Build targeted shop & amenity regex filters based on the search term.
-  final shopFilter = (item != null && item.trim().isNotEmpty)
-      ? shopFilterForItem(item)
-      : null;
-  final amenityFilter = (item != null && item.trim().isNotEmpty)
-      ? amenityFilterForItem(item)
-      : 'marketplace|pharmacy|fuel';
+  final filterResult = (item != null && item.trim().isNotEmpty)
+      ? filtersForItem(item)
+      : const ItemFilterResult(matched: false);
 
-  // If shopFilterForItem returned null (no keyword match), use big-box
-  // retail only — NOT "any shop" which returns bakeries, hair salons, etc.
-  const _fallbackFilter =
-      'department_store|variety_store|general|wholesale|mall|discount|electronics|hardware|doityourself';
-  final shopClause =
-      'nwr["shop"~"${shopFilter ?? _fallbackFilter}"](around:$radiusM,$lat,$lng);';
+  // Build Overpass union clauses based on what the mapper returned.
+  final clauses = <String>[];
+
+  if (filterResult.shopFilter != null) {
+    clauses.add('nwr["shop"~"${filterResult.shopFilter}"](around:$radiusM,$lat,$lng);');
+  } else if (!filterResult.isDining) {
+    // No shop types matched and not a dining search → fallback to big-box retail.
+    const fallbackShop =
+        'department_store|variety_store|general|wholesale|mall|discount|electronics|hardware|doityourself';
+    clauses.add('nwr["shop"~"$fallbackShop"](around:$radiusM,$lat,$lng);');
+  }
+
+  if (filterResult.amenityFilter != null) {
+    clauses.add('nwr["amenity"~"${filterResult.amenityFilter}"](around:$radiusM,$lat,$lng);');
+  } else if (!filterResult.isDining) {
+    // Non-dining fallback amenities.
+    clauses.add('nwr["amenity"~"marketplace"](around:$radiusM,$lat,$lng);');
+  }
+
+  // For dining searches, also search by cuisine/name tags for better results.
+  if (filterResult.isDining && item != null) {
+    final lower = item.toLowerCase().trim();
+    clauses.add('nwr["amenity"="restaurant"]["name"~"$lower",i](around:$radiusM,$lat,$lng);');
+    clauses.add('nwr["amenity"="fast_food"]["name"~"$lower",i](around:$radiusM,$lat,$lng);');
+    clauses.add('nwr["amenity"="cafe"]["name"~"$lower",i](around:$radiusM,$lat,$lng);');
+  }
 
   final query = '''
 [out:json][timeout:10];
 (
-  $shopClause
-  nwr["amenity"~"$amenityFilter"](around:$radiusM,$lat,$lng);
+  ${clauses.join('\n  ')}
 );
 out center;
 ''';
