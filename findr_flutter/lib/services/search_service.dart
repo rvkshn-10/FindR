@@ -84,15 +84,25 @@ Future<SearchResult> searchFast({
 
   final overpassFuture = fetchNearbyStores(
     lat, lng, radiusM: radiusM.toInt(), item: item,
-  ).catchError((e) {
-    debugPrint('Overpass search failed: $e');
+  ).then((stores) {
+    print('[Wayvio] Overpass success: ${stores.length} stores');
+    return stores;
+  }).catchError((e, st) {
+    print('[Wayvio] Overpass FAILED: $e');
+    print('[Wayvio] Overpass stack: $st');
     return <OverpassStore>[];
   });
 
+  print('[Wayvio] searchFast: waiting for SerpApi + Kroger + Overpass...');
   final results = await Future.wait([serpFuture, krogerFuture, overpassFuture]);
+  print('[Wayvio] searchFast: Future.wait completed');
   final gmStores = results[0] as List<OverpassStore>?;
   final krogerLocs = results[1] as List<KrogerLocation>?;
   final overpassStores = results[2] as List<OverpassStore>;
+
+  print('[Wayvio] SerpApi: ${gmStores?.length ?? "null"} stores');
+  print('[Wayvio] Kroger: ${krogerLocs?.length ?? "null"} locations');
+  print('[Wayvio] Overpass: ${overpassStores.length} stores');
 
   // Prefer SerpApi (best quality), then merge Kroger + Overpass.
   if (gmStores != null && gmStores.isNotEmpty) {

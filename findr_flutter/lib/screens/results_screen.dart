@@ -185,6 +185,7 @@ class _ResultsScreenState extends State<ResultsScreen> {
     });
     try {
       final maxKm = milesToKmFn(widget.maxDistanceMiles);
+      print('[Wayvio] _load: item="${_currentItem}", lat=${widget.lat}, lng=${widget.lng}, maxKm=$maxKm');
 
       // Phase 1: Show haversine results immediately (fast).
       final fastResult = await searchFast(
@@ -194,6 +195,7 @@ class _ResultsScreenState extends State<ResultsScreen> {
         maxDistanceKm: maxKm,
         filters: widget.filters,
       );
+      print('[Wayvio] searchFast returned ${fastResult.stores.length} stores');
       if (!mounted) return;
       setState(() {
         _result = fastResult;

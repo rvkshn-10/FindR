@@ -116,6 +116,7 @@ class _SearchScreenState extends State<SearchScreen> {
   }
 
   Future<void> _submit() async {
+    print('[Wayvio] _submit called');
     setState(() => _loading = true);
     try {
       final item = _itemController.text.trim();
@@ -130,8 +131,10 @@ class _SearchScreenState extends State<SearchScreen> {
       }
       double lat;
       double lng;
+      print('[Wayvio] _useMyLocation=$_useMyLocation');
       if (_useMyLocation) {
         final perm = await Geolocator.checkPermission();
+        print('[Wayvio] location permission: $perm');
         if (perm == LocationPermission.denied) {
           final req = await Geolocator.requestPermission();
           if (req == LocationPermission.denied ||
@@ -147,12 +150,40 @@ class _SearchScreenState extends State<SearchScreen> {
             return;
           }
         }
-        final pos = await Geolocator.getCurrentPosition(
-          desiredAccuracy: LocationAccuracy.high,
-          timeLimit: const Duration(seconds: 10),
-        );
+        // Try high accuracy first, then medium, then give a helpful error.
+        Position pos;
+        try {
+          pos = await Geolocator.getCurrentPosition(
+            desiredAccuracy: LocationAccuracy.high,
+            timeLimit: const Duration(seconds: 15),
+          );
+        } catch (_) {
+          print('[Wayvio] High accuracy failed, trying medium...');
+          try {
+            pos = await Geolocator.getCurrentPosition(
+              desiredAccuracy: LocationAccuracy.medium,
+              timeLimit: const Duration(seconds: 15),
+            );
+          } catch (_) {
+            print('[Wayvio] Medium accuracy also failed');
+            if (mounted) {
+              setState(() {
+                _loading = false;
+                _useMyLocation = false;
+              });
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Location timed out. Please type your city or address below.'),
+                  duration: Duration(seconds: 4),
+                ),
+              );
+            }
+            return;
+          }
+        }
         lat = pos.latitude;
         lng = pos.longitude;
+        print('[Wayvio] Got location: $lat, $lng');
       } else {
         var loc = _locationController.text.trim();
         if (loc.length > 200) loc = loc.substring(0, 200);
@@ -223,7 +254,9 @@ class _SearchScreenState extends State<SearchScreen> {
           ),
         );
       }
-    } catch (e) {
+    } catch (e, st) {
+      print('[Wayvio] _submit ERROR: $e');
+      print('[Wayvio] _submit STACK: $st');
       setState(() => _loading = false);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
