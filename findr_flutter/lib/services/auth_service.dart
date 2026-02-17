@@ -14,6 +14,7 @@ library;
 
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 
 final _auth = FirebaseAuth.instance;
 
@@ -76,11 +77,28 @@ Future<User?> signInWithGoogle() async {
         debugPrint('Auth: linked Google to anonymous ${result.user?.uid}');
         return result.user;
       } on FirebaseAuthException catch (e) {
-        if (e.code == 'credential-already-in-use') {
+        if (e.code == 'credential-already-in-use' ||
+            e.code == 'account-exists-with-different-credential') {
           final result = await _auth.signInWithPopup(googleProvider);
           return result.user;
         }
-        rethrow;
+        debugPrint('Auth: link Google failed [${e.code}]: ${e.message}');
+        // Fall through to regular sign-in.
+      } on PlatformException catch (e) {
+        debugPrint('Auth: link Google platform error: ${e.code} ${e.message}');
+        // Fall through to regular sign-in.
+      } catch (e) {
+        debugPrint('Auth: link Google failed: $e');
+        // Fall through to regular sign-in.
+      }
+      // If linking failed, try regular sign-in.
+      try {
+        final result = await _auth.signInWithPopup(googleProvider);
+        debugPrint('Auth: signed in with Google (after link fail) as ${result.user?.uid}');
+        return result.user;
+      } catch (e) {
+        debugPrint('Auth: Google sign-in fallback failed: $e');
+        return null;
       }
     }
 
@@ -116,10 +134,14 @@ Future<String?> signUpWithEmail({
       try {
         result = await current.linkWithCredential(credential);
       } on FirebaseAuthException catch (e) {
-        if (e.code == 'email-already-in-use') {
+        if (e.code == 'email-already-in-use' ||
+            e.code == 'credential-already-in-use') {
           return 'An account already exists with that email.';
         }
         return _friendlyError(e);
+      } on PlatformException catch (e) {
+        debugPrint('Auth: link credential platform error: ${e.code} ${e.message}');
+        return _friendlyPlatformError(e);
       }
     } else {
       result = await _auth.createUserWithEmailAndPassword(
@@ -143,6 +165,9 @@ Future<String?> signUpWithEmail({
     return null; // success
   } on FirebaseAuthException catch (e) {
     return _friendlyError(e);
+  } on PlatformException catch (e) {
+    debugPrint('Auth: email sign-up platform error: ${e.code} ${e.message}');
+    return _friendlyPlatformError(e);
   } catch (e) {
     debugPrint('Auth: email sign-up failed: $e');
     return 'Something went wrong. Please try again.';
@@ -168,6 +193,9 @@ Future<String?> signInWithEmail({
     return null;
   } on FirebaseAuthException catch (e) {
     return _friendlyError(e);
+  } on PlatformException catch (e) {
+    debugPrint('Auth: email sign-in platform error: ${e.code} ${e.message}');
+    return _friendlyPlatformError(e);
   } catch (e) {
     debugPrint('Auth: email sign-in failed: $e');
     return 'Something went wrong. Please try again.';
@@ -452,7 +480,8 @@ String _friendlyError(FirebaseAuthException e) {
     case 'weak-password':
       return 'Password is too weak. Use at least 6 characters.';
     case 'user-not-found':
-      return 'No account found with that email.';
+    case 'invalid-credential':
+      return 'No account found with that email, or password is wrong.';
     case 'wrong-password':
       return 'Incorrect password.';
     case 'user-disabled':
@@ -460,7 +489,7 @@ String _friendlyError(FirebaseAuthException e) {
     case 'too-many-requests':
       return 'Too many attempts. Please try again later.';
     case 'operation-not-allowed':
-      return 'This sign-in method is not enabled.';
+      return 'This sign-in method is not enabled. Please contact support.';
     case 'requires-recent-login':
       return 'Please sign in again to complete this action.';
     case 'invalid-verification-code':
@@ -468,11 +497,58 @@ String _friendlyError(FirebaseAuthException e) {
     case 'invalid-phone-number':
       return 'Invalid phone number format.';
     case 'credential-already-in-use':
+    case 'account-exists-with-different-credential':
       return 'This credential is already linked to another account.';
     case 'network-request-failed':
       return 'Network error. Check your connection.';
+    case 'popup-closed-by-user':
+      return 'Sign-in popup was closed. Please try again.';
+    case 'cancelled-popup-request':
+      return 'Sign-in was cancelled. Please try again.';
+    case 'popup-blocked':
+      return 'Pop-up was blocked by browser. Please allow pop-ups for this site.';
     default:
       debugPrint('Auth error [${e.code}]: ${e.message}');
-      return e.message ?? 'Authentication error. Please try again.';
+      // Never show raw internal error messages to user.
+      return 'Authentication error. Please try again.';
   }
+}
+
+/// Handle PlatformException from Pigeon/platform channel layer.
+String _friendlyPlatformError(PlatformException e) {
+  final code = e.code.toLowerCase();
+  final msg = (e.message ?? '').toLowerCase();
+  final details = '${e.details ?? ''}'.toLowerCase();
+
+  // Try to extract a Firebase error code from the details or message.
+  if (code.contains('email-already-in-use') ||
+      msg.contains('email-already-in-use') ||
+      details.contains('email-already-in-use')) {
+    return 'An account already exists with that email.';
+  }
+  if (code.contains('weak-password') ||
+      msg.contains('weak-password') ||
+      details.contains('weak-password')) {
+    return 'Password is too weak. Use at least 6 characters.';
+  }
+  if (code.contains('invalid-email') ||
+      msg.contains('invalid-email') ||
+      details.contains('invalid-email')) {
+    return 'Invalid email address.';
+  }
+  if (code.contains('operation-not-allowed') ||
+      msg.contains('operation-not-allowed') ||
+      details.contains('operation-not-allowed')) {
+    return 'This sign-in method is not enabled. Please contact support.';
+  }
+  if (code.contains('network') || msg.contains('network')) {
+    return 'Network error. Check your connection.';
+  }
+  if (code.contains('too-many-requests') ||
+      msg.contains('too-many-requests')) {
+    return 'Too many attempts. Please try again later.';
+  }
+
+  debugPrint('Auth platform error [${e.code}]: ${e.message} | ${e.details}');
+  return 'Authentication error. Please try again.';
 }
