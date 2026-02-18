@@ -18,7 +18,6 @@ class SettingsProvider with ChangeNotifier {
   String get currency => _currency;
   bool get useKm => _distanceUnit == DistanceUnit.km;
   ThemeModeSetting get themeMode => _themeMode;
-  bool get isDark => _themeMode == ThemeModeSetting.dark;
 
   /// Call once at startup to load persisted values.
   Future<void> load() async {
@@ -36,7 +35,7 @@ class SettingsProvider with ChangeNotifier {
       }
       notifyListeners();
     } catch (e) {
-      print('[Wayvio] SettingsProvider.load failed: $e');
+      debugPrint('[Wayvio] SettingsProvider.load failed: $e');
     }
   }
 
@@ -71,7 +70,7 @@ class SettingsProvider with ChangeNotifier {
           _themeMode == ThemeModeSetting.dark ? 'dark' :
           _themeMode == ThemeModeSetting.system ? 'system' : 'light');
     } catch (e) {
-      print('[Wayvio] SettingsProvider._persist failed: $e');
+      debugPrint('[Wayvio] SettingsProvider._persist failed: $e');
     }
   }
 }
