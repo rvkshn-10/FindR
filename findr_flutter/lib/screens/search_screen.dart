@@ -58,15 +58,86 @@ class SearchScreen extends StatefulWidget {
 
 // Common items for autocomplete when no recent searches match.
 const _kAutocompleteSuggestions = <String>[
-  'AA Batteries', 'AAA Batteries', 'Baby Formula', 'Baby Wipes',
-  'Band-Aids', 'Bottled Water', 'Bread', 'Charcoal', 'Charger',
-  'Cleaning Supplies', 'Cold Medicine', 'Diapers', 'Dog Food',
-  'Eggs', 'Extension Cord', 'First Aid Kit', 'Flashlight',
-  'Gasoline', 'Hand Sanitizer', 'Headphones', 'Ice', 'Ibuprofen',
-  'Laundry Detergent', 'Light Bulbs', 'Masks', 'Milk', 'N95 Masks',
-  'Paper Towels', 'Phone Case', 'Printer Ink', 'Rice',
-  'Sunscreen', 'Thermometer', 'Tissues', 'Toilet Paper',
-  'Toothpaste', 'Trash Bags', 'Tylenol', 'USB Cable', 'Water',
+  // Batteries & electronics
+  'AA Batteries', 'AAA Batteries', 'C Batteries', 'D Batteries', '9V Battery',
+  'Phone Charger', 'USB-C Cable', 'USB Cable', 'Lightning Cable',
+  'Portable Charger', 'Power Bank', 'Extension Cord', 'Power Strip',
+  'Headphones', 'Earbuds', 'Bluetooth Speaker', 'HDMI Cable',
+  'Phone Case', 'Screen Protector', 'Memory Card', 'SD Card', 'Flash Drive',
+  'Printer Ink', 'Printer Paper', 'Laptop Stand', 'Mouse', 'Keyboard',
+  // Baby & kids
+  'Baby Formula', 'Baby Wipes', 'Diapers', 'Baby Food', 'Pacifier',
+  'Baby Bottles', 'Baby Shampoo', 'Diaper Cream', 'Sippy Cup',
+  // Food & beverages
+  'Bottled Water', 'Bread', 'Milk', 'Eggs', 'Butter', 'Cheese',
+  'Rice', 'Pasta', 'Cereal', 'Coffee', 'Tea', 'Sugar', 'Flour',
+  'Olive Oil', 'Cooking Oil', 'Salt', 'Pepper', 'Canned Soup',
+  'Peanut Butter', 'Jelly', 'Honey', 'Oatmeal', 'Yogurt',
+  'Chicken', 'Ground Beef', 'Fish', 'Frozen Pizza', 'Ice Cream',
+  'Chips', 'Crackers', 'Popcorn', 'Granola Bars', 'Protein Bars',
+  'Fruit', 'Bananas', 'Apples', 'Oranges', 'Strawberries', 'Avocado',
+  'Vegetables', 'Lettuce', 'Tomatoes', 'Onions', 'Potatoes', 'Carrots',
+  'Soda', 'Juice', 'Sports Drink', 'Energy Drink',
+  // Health & medicine
+  'Band-Aids', 'First Aid Kit', 'Thermometer', 'Cold Medicine',
+  'Ibuprofen', 'Tylenol', 'Aspirin', 'Allergy Medicine', 'Antihistamine',
+  'Cough Syrup', 'Throat Lozenges', 'Vitamin C', 'Vitamins',
+  'Pain Reliever', 'Antacid', 'Pepto Bismol', 'Eye Drops',
+  'Hydrogen Peroxide', 'Rubbing Alcohol', 'Neosporin', 'Gauze',
+  'Ace Bandage', 'Ice Pack', 'Heating Pad', 'Blood Pressure Monitor',
+  // Personal care
+  'Toothpaste', 'Toothbrush', 'Mouthwash', 'Dental Floss',
+  'Shampoo', 'Conditioner', 'Body Wash', 'Soap', 'Hand Soap',
+  'Deodorant', 'Razors', 'Shaving Cream', 'Lotion', 'Lip Balm',
+  'Sunscreen', 'Hair Gel', 'Hair Spray', 'Cotton Balls', 'Q-Tips',
+  'Nail Clippers', 'Tweezers', 'Contact Solution', 'Tampons', 'Pads',
+  // Cleaning & household
+  'Cleaning Supplies', 'Laundry Detergent', 'Fabric Softener',
+  'Dish Soap', 'Dishwasher Pods', 'Bleach', 'All-Purpose Cleaner',
+  'Glass Cleaner', 'Windex', 'Lysol', 'Disinfectant Wipes', 'Clorox',
+  'Paper Towels', 'Toilet Paper', 'Tissues', 'Trash Bags',
+  'Sponges', 'Mop', 'Broom', 'Dustpan', 'Vacuum Bags',
+  'Air Freshener', 'Candles', 'Light Bulbs', 'LED Bulbs',
+  'Batteries', 'Duct Tape', 'Super Glue', 'WD-40',
+  // Pet supplies
+  'Dog Food', 'Cat Food', 'Cat Litter', 'Pet Treats', 'Dog Leash',
+  'Dog Toys', 'Cat Toys', 'Pet Shampoo', 'Flea Treatment',
+  // Outdoor & seasonal
+  'Charcoal', 'Lighter Fluid', 'Matches', 'Lighter', 'Flashlight',
+  'Lantern', 'Sunscreen', 'Bug Spray', 'Insect Repellent',
+  'Ice', 'Ice Melt', 'Rock Salt', 'Snow Shovel',
+  'Firewood', 'Propane', 'Garden Hose', 'Lawn Bags',
+  'Seeds', 'Potting Soil', 'Fertilizer', 'Plant Pots',
+  // Safety
+  'N95 Masks', 'Masks', 'Hand Sanitizer', 'Gloves', 'Face Shield',
+  'Smoke Detector', 'Carbon Monoxide Detector', 'Fire Extinguisher',
+  // Automotive
+  'Motor Oil', 'Windshield Fluid', 'Antifreeze', 'Jumper Cables',
+  'Tire Gauge', 'Car Air Freshener', 'Gasoline', 'Gas Can',
+  // Clothing & accessories
+  'Socks', 'Underwear', 'T-Shirt', 'Rain Jacket', 'Umbrella',
+  'Sunglasses', 'Winter Gloves', 'Beanie', 'Scarf',
+  // Kitchen & home
+  'Aluminum Foil', 'Plastic Wrap', 'Ziplock Bags', 'Tupperware',
+  'Paper Plates', 'Plastic Cups', 'Napkins', 'Straws',
+  'Can Opener', 'Bottle Opener', 'Measuring Cups', 'Cutting Board',
+  // Office & school
+  'Pens', 'Pencils', 'Markers', 'Highlighters', 'Notebooks',
+  'Binder', 'Folders', 'Tape', 'Scissors', 'Stapler', 'Envelopes',
+  'Stamps', 'Sticky Notes', 'Index Cards', 'Backpack',
+  // Dining out
+  'Pizza', 'Burgers', 'Tacos', 'Sushi', 'Chinese Food',
+  'Thai Food', 'Indian Food', 'Mexican Food', 'Italian Food',
+  'Breakfast', 'Brunch', 'Coffee Shop', 'Bakery', 'Deli',
+  // Services
+  'Pharmacy', 'Gas Station', 'ATM', 'Bank', 'Post Office',
+  'Laundromat', 'Dry Cleaner', 'Hair Salon', 'Barber',
+  'Dentist', 'Doctor', 'Urgent Care', 'Veterinarian',
+  'Auto Repair', 'Car Wash', 'Tire Shop', 'Oil Change',
+  // Stores
+  'Grocery Store', 'Convenience Store', 'Hardware Store',
+  'Dollar Store', 'Thrift Store', 'Liquor Store',
+  'Electronics Store', 'Pet Store', 'Toy Store', 'Book Store',
 ];
 
 class _SearchScreenState extends State<SearchScreen> {
@@ -143,6 +214,7 @@ class _SearchScreenState extends State<SearchScreen> {
   void _showAutocomplete() {
     _hideAutocomplete();
     _autocompleteOverlay = OverlayEntry(builder: (context) {
+      final ac = AppColors.of(context);
       return Positioned(
         width: MediaQuery.of(context).size.width < 700
             ? MediaQuery.of(context).size.width - 48
@@ -155,7 +227,7 @@ class _SearchScreenState extends State<SearchScreen> {
             elevation: 8,
             shadowColor: Colors.black26,
             borderRadius: BorderRadius.circular(kRadiusMd),
-            color: Colors.white,
+            color: ac.cardBg,
             child: ClipRRect(
               borderRadius: BorderRadius.circular(kRadiusMd),
               child: Column(
@@ -176,7 +248,7 @@ class _SearchScreenState extends State<SearchScreen> {
                                 ? Icons.history
                                 : Icons.search,
                             size: 16,
-                            color: SupplyMapColors.textTertiary,
+                            color: ac.textTertiary,
                           ),
                           const SizedBox(width: 12),
                           Expanded(
@@ -184,7 +256,7 @@ class _SearchScreenState extends State<SearchScreen> {
                               s,
                               style: _outfit(
                                 fontSize: 14,
-                                color: SupplyMapColors.textBlack,
+                                color: ac.textPrimary,
                               ),
                             ),
                           ),
@@ -439,6 +511,7 @@ class _SearchScreenState extends State<SearchScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final ac = AppColors.of(context);
     return Scaffold(
       backgroundColor: Colors.transparent,
       body: SafeArea(
@@ -451,7 +524,7 @@ class _SearchScreenState extends State<SearchScreen> {
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
-                  color: Colors.black.withValues(alpha: 0.06),
+                  color: ac.glass.withValues(alpha: 0.5),
                   borderRadius: BorderRadius.circular(4),
                 ),
                 child: Text(
@@ -459,7 +532,7 @@ class _SearchScreenState extends State<SearchScreen> {
                   style: _outfit(
                     fontSize: 11,
                     fontWeight: FontWeight.w500,
-                    color: SupplyMapColors.textSecondary,
+                    color: ac.textSecondary,
                   ),
                 ),
               ),
@@ -476,20 +549,20 @@ class _SearchScreenState extends State<SearchScreen> {
                     width: 44,
                     height: 44,
                     decoration: BoxDecoration(
-                      color: Colors.white,
+                      color: ac.cardBg,
                       shape: BoxShape.circle,
-                      border: Border.all(color: SupplyMapColors.borderSubtle),
-                      boxShadow: const [
+                      border: Border.all(color: ac.borderSubtle),
+                      boxShadow: [
                         BoxShadow(
-                          color: Color(0x081A1918),
+                          color: Colors.black.withValues(alpha: 0.04),
                           blurRadius: 6,
-                          offset: Offset(0, 1),
+                          offset: const Offset(0, 1),
                         ),
                       ],
                     ),
                     child: IconButton(
-                      icon: const Icon(Icons.person_outline,
-                          color: SupplyMapColors.textSecondary, size: 20),
+                      icon: Icon(Icons.person_outline,
+                          color: ac.textSecondary, size: 20),
                       tooltip: 'Profile & History',
                       onPressed: widget.onOpenProfile,
                     ),
@@ -500,20 +573,20 @@ class _SearchScreenState extends State<SearchScreen> {
                     width: 44,
                     height: 44,
                     decoration: BoxDecoration(
-                      color: Colors.white,
+                      color: ac.cardBg,
                       shape: BoxShape.circle,
-                      border: Border.all(color: SupplyMapColors.borderSubtle),
-                      boxShadow: const [
+                      border: Border.all(color: ac.borderSubtle),
+                      boxShadow: [
                         BoxShadow(
-                          color: Color(0x081A1918),
+                          color: Colors.black.withValues(alpha: 0.04),
                           blurRadius: 6,
-                          offset: Offset(0, 1),
+                          offset: const Offset(0, 1),
                         ),
                       ],
                     ),
                     child: IconButton(
-                      icon: const Icon(Icons.settings,
-                          color: SupplyMapColors.textSecondary, size: 20),
+                      icon: Icon(Icons.settings,
+                          color: ac.textSecondary, size: 20),
                       tooltip: 'Settings',
                       onPressed: () =>
                           setState(() => _settingsOpen = !_settingsOpen),
@@ -542,7 +615,7 @@ class _SearchScreenState extends State<SearchScreen> {
                       fontWeight: FontWeight.w700,
                       letterSpacing: isNarrow ? -1 : -2,
                       height: 0.95,
-                      color: SupplyMapColors.textBlack,
+                      color: ac.textPrimary,
                     ),
                   );
                 }),
@@ -558,7 +631,7 @@ class _SearchScreenState extends State<SearchScreen> {
                     textAlign: TextAlign.center,
                     style: _outfit(
                       fontSize: isNarrow ? 15 : 18,
-                      color: SupplyMapColors.textSecondary,
+                      color: ac.textSecondary,
                       height: 1.5,
                     ),
                   );
@@ -588,7 +661,7 @@ class _SearchScreenState extends State<SearchScreen> {
                     style: _outfit(
                       fontSize: 12,
                       fontWeight: FontWeight.w500,
-                      color: SupplyMapColors.textTertiary,
+                      color: ac.textTertiary,
                     ),
                   ),
                   const SizedBox(height: 10),
@@ -619,7 +692,7 @@ class _SearchScreenState extends State<SearchScreen> {
               Positioned.fill(
                 child: GestureDetector(
                   onTap: () => setState(() => _settingsOpen = false),
-                  child: Container(color: Colors.black.withValues(alpha: 0.15)),
+                  child: Container(color: ac.dimOverlay),
                 ),
               ),
             // Sliding panel from the right (responsive width)
@@ -781,28 +854,29 @@ class _SearchScreenState extends State<SearchScreen> {
 
   // ── Search bar ──────────────────────────────────────────────────────────
   Widget _buildSearchBar() {
+    final ac = AppColors.of(context);
     return CompositedTransformTarget(
       link: _searchBarLayerLink,
       child: Container(
       constraints: const BoxConstraints(maxWidth: 700),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: ac.inputBg,
         borderRadius: BorderRadius.circular(kRadiusPill),
-        border: Border.all(color: SupplyMapColors.borderSubtle),
-        boxShadow: const [
+        border: Border.all(color: ac.borderSubtle),
+        boxShadow: [
           BoxShadow(
-            color: Color(0x121A1918),
+            color: Colors.black.withValues(alpha: ac.isDark ? 0.3 : 0.07),
             blurRadius: 24,
-            offset: Offset(0, 4),
+            offset: const Offset(0, 4),
           ),
         ],
       ),
       padding: const EdgeInsets.all(8),
       child: Row(
         children: [
-          const Padding(
-            padding: EdgeInsets.only(left: 12),
-            child: Icon(Icons.search, color: SupplyMapColors.textTertiary, size: 22),
+          Padding(
+            padding: const EdgeInsets.only(left: 12),
+            child: Icon(Icons.search, color: ac.textTertiary, size: 22),
           ),
           Expanded(
             child: TextField(
@@ -810,13 +884,13 @@ class _SearchScreenState extends State<SearchScreen> {
               style: _outfit(
                 fontSize: 17,
                 fontWeight: FontWeight.w500,
-                color: SupplyMapColors.textBlack,
+                color: ac.textPrimary,
               ),
               decoration: InputDecoration(
                 hintText: "What are you looking for? e.g. 'AA Batteries'",
                 hintStyle: _outfit(
                   fontSize: 17,
-                  color: SupplyMapColors.textTertiary,
+                  color: ac.textTertiary,
                 ),
                 border: InputBorder.none,
                 enabledBorder: InputBorder.none,
@@ -851,6 +925,7 @@ class _SearchScreenState extends State<SearchScreen> {
 
   // ── Location toggle ─────────────────────────────────────────────────────
   Widget _buildLocationToggle() {
+    final ac = AppColors.of(context);
     return Container(
       constraints: const BoxConstraints(maxWidth: 700),
       child: Column(
@@ -866,7 +941,7 @@ class _SearchScreenState extends State<SearchScreen> {
                   value: _useMyLocation,
                   onChanged:
                       _loading ? null : (v) => setState(() => _useMyLocation = v ?? true),
-                  side: const BorderSide(color: SupplyMapColors.borderStrong),
+                  side: BorderSide(color: ac.borderStrong),
                   checkColor: Colors.white,
                   fillColor: WidgetStateProperty.resolveWith((s) =>
                       s.contains(WidgetState.selected)
@@ -882,7 +957,7 @@ class _SearchScreenState extends State<SearchScreen> {
                 style: _outfit(
                   fontSize: 13,
                   fontWeight: FontWeight.w500,
-                  color: SupplyMapColors.textSecondary,
+                  color: ac.textSecondary,
                 ),
               ),
             ],
@@ -891,18 +966,18 @@ class _SearchScreenState extends State<SearchScreen> {
             const SizedBox(height: 8),
             Container(
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: ac.inputBg,
                 borderRadius: BorderRadius.circular(kRadiusMd),
-                border: Border.all(color: SupplyMapColors.borderSubtle),
+                border: Border.all(color: ac.borderSubtle),
               ),
               child: TextField(
                 controller: _locationController,
                 style: _outfit(
-                    fontSize: 14, color: SupplyMapColors.textBlack),
+                    fontSize: 14, color: ac.textPrimary),
                 decoration: InputDecoration(
                   hintText: 'City or address',
                   hintStyle: _outfit(
-                      fontSize: 14, color: SupplyMapColors.textTertiary),
+                      fontSize: 14, color: ac.textTertiary),
                   border: InputBorder.none,
                   enabledBorder: InputBorder.none,
                   focusedBorder: InputBorder.none,
@@ -949,18 +1024,19 @@ class _SearchScreenState extends State<SearchScreen> {
   }
   // ── Distance slider ─────────────────────────────────────────────────────
   Widget _buildDistanceSlider() {
+    final ac = AppColors.of(context);
     return Container(
       constraints: const BoxConstraints(maxWidth: 700),
       child: Row(
         children: [
-          const Icon(Icons.near_me, size: 14, color: SupplyMapColors.textTertiary),
+          Icon(Icons.near_me, size: 14, color: ac.textTertiary),
           const SizedBox(width: 6),
           Text(
             'Radius: ${_maxDistanceMiles.round()} mi',
             style: _outfit(
               fontSize: 13,
               fontWeight: FontWeight.w500,
-              color: SupplyMapColors.textSecondary,
+              color: ac.textSecondary,
             ),
           ),
           Expanded(
@@ -1152,17 +1228,16 @@ class _FilterChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final ac = AppColors.of(context);
     return GestureDetector(
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
-          color: selected ? SupplyMapColors.accentGreen : SupplyMapColors.glass,
+          color: selected ? ac.accentGreen : ac.glass,
           borderRadius: BorderRadius.circular(kRadiusPill),
           border: Border.all(
-            color: selected
-                ? SupplyMapColors.accentGreen
-                : SupplyMapColors.borderSubtle,
+            color: selected ? ac.accentGreen : ac.borderSubtle,
           ),
         ),
         child: Text(
@@ -1170,7 +1245,7 @@ class _FilterChip extends StatelessWidget {
           style: _outfit(
             fontSize: 12,
             fontWeight: FontWeight.w500,
-            color: selected ? Colors.white : SupplyMapColors.textBlack,
+            color: selected ? Colors.white : ac.textPrimary,
           ),
         ),
       ),
@@ -1231,6 +1306,7 @@ class _SuggestionPillState extends State<_SuggestionPill> {
 
   @override
   Widget build(BuildContext context) {
+    final ac = AppColors.of(context);
     return MouseRegion(
       onEnter: (_) => setState(() => _hovered = true),
       onExit: (_) => setState(() => _hovered = false),
@@ -1247,11 +1323,9 @@ class _SuggestionPillState extends State<_SuggestionPill> {
             bottom: 10,
           ),
           decoration: BoxDecoration(
-            color: _hovered
-                ? SupplyMapColors.borderSubtle
-                : SupplyMapColors.glass,
+            color: _hovered ? ac.borderSubtle : ac.glass,
             borderRadius: BorderRadius.circular(kRadiusPill),
-            border: Border.all(color: SupplyMapColors.borderSubtle),
+            border: Border.all(color: ac.borderSubtle),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
@@ -1261,7 +1335,7 @@ class _SuggestionPillState extends State<_SuggestionPill> {
                 style: _outfit(
                   fontSize: 14,
                   fontWeight: FontWeight.w500,
-                  color: SupplyMapColors.textBlack,
+                  color: ac.textPrimary,
                 ),
               ),
               if (widget.onRemove != null) ...[
@@ -1274,7 +1348,7 @@ class _SuggestionPillState extends State<_SuggestionPill> {
                     child: Icon(
                       Icons.close,
                       size: 14,
-                      color: SupplyMapColors.textTertiary,
+                      color: ac.textTertiary,
                     ),
                   ),
                 ),

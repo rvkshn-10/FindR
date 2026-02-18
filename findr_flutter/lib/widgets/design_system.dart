@@ -45,6 +45,48 @@ class SupplyMapColors {
   static const Color accentWarm = Color(0xFFD89575);
 }
 
+/// Adaptive color palette — returns dark or light colors based on brightness.
+class AppColors {
+  final bool isDark;
+  const AppColors._(this.isDark);
+
+  factory AppColors.of(BuildContext context) {
+    return AppColors._(Theme.of(context).brightness == Brightness.dark);
+  }
+
+  // Accent (brighter green in dark mode for visibility)
+  Color get accentGreen => isDark ? const Color(0xFF4EBF75) : SupplyMapColors.accentGreen;
+  Color get accentLightGreen => isDark ? const Color(0xFF1B3D28) : SupplyMapColors.accentLightGreen;
+
+  // Core accents
+  Color get red => SupplyMapColors.red;
+  Color get purple => isDark ? const Color(0xFFB39DDF) : SupplyMapColors.purple;
+  Color get blue => isDark ? const Color(0xFF82B5F0) : SupplyMapColors.blue;
+
+  // Backgrounds
+  Color get bodyBg => isDark ? const Color(0xFF121212) : SupplyMapColors.bodyBg;
+  Color get sidebarBg => isDark ? const Color(0xFF1E1E1E) : SupplyMapColors.sidebarBg;
+  Color get mapBg => isDark ? const Color(0xFF1A1A1A) : SupplyMapColors.mapBg;
+
+  // Glass (cards, chips)
+  Color get glass => isDark ? const Color(0xFF2A2A2A) : SupplyMapColors.glass;
+  Color get glassBorder => isDark ? const Color(0xFF3A3A3A) : SupplyMapColors.glassBorder;
+
+  // Text
+  Color get textPrimary => isDark ? const Color(0xFFEAEAEA) : SupplyMapColors.textBlack;
+  Color get textSecondary => isDark ? const Color(0xFFAAAAAA) : SupplyMapColors.textSecondary;
+  Color get textTertiary => isDark ? const Color(0xFF777777) : SupplyMapColors.textTertiary;
+
+  // Borders
+  Color get borderSubtle => isDark ? const Color(0xFF333333) : SupplyMapColors.borderSubtle;
+  Color get borderStrong => isDark ? const Color(0xFF444444) : SupplyMapColors.borderStrong;
+
+  // Surfaces for inputs, cards
+  Color get inputBg => isDark ? const Color(0xFF252525) : Colors.white;
+  Color get cardBg => isDark ? const Color(0xFF1E1E1E) : Colors.white;
+  Color get dimOverlay => isDark ? Colors.black.withValues(alpha: 0.4) : Colors.black.withValues(alpha: 0.15);
+}
+
 // Radii (generous, soft, friendly)
 const double kRadiusLg = 16;
 const double kRadiusMd = 12;
@@ -155,13 +197,14 @@ class _GradientBackgroundState extends State<GradientBackground>
       builder: (context, _) {
         final energy = _breathe.value;
         final now = _stopwatch.elapsedMilliseconds / 1000.0;
+        final ac = AppColors.of(context);
         return Container(
-          color: SupplyMapColors.bodyBg,
+          color: ac.bodyBg,
           child: Stack(
             fit: StackFit.expand,
             children: [
               CustomPaint(
-                painter: _GradientBlobPainter(),
+                painter: _GradientBlobPainter(isDark: ac.isDark),
                 size: Size.infinite,
               ),
               CustomPaint(
@@ -170,11 +213,12 @@ class _GradientBackgroundState extends State<GradientBackground>
                   mousePos: _mousePos,
                   ripples: _ripples,
                   time: now,
+                  isDark: ac.isDark,
                 ),
                 size: Size.infinite,
               ),
               CustomPaint(
-                painter: _SearchGlowPainter(mousePos: _mousePos),
+                painter: _SearchGlowPainter(mousePos: _mousePos, isDark: ac.isDark),
                 size: Size.infinite,
               ),
               Listener(
@@ -207,25 +251,32 @@ class _GradientBackgroundState extends State<GradientBackground>
 }
 
 class _GradientBlobPainter extends CustomPainter {
+  final bool isDark;
+  _GradientBlobPainter({this.isDark = false});
+
   @override
   void paint(Canvas canvas, Size size) {
+    final greenAlpha = isDark ? 0.12 : 0.08;
+    final warmAlpha = isDark ? 0.10 : 0.08;
+    final blueAlpha = isDark ? 0.08 : 0.06;
+    final green = isDark ? const Color(0xFF4EBF75) : SupplyMapColors.accentGreen;
     _drawBlob(
       canvas,
       Offset(size.width * 0.1, size.height * 0.1),
       math.max(size.width, size.height) * 0.4,
-      SupplyMapColors.accentGreen.withValues(alpha: 0.08),
+      green.withValues(alpha: greenAlpha),
     );
     _drawBlob(
       canvas,
       Offset(size.width * 0.9, size.height * 0.8),
       math.max(size.width, size.height) * 0.4,
-      SupplyMapColors.accentWarm.withValues(alpha: 0.08),
+      SupplyMapColors.accentWarm.withValues(alpha: warmAlpha),
     );
     _drawBlob(
       canvas,
       Offset(size.width * 0.5, size.height * 0.5),
       math.max(size.width, size.height) * 0.6,
-      SupplyMapColors.blue.withValues(alpha: 0.06),
+      SupplyMapColors.blue.withValues(alpha: blueAlpha),
     );
   }
 
@@ -239,7 +290,8 @@ class _GradientBlobPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+  bool shouldRepaint(covariant _GradientBlobPainter oldDelegate) =>
+      oldDelegate.isDark != isDark;
 }
 
 // ---------------------------------------------------------------------------
@@ -252,6 +304,7 @@ class _TopoPainter extends CustomPainter {
     this.mousePos,
     this.ripples = const [],
     this.time = 0.0,
+    this.isDark = false,
   });
 
   /// 0 = resting, 1 = fully expanded (keystroke pulse).
@@ -265,6 +318,9 @@ class _TopoPainter extends CustomPainter {
 
   /// Current time in seconds (from stopwatch).
   final double time;
+
+  /// Dark mode flag.
+  final bool isDark;
 
   // Pre-filter ripples that are still alive to avoid per-point checks.
   late final List<_Ripple> _activeRipples = ripples
@@ -315,14 +371,18 @@ class _TopoPainter extends CustomPainter {
         proximity = (1.0 - distFromRing * 2.5).clamp(0.0, 1.0); // 1/0.4=2.5
       }
 
-      final baseAlpha = (i > 6) ? (0.7 - (i - 6) * 0.06) : 0.7;
+      final baseAlpha = isDark
+          ? ((i > 6) ? (0.5 - (i - 6) * 0.04) : 0.5)
+          : ((i > 6) ? (0.7 - (i - 6) * 0.06) : 0.7);
       final alpha = (baseAlpha + breathe * 0.2 + proximity * 0.25).clamp(0.0, 0.95);
       final greenAmount = (breathe * 0.35 + proximity * 0.5).clamp(0.0, 1.0);
+      final baseColor = isDark ? const Color(0xFF444444) : SupplyMapColors.borderStrong;
+      final accentColor = isDark ? const Color(0xFF4EBF75) : SupplyMapColors.accentGreen;
       final color = Color.lerp(
-        SupplyMapColors.borderStrong,
-        SupplyMapColors.accentGreen,
+        baseColor,
+        accentColor,
         greenAmount,
-      ) ?? SupplyMapColors.borderStrong;
+      ) ?? baseColor;
 
       paint
         ..strokeWidth = 1.6 + breathe * 1.0 + proximity * 1.8
@@ -377,6 +437,7 @@ class _TopoPainter extends CustomPainter {
   bool shouldRepaint(covariant _TopoPainter oldDelegate) =>
       oldDelegate.breathe != breathe ||
       oldDelegate.mousePos != mousePos ||
+      oldDelegate.isDark != isDark ||
       (ripples.isNotEmpty && oldDelegate.time != time);
 }
 
@@ -385,20 +446,22 @@ class _TopoPainter extends CustomPainter {
 // ---------------------------------------------------------------------------
 
 class _SearchGlowPainter extends CustomPainter {
-  _SearchGlowPainter({this.mousePos});
+  _SearchGlowPainter({this.mousePos, this.isDark = false});
 
   final Offset? mousePos;
+  final bool isDark;
 
   @override
   void paint(Canvas canvas, Size size) {
-    // Follow mouse if available, otherwise default to center.
     final center = mousePos ?? Offset(size.width * 0.5, size.height * 0.55);
     const radius = 350.0;
+    final glowColor = isDark ? const Color(0xFF4EBF75) : SupplyMapColors.accentGreen;
+    final glowAlpha = isDark ? 0.25 : 0.18;
     final paint = Paint()
       ..shader = RadialGradient(
         colors: [
-          SupplyMapColors.accentGreen.withValues(alpha: 0.18),
-          SupplyMapColors.accentGreen.withValues(alpha: 0.0),
+          glowColor.withValues(alpha: glowAlpha),
+          glowColor.withValues(alpha: 0.0),
         ],
         stops: const [0.0, 1.0],
       ).createShader(Rect.fromCircle(center: center, radius: radius));
@@ -408,6 +471,6 @@ class _SearchGlowPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _SearchGlowPainter oldDelegate) =>
-      oldDelegate.mousePos != mousePos;
+      oldDelegate.mousePos != mousePos || oldDelegate.isDark != isDark;
 }
 

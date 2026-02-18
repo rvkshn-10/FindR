@@ -32,16 +32,17 @@ class SettingsPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final settings = context.watch<SettingsProvider>();
+    final ac = AppColors.of(context);
     return Material(
       color: Colors.transparent,
       child: Container(
-        decoration: const BoxDecoration(
-          color: SupplyMapColors.sidebarBg,
-          borderRadius: BorderRadius.only(
+        decoration: BoxDecoration(
+          color: ac.sidebarBg,
+          borderRadius: const BorderRadius.only(
             topLeft: Radius.circular(20),
             bottomLeft: Radius.circular(20),
           ),
-          boxShadow: [
+          boxShadow: const [
             BoxShadow(
               color: Color(0x1A000000),
               blurRadius: 24,
@@ -56,28 +57,28 @@ class SettingsPanel extends StatelessWidget {
               padding: const EdgeInsets.fromLTRB(24, 24, 12, 8),
               child: Row(
                 children: [
-                  const Icon(Icons.settings,
-                      color: SupplyMapColors.textSecondary, size: 20),
+                  Icon(Icons.settings,
+                      color: ac.textSecondary, size: 20),
                   const SizedBox(width: 10),
                   Text(
                     'Settings',
                     style: _outfit(
                       fontSize: 17,
                       fontWeight: FontWeight.w700,
-                      color: SupplyMapColors.textBlack,
+                      color: ac.textPrimary,
                     ),
                   ),
                   const Spacer(),
                   IconButton(
-                    icon: const Icon(Icons.close,
-                        color: SupplyMapColors.textSecondary, size: 20),
+                    icon: Icon(Icons.close,
+                        color: ac.textSecondary, size: 20),
                     tooltip: 'Close settings',
                     onPressed: onClose,
                   ),
                 ],
               ),
             ),
-            const Divider(color: SupplyMapColors.borderSubtle, height: 1),
+            Divider(color: ac.borderSubtle, height: 1),
             // ── Body
             Expanded(
               child: ListView(
@@ -86,15 +87,15 @@ class SettingsPanel extends StatelessWidget {
                   // Distance unit section
                   Row(
                     children: [
-                      const Icon(Icons.straighten,
-                          color: SupplyMapColors.blue, size: 20),
+                      Icon(Icons.straighten,
+                          color: ac.blue, size: 20),
                       const SizedBox(width: 12),
                       Text(
                         'Distance unit',
                         style: _outfit(
                           fontSize: 15,
                           fontWeight: FontWeight.w600,
-                          color: SupplyMapColors.textBlack,
+                          color: ac.textPrimary,
                         ),
                       ),
                     ],
@@ -113,21 +114,20 @@ class SettingsPanel extends StatelessWidget {
                     onChanged: (v) { if (v != null) settings.setDistanceUnit(v); },
                   ),
                   const SizedBox(height: 24),
-                  const Divider(
-                      color: SupplyMapColors.borderSubtle, height: 1),
+                  Divider(color: ac.borderSubtle, height: 1),
                   const SizedBox(height: 24),
                   // Theme section
                   Row(
                     children: [
-                      const Icon(Icons.dark_mode_outlined,
-                          color: SupplyMapColors.purple, size: 20),
+                      Icon(Icons.dark_mode_outlined,
+                          color: ac.purple, size: 20),
                       const SizedBox(width: 12),
                       Text(
                         'Theme',
                         style: _outfit(
                           fontSize: 15,
                           fontWeight: FontWeight.w600,
-                          color: SupplyMapColors.textBlack,
+                          color: ac.textPrimary,
                         ),
                       ),
                     ],
@@ -152,21 +152,20 @@ class SettingsPanel extends StatelessWidget {
                     onChanged: (v) { if (v != null) settings.setThemeMode(v); },
                   ),
                   const SizedBox(height: 24),
-                  const Divider(
-                      color: SupplyMapColors.borderSubtle, height: 1),
+                  Divider(color: ac.borderSubtle, height: 1),
                   const SizedBox(height: 24),
                   // Currency section
                   Row(
                     children: [
-                      const Icon(Icons.attach_money,
-                          color: SupplyMapColors.accentGreen, size: 20),
+                      Icon(Icons.attach_money,
+                          color: ac.accentGreen, size: 20),
                       const SizedBox(width: 12),
                       Text(
                         'Currency',
                         style: _outfit(
                           fontSize: 15,
                           fontWeight: FontWeight.w600,
-                          color: SupplyMapColors.textBlack,
+                          color: ac.textPrimary,
                         ),
                       ),
                     ],
@@ -175,20 +174,19 @@ class SettingsPanel extends StatelessWidget {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 12),
                     decoration: BoxDecoration(
-                      color: SupplyMapColors.bodyBg,
+                      color: ac.glass,
                       borderRadius: BorderRadius.circular(kRadiusSm),
-                      border:
-                          Border.all(color: SupplyMapColors.borderSubtle),
+                      border: Border.all(color: ac.borderSubtle),
                     ),
                     child: DropdownButtonHideUnderline(
                       child: DropdownButton<String>(
                         value: _currencies.contains(settings.currency)
                             ? settings.currency
                             : 'USD',
-                        dropdownColor: SupplyMapColors.sidebarBg,
+                        dropdownColor: ac.sidebarBg,
                         isExpanded: true,
                         style: _outfit(
-                            color: SupplyMapColors.textBlack, fontSize: 14),
+                            color: ac.textPrimary, fontSize: 14),
                         items: _currencies
                             .map((c) => DropdownMenuItem(
                                 value: c, child: Text(c)))
@@ -224,6 +222,7 @@ class _SettingsRadio<T> extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final ac = AppColors.of(context);
     final selected = value == groupValue;
     return InkWell(
       onTap: () => onChanged(value),
@@ -239,12 +238,12 @@ class _SettingsRadio<T> extends StatelessWidget {
                 shape: BoxShape.circle,
                 border: Border.all(
                   color: selected
-                      ? SupplyMapColors.accentGreen
-                      : SupplyMapColors.borderStrong,
+                      ? ac.accentGreen
+                      : ac.borderStrong,
                   width: 2,
                 ),
                 color: selected
-                    ? SupplyMapColors.accentGreen
+                    ? ac.accentGreen
                     : Colors.transparent,
               ),
               child: selected
@@ -256,7 +255,7 @@ class _SettingsRadio<T> extends StatelessWidget {
               label,
               style: _outfit(
                 fontSize: 14,
-                color: SupplyMapColors.textBlack,
+                color: ac.textPrimary,
               ),
             ),
           ],
