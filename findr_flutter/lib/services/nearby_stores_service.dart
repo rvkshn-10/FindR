@@ -172,18 +172,14 @@ Future<List<OverpassStore>> fetchNearbyStores(
         clauses.add('nwr["shop"="$s"](around:$radiusM,$lat,$lng);');
       }
     }
-  } else {
-    // --- PRODUCT / RETAIL SEARCH ---
-    // Use individual equality clauses (much faster than regex on Overpass).
-    // Reduce the number of clauses for large radii to avoid server timeouts.
-    final shopTypes = filterResult.shopFilter?.split('|') ??
-        ['electronics', 'hardware', 'doityourself', 'department_store',
-         'variety_store', 'general', 'wholesale', 'discount'];
+  } else if (filterResult.matched) {
+    // --- PRODUCT / RETAIL SEARCH (matched a known category) ---
+    final shopTypes = filterResult.shopFilter?.split('|') ?? [];
     for (final s in shopTypes.take(8)) {
       clauses.add('nwr["shop"="$s"](around:$radiusM,$lat,$lng);');
     }
 
-    final amenityTypes = filterResult.amenityFilter?.split('|') ?? ['marketplace'];
+    final amenityTypes = filterResult.amenityFilter?.split('|') ?? [];
     for (final a in amenityTypes.take(3)) {
       clauses.add('nwr["amenity"="$a"](around:$radiusM,$lat,$lng);');
     }
@@ -191,6 +187,13 @@ Future<List<OverpassStore>> fetchNearbyStores(
     if (item != null && item.trim().isNotEmpty) {
       final lower = item.toLowerCase().trim();
       clauses.add('nwr["shop"]["name"~"$lower",i](around:$radiusM,$lat,$lng);');
+    }
+  } else {
+    // --- UNRECOGNIZED ITEM — only search by name, don't dump generic stores ---
+    if (item != null && item.trim().isNotEmpty) {
+      final lower = item.toLowerCase().trim();
+      clauses.add('nwr["shop"]["name"~"$lower",i](around:$radiusM,$lat,$lng);');
+      clauses.add('nwr["amenity"]["name"~"$lower",i](around:$radiusM,$lat,$lng);');
     }
   }
 
