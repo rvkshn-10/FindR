@@ -80,7 +80,7 @@ class _SearchScreenState extends State<SearchScreen> {
     final prefs = await SharedPreferences.getInstance();
     final saved = prefs.getDouble(_kRadiusKey);
     if (saved != null && mounted) {
-      setState(() => _maxDistanceMiles = saved.clamp(3, 25));
+      setState(() => _maxDistanceMiles = saved.clamp(5, 25));
     }
   }
 
@@ -673,9 +673,9 @@ class _SearchScreenState extends State<SearchScreen> {
               ),
               child: Slider(
                 value: _maxDistanceMiles,
-                min: 3,
+                min: 5,
                 max: 25,
-                divisions: 22,
+                divisions: 20,
                 onChanged: _loading
                     ? null
                     : (v) {
