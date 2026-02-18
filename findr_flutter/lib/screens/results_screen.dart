@@ -516,6 +516,28 @@ class _ResultsScreenState extends State<ResultsScreen> {
     final stores = _sortedStores(result.stores);
     final searchRadiusMeters = widget.maxDistanceMiles * 1609.34;
 
+    // ── No results — show full-screen help page ──
+    if (stores.isEmpty) {
+      return Scaffold(
+        backgroundColor: Colors.transparent,
+        body: _NoResultsPage(
+          query: _currentItem,
+          summary: result.summary,
+          alternatives: result.alternatives,
+          radiusMiles: widget.maxDistanceMiles,
+          onBack: () {
+            if (widget.onNewSearch != null) {
+              widget.onNewSearch!();
+            } else {
+              Navigator.of(context).pop();
+            }
+          },
+          onRetry: _load,
+          onNewSearch: (term) => _reSearch(term),
+        ),
+      );
+    }
+
     Store? selectedStore;
     if (_selectedStoreId != null) {
       for (final s in stores) {
@@ -2570,6 +2592,277 @@ class _EmptyState extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// No Results — full-screen help page
+// ---------------------------------------------------------------------------
+
+class _NoResultsPage extends StatelessWidget {
+  const _NoResultsPage({
+    required this.query,
+    required this.summary,
+    required this.alternatives,
+    required this.radiusMiles,
+    required this.onBack,
+    required this.onRetry,
+    required this.onNewSearch,
+  });
+
+  final String query;
+  final String summary;
+  final List<String>? alternatives;
+  final double radiusMiles;
+  final VoidCallback onBack;
+  final VoidCallback onRetry;
+  final void Function(String) onNewSearch;
+
+  static const _quickSuggestions = [
+    'Grocery store',
+    'Convenience store',
+    'Pharmacy',
+    'Gas station',
+    'Hardware store',
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    final isNarrow = MediaQuery.of(context).size.width < 500;
+
+    return SafeArea(
+      child: Center(
+        child: SingleChildScrollView(
+          padding: EdgeInsets.symmetric(
+            horizontal: isNarrow ? 24 : 48,
+            vertical: 32,
+          ),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 520),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Icon
+                Container(
+                  width: 80,
+                  height: 80,
+                  decoration: BoxDecoration(
+                    color: SupplyMapColors.red.withValues(alpha: 0.08),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    Icons.search_off_rounded,
+                    size: 40,
+                    color: SupplyMapColors.red.withValues(alpha: 0.6),
+                  ),
+                ),
+                const SizedBox(height: 20),
+
+                // Title
+                Text(
+                  'No results for "$query"',
+                  textAlign: TextAlign.center,
+                  style: _outfit(
+                    fontSize: isNarrow ? 20 : 24,
+                    fontWeight: FontWeight.w700,
+                    color: SupplyMapColors.textBlack,
+                  ),
+                ),
+                const SizedBox(height: 8),
+
+                // Summary from search service
+                Text(
+                  summary,
+                  textAlign: TextAlign.center,
+                  style: _outfit(
+                    fontSize: 14,
+                    color: SupplyMapColors.textSecondary,
+                    height: 1.5,
+                  ),
+                ),
+                const SizedBox(height: 28),
+
+                // ── Tips card ──
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(kRadiusMd),
+                    border: Border.all(color: SupplyMapColors.borderSubtle),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          const Icon(Icons.lightbulb_outline,
+                              size: 18, color: SupplyMapColors.accentGreen),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Tips to get results',
+                            style: _outfit(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w700,
+                              color: SupplyMapColors.textBlack,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 14),
+                      _tipRow(Icons.zoom_out_map, 'Increase your search radius',
+                          'Currently set to ${radiusMiles.round()} mi — try a larger area'),
+                      const SizedBox(height: 12),
+                      _tipRow(Icons.edit, 'Use a broader search term',
+                          'e.g. "laptop" instead of a specific model name'),
+                      const SizedBox(height: 12),
+                      _tipRow(Icons.tune, 'Remove active filters',
+                          'Quality tier or store-name filters may be too narrow'),
+                      const SizedBox(height: 12),
+                      _tipRow(Icons.location_on_outlined, 'Check your location',
+                          'Make sure your address or GPS is accurate'),
+                      if (alternatives != null && alternatives!.isNotEmpty) ...[
+                        const SizedBox(height: 12),
+                        const Divider(color: SupplyMapColors.borderSubtle, height: 1),
+                        const SizedBox(height: 12),
+                        ...alternatives!.map((alt) => Padding(
+                          padding: const EdgeInsets.only(bottom: 8),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Icon(Icons.arrow_forward,
+                                  size: 14, color: SupplyMapColors.accentGreen),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  alt,
+                                  style: _outfit(
+                                    fontSize: 13,
+                                    color: SupplyMapColors.textSecondary,
+                                    height: 1.4,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        )),
+                      ],
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 24),
+
+                // ── Quick search suggestions ──
+                Text(
+                  'Try searching for:',
+                  style: _outfit(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: SupplyMapColors.textTertiary,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  alignment: WrapAlignment.center,
+                  children: _quickSuggestions.map((s) {
+                    return GestureDetector(
+                      onTap: () => onNewSearch(s),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 14, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: SupplyMapColors.glass,
+                          borderRadius: BorderRadius.circular(kRadiusPill),
+                          border: Border.all(
+                              color: SupplyMapColors.borderSubtle),
+                        ),
+                        child: Text(
+                          s,
+                          style: _outfit(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w500,
+                            color: SupplyMapColors.textBlack,
+                          ),
+                        ),
+                      ),
+                    );
+                  }).toList(),
+                ),
+                const SizedBox(height: 28),
+
+                // ── Action buttons ──
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    _pillButton('Go back', onTap: onBack),
+                    const SizedBox(width: 12),
+                    GestureDetector(
+                      onTap: onRetry,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 24, vertical: 12),
+                        decoration: BoxDecoration(
+                          color: SupplyMapColors.accentGreen,
+                          borderRadius: BorderRadius.circular(kRadiusPill),
+                        ),
+                        child: Text(
+                          'Retry search',
+                          style: _outfit(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _tipRow(IconData icon, String title, String subtitle) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: 32,
+          height: 32,
+          decoration: BoxDecoration(
+            color: SupplyMapColors.accentGreen.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Icon(icon, size: 16, color: SupplyMapColors.accentGreen),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(title,
+                  style: _outfit(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: SupplyMapColors.textBlack,
+                  )),
+              const SizedBox(height: 2),
+              Text(subtitle,
+                  style: _outfit(
+                    fontSize: 12,
+                    color: SupplyMapColors.textTertiary,
+                    height: 1.3,
+                  )),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }
