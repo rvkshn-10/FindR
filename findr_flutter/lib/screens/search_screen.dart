@@ -56,9 +56,25 @@ class SearchScreen extends StatefulWidget {
   State<SearchScreen> createState() => _SearchScreenState();
 }
 
+// Common items for autocomplete when no recent searches match.
+const _kAutocompleteSuggestions = <String>[
+  'AA Batteries', 'AAA Batteries', 'Baby Formula', 'Baby Wipes',
+  'Band-Aids', 'Bottled Water', 'Bread', 'Charcoal', 'Charger',
+  'Cleaning Supplies', 'Cold Medicine', 'Diapers', 'Dog Food',
+  'Eggs', 'Extension Cord', 'First Aid Kit', 'Flashlight',
+  'Gasoline', 'Hand Sanitizer', 'Headphones', 'Ice', 'Ibuprofen',
+  'Laundry Detergent', 'Light Bulbs', 'Masks', 'Milk', 'N95 Masks',
+  'Paper Towels', 'Phone Case', 'Printer Ink', 'Rice',
+  'Sunscreen', 'Thermometer', 'Tissues', 'Toilet Paper',
+  'Toothpaste', 'Trash Bags', 'Tylenol', 'USB Cable', 'Water',
+];
+
 class _SearchScreenState extends State<SearchScreen> {
   final _itemController = TextEditingController();
   final _locationController = TextEditingController();
+  final LayerLink _searchBarLayerLink = LayerLink();
+  OverlayEntry? _autocompleteOverlay;
+  List<String> _autocompleteSuggestions = [];
   bool _useMyLocation = true;
   double _maxDistanceMiles = 5;
   bool _loading = false;
@@ -69,12 +85,126 @@ class _SearchScreenState extends State<SearchScreen> {
   bool _membershipsOnly = false;
   final Set<String> _selectedStores = {};
   List<String> _recentSearches = [];
+  bool _onboardingSeen = false;
+  bool _showOnboarding = false;
 
   @override
   void initState() {
     super.initState();
     _loadRecentSearches();
     _loadRadius();
+    _checkOnboarding();
+    _itemController.addListener(_onSearchTextChanged);
+  }
+
+  Future<void> _checkOnboarding() async {
+    final prefs = await SharedPreferences.getInstance();
+    final seen = prefs.getBool('onboarding_seen') ?? false;
+    if (!seen && mounted) {
+      setState(() => _showOnboarding = true);
+    }
+    _onboardingSeen = seen;
+  }
+
+  Future<void> _dismissOnboarding() async {
+    setState(() => _showOnboarding = false);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('onboarding_seen', true);
+  }
+
+  void _onSearchTextChanged() {
+    final text = _itemController.text.trim().toLowerCase();
+    if (text.isEmpty) {
+      _hideAutocomplete();
+      return;
+    }
+    final matches = <String>{};
+    for (final r in _recentSearches) {
+      if (r.toLowerCase().contains(text) &&
+          r.toLowerCase() != text) {
+        matches.add(r);
+      }
+    }
+    for (final s in _kAutocompleteSuggestions) {
+      if (s.toLowerCase().contains(text) &&
+          s.toLowerCase() != text) {
+        matches.add(s);
+      }
+    }
+    final list = matches.take(5).toList();
+    if (list.isEmpty) {
+      _hideAutocomplete();
+      return;
+    }
+    _autocompleteSuggestions = list;
+    _showAutocomplete();
+  }
+
+  void _showAutocomplete() {
+    _hideAutocomplete();
+    _autocompleteOverlay = OverlayEntry(builder: (context) {
+      return Positioned(
+        width: MediaQuery.of(context).size.width < 700
+            ? MediaQuery.of(context).size.width - 48
+            : 700,
+        child: CompositedTransformFollower(
+          link: _searchBarLayerLink,
+          showWhenUnlinked: false,
+          offset: const Offset(0, 64),
+          child: Material(
+            elevation: 8,
+            shadowColor: Colors.black26,
+            borderRadius: BorderRadius.circular(kRadiusMd),
+            color: Colors.white,
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(kRadiusMd),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: _autocompleteSuggestions.map((s) {
+                  return InkWell(
+                    onTap: () {
+                      _hideAutocomplete();
+                      _searchFor(s);
+                    },
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 12),
+                      child: Row(
+                        children: [
+                          Icon(
+                            _recentSearches.contains(s)
+                                ? Icons.history
+                                : Icons.search,
+                            size: 16,
+                            color: SupplyMapColors.textTertiary,
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              s,
+                              style: _outfit(
+                                fontSize: 14,
+                                color: SupplyMapColors.textBlack,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                }).toList(),
+              ),
+            ),
+          ),
+        ),
+      );
+    });
+    Overlay.of(context).insert(_autocompleteOverlay!);
+  }
+
+  void _hideAutocomplete() {
+    _autocompleteOverlay?.remove();
+    _autocompleteOverlay = null;
   }
 
   Future<void> _loadRadius() async {
@@ -118,6 +248,8 @@ class _SearchScreenState extends State<SearchScreen> {
 
   @override
   void dispose() {
+    _hideAutocomplete();
+    _itemController.removeListener(_onSearchTextChanged);
     _itemController.dispose();
     _locationController.dispose();
     super.dispose();
@@ -296,6 +428,7 @@ class _SearchScreenState extends State<SearchScreen> {
   }
 
   void _searchFor(String term) {
+    _hideAutocomplete();
     _itemController.text = term;
     _submit();
   }
@@ -505,15 +638,152 @@ class _SearchScreenState extends State<SearchScreen> {
                 ),
               );
             }),
+            // ── Onboarding overlay ──
+            if (_showOnboarding) _buildOnboarding(),
           ],
         ),
       ),
     );
   }
 
+  Widget _buildOnboarding() {
+    return Positioned.fill(
+      child: GestureDetector(
+        onTap: _dismissOnboarding,
+        child: Container(
+          color: Colors.black.withValues(alpha: 0.6),
+          child: Center(
+            child: Container(
+              constraints: const BoxConstraints(maxWidth: 400),
+              margin: const EdgeInsets.all(24),
+              padding: const EdgeInsets.all(28),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: const [
+                  BoxShadow(
+                    color: Color(0x33000000),
+                    blurRadius: 40,
+                    offset: Offset(0, 12),
+                  ),
+                ],
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 60,
+                    height: 60,
+                    decoration: BoxDecoration(
+                      color: SupplyMapColors.accentGreen.withValues(alpha: 0.1),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.waving_hand_rounded,
+                        size: 30, color: SupplyMapColors.accentGreen),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Welcome to Wayvio!',
+                    style: _outfit(
+                      fontSize: 22,
+                      fontWeight: FontWeight.w700,
+                      color: SupplyMapColors.textBlack,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    'Find nearby stores that sell what you need.\nHere\'s how it works:',
+                    textAlign: TextAlign.center,
+                    style: _outfit(
+                      fontSize: 14,
+                      color: SupplyMapColors.textSecondary,
+                      height: 1.5,
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  _onboardingStep(Icons.search, 'Search',
+                      'Type what you\'re looking for'),
+                  const SizedBox(height: 12),
+                  _onboardingStep(Icons.location_on, 'Locate',
+                      'We find stores near you'),
+                  const SizedBox(height: 12),
+                  _onboardingStep(Icons.map_outlined, 'Navigate',
+                      'Get directions to the closest match'),
+                  const SizedBox(height: 12),
+                  _onboardingStep(Icons.favorite_border, 'Save',
+                      'Favorite stores for quick access'),
+                  const SizedBox(height: 24),
+                  SizedBox(
+                    width: double.infinity,
+                    child: GestureDetector(
+                      onTap: _dismissOnboarding,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        decoration: BoxDecoration(
+                          color: SupplyMapColors.accentGreen,
+                          borderRadius: BorderRadius.circular(kRadiusPill),
+                        ),
+                        alignment: Alignment.center,
+                        child: Text(
+                          'Get Started',
+                          style: _outfit(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _onboardingStep(IconData icon, String title, String subtitle) {
+    return Row(
+      children: [
+        Container(
+          width: 36,
+          height: 36,
+          decoration: BoxDecoration(
+            color: SupplyMapColors.accentGreen.withValues(alpha: 0.08),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Icon(icon, size: 18, color: SupplyMapColors.accentGreen),
+        ),
+        const SizedBox(width: 14),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(title,
+                  style: _outfit(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: SupplyMapColors.textBlack,
+                  )),
+              Text(subtitle,
+                  style: _outfit(
+                    fontSize: 12,
+                    color: SupplyMapColors.textTertiary,
+                  )),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
   // ── Search bar ──────────────────────────────────────────────────────────
   Widget _buildSearchBar() {
-    return Container(
+    return CompositedTransformTarget(
+      link: _searchBarLayerLink,
+      child: Container(
       constraints: const BoxConstraints(maxWidth: 700),
       decoration: BoxDecoration(
         color: Colors.white,
@@ -556,17 +826,26 @@ class _SearchScreenState extends State<SearchScreen> {
                 filled: false,
               ),
               textInputAction: TextInputAction.search,
-              onSubmitted: (_) => _submit(),
+              onSubmitted: (_) {
+                _hideAutocomplete();
+                _submit();
+              },
               onChanged: (_) => GradientBackground.onKeystroke(context),
               enabled: !_loading,
             ),
           ),
           _SearchButton(
-            onPressed: _loading ? null : _submit,
+            onPressed: _loading
+                ? null
+                : () {
+                    _hideAutocomplete();
+                    _submit();
+                  },
             loading: _loading,
           ),
         ],
       ),
+    ),
     );
   }
 

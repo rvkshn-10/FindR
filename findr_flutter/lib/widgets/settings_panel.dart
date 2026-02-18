@@ -116,6 +116,45 @@ class SettingsPanel extends StatelessWidget {
                   const Divider(
                       color: SupplyMapColors.borderSubtle, height: 1),
                   const SizedBox(height: 24),
+                  // Theme section
+                  Row(
+                    children: [
+                      const Icon(Icons.dark_mode_outlined,
+                          color: SupplyMapColors.purple, size: 20),
+                      const SizedBox(width: 12),
+                      Text(
+                        'Theme',
+                        style: _outfit(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                          color: SupplyMapColors.textBlack,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  _SettingsRadio<ThemeModeSetting>(
+                    value: ThemeModeSetting.light,
+                    groupValue: settings.themeMode,
+                    label: 'Light',
+                    onChanged: (v) { if (v != null) settings.setThemeMode(v); },
+                  ),
+                  _SettingsRadio<ThemeModeSetting>(
+                    value: ThemeModeSetting.dark,
+                    groupValue: settings.themeMode,
+                    label: 'Dark',
+                    onChanged: (v) { if (v != null) settings.setThemeMode(v); },
+                  ),
+                  _SettingsRadio<ThemeModeSetting>(
+                    value: ThemeModeSetting.system,
+                    groupValue: settings.themeMode,
+                    label: 'System',
+                    onChanged: (v) { if (v != null) settings.setThemeMode(v); },
+                  ),
+                  const SizedBox(height: 24),
+                  const Divider(
+                      color: SupplyMapColors.borderSubtle, height: 1),
+                  const SizedBox(height: 24),
                   // Currency section
                   Row(
                     children: [

@@ -69,17 +69,33 @@ class _SupplyMapShellState extends State<SupplyMapShell> {
         switchInCurve: Curves.easeOutCubic,
         switchOutCurve: Curves.easeInCubic,
         transitionBuilder: (Widget child, Animation<double> animation) {
+          final curved = CurvedAnimation(
+            parent: animation,
+            curve: Curves.easeOutCubic,
+          );
           if (child.key == const ValueKey<String>('search')) {
             return FadeTransition(
-              opacity: animation,
+              opacity: curved,
               child: ScaleTransition(
-                scale: Tween<double>(begin: 0.95, end: 1.0)
-                    .animate(animation),
+                scale: Tween<double>(begin: 0.96, end: 1.0)
+                    .animate(curved),
                 child: child,
               ),
             );
           }
-          return FadeTransition(opacity: animation, child: child);
+          if (child.key == const ValueKey<String>('results')) {
+            return FadeTransition(
+              opacity: curved,
+              child: SlideTransition(
+                position: Tween<Offset>(
+                  begin: const Offset(0.03, 0),
+                  end: Offset.zero,
+                ).animate(curved),
+                child: child,
+              ),
+            );
+          }
+          return FadeTransition(opacity: curved, child: child);
         },
         child: _buildCurrentPage(),
       ),

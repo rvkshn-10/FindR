@@ -235,3 +235,42 @@ Future<List<Map<String, dynamic>>> getRecommendations({int limit = 10}) async {
   final list = await _readList(_kRecommendations);
   return list.take(limit.clamp(0, list.length)).toList();
 }
+
+// ---------------------------------------------------------------------------
+// Store notes
+// ---------------------------------------------------------------------------
+
+const _kNotes = 'findr_store_notes';
+
+/// Get the user's note for a store.
+Future<String?> getStoreNote(String storeId) async {
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(_kNotes);
+    if (raw == null) return null;
+    final notes = jsonDecode(raw) as Map<String, dynamic>;
+    return notes[storeId] as String?;
+  } catch (e) {
+    print('[Wayvio] LocalStorage: getStoreNote failed: $e');
+    return null;
+  }
+}
+
+/// Save a note for a store.
+Future<void> saveStoreNote(String storeId, String note) async {
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(_kNotes);
+    final notes = raw != null
+        ? (jsonDecode(raw) as Map<String, dynamic>)
+        : <String, dynamic>{};
+    if (note.trim().isEmpty) {
+      notes.remove(storeId);
+    } else {
+      notes[storeId] = note.trim();
+    }
+    await prefs.setString(_kNotes, jsonEncode(notes));
+  } catch (e) {
+    print('[Wayvio] LocalStorage: saveStoreNote failed: $e');
+  }
+}

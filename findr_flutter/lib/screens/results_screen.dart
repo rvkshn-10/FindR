@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_map/flutter_map.dart';
@@ -68,6 +69,86 @@ String _badgeLabel(_CardStyle s) {
       return 'Nearby';
     case _CardStyle.standard:
       return 'Store';
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Hours status helper
+// ---------------------------------------------------------------------------
+enum _HoursStatus { open, closingSoon, closed, unknown }
+
+class _StoreHoursInfo {
+  final _HoursStatus status;
+  final String label;
+  const _StoreHoursInfo(this.status, this.label);
+}
+
+_StoreHoursInfo _parseHoursStatus(String? hours) {
+  if (hours == null || hours.isEmpty) {
+    return const _StoreHoursInfo(_HoursStatus.unknown, '');
+  }
+  final lower = hours.toLowerCase().trim();
+
+  if (lower.contains('24/7') || lower == '24 hours') {
+    return const _StoreHoursInfo(_HoursStatus.open, 'Open 24h');
+  }
+  if (lower == 'closed' || lower.contains('permanently closed')) {
+    return const _StoreHoursInfo(_HoursStatus.closed, 'Closed');
+  }
+
+  // Try to parse "HH:MM-HH:MM" or "H:MM AM - H:MM PM" patterns
+  final timeRangeRe = RegExp(
+    r'(\d{1,2}):?(\d{2})?\s*(am|pm)?\s*[-–]\s*(\d{1,2}):?(\d{2})?\s*(am|pm)?',
+    caseSensitive: false,
+  );
+  final match = timeRangeRe.firstMatch(lower);
+  if (match == null) {
+    if (lower.contains('open')) {
+      return const _StoreHoursInfo(_HoursStatus.open, 'Open');
+    }
+    return _StoreHoursInfo(_HoursStatus.unknown, hours);
+  }
+
+  try {
+    int openH = int.parse(match.group(1)!);
+    final openM = int.tryParse(match.group(2) ?? '0') ?? 0;
+    final openAmPm = match.group(3);
+    int closeH = int.parse(match.group(4)!);
+    final closeM = int.tryParse(match.group(5) ?? '0') ?? 0;
+    final closeAmPm = match.group(6);
+
+    if (openAmPm != null) {
+      if (openAmPm == 'pm' && openH != 12) openH += 12;
+      if (openAmPm == 'am' && openH == 12) openH = 0;
+    }
+    if (closeAmPm != null) {
+      if (closeAmPm == 'pm' && closeH != 12) closeH += 12;
+      if (closeAmPm == 'am' && closeH == 12) closeH = 0;
+    }
+
+    final now = DateTime.now();
+    final nowMin = now.hour * 60 + now.minute;
+    final openMin = openH * 60 + openM;
+    final closeMin = closeH * 60 + closeM;
+
+    if (closeMin > openMin) {
+      if (nowMin >= openMin && nowMin < closeMin) {
+        if (closeMin - nowMin <= 60) {
+          return _StoreHoursInfo(_HoursStatus.closingSoon,
+              'Closes in ${closeMin - nowMin}m');
+        }
+        return const _StoreHoursInfo(_HoursStatus.open, 'Open now');
+      }
+      return const _StoreHoursInfo(_HoursStatus.closed, 'Closed');
+    } else {
+      // Overnight hours (e.g. 22:00-06:00)
+      if (nowMin >= openMin || nowMin < closeMin) {
+        return const _StoreHoursInfo(_HoursStatus.open, 'Open now');
+      }
+      return const _StoreHoursInfo(_HoursStatus.closed, 'Closed');
+    }
+  } catch (_) {
+    return _StoreHoursInfo(_HoursStatus.unknown, hours);
   }
 }
 
@@ -1220,6 +1301,31 @@ class _SidebarState extends State<_Sidebar> {
     }
   }
 
+  void _shareResults(BuildContext ctx) {
+    final buffer = StringBuffer();
+    buffer.writeln('Wayvio Results: "${widget.query}"');
+    buffer.writeln('Found ${widget.stores.length} stores nearby:\n');
+    for (var i = 0; i < widget.stores.length && i < 5; i++) {
+      final s = widget.stores[i];
+      buffer.write('${i + 1}. ${s.name}');
+      if (s.address.isNotEmpty) buffer.write(' — ${s.address}');
+      buffer.writeln();
+    }
+    if (widget.stores.length > 5) {
+      buffer.writeln('...and ${widget.stores.length - 5} more');
+    }
+    buffer.writeln('\nFound with wayvio.web.app');
+
+    final text = buffer.toString();
+    Clipboard.setData(ClipboardData(text: text));
+    ScaffoldMessenger.of(ctx).showSnackBar(
+      const SnackBar(
+        content: Text('Results copied to clipboard!'),
+        duration: Duration(seconds: 2),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -1273,20 +1379,41 @@ class _SidebarState extends State<_Sidebar> {
                       ],
                     ),
                   ),
-                  Container(
-                    width: 36,
-                    height: 36,
-                    decoration: const BoxDecoration(
-                      color: SupplyMapColors.glass,
-                      shape: BoxShape.circle,
-                    ),
-                    child: IconButton(
-                      icon: const Icon(Icons.close,
-                          color: SupplyMapColors.textSecondary, size: 16),
-                      onPressed: widget.onNewSearch,
-                      tooltip: 'New search',
-                      padding: EdgeInsets.zero,
-                    ),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 36,
+                        height: 36,
+                        decoration: const BoxDecoration(
+                          color: SupplyMapColors.glass,
+                          shape: BoxShape.circle,
+                        ),
+                        child: IconButton(
+                          icon: const Icon(Icons.share_outlined,
+                              color: SupplyMapColors.textSecondary, size: 16),
+                          onPressed: () => _shareResults(context),
+                          tooltip: 'Share results',
+                          padding: EdgeInsets.zero,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Container(
+                        width: 36,
+                        height: 36,
+                        decoration: const BoxDecoration(
+                          color: SupplyMapColors.glass,
+                          shape: BoxShape.circle,
+                        ),
+                        child: IconButton(
+                          icon: const Icon(Icons.close,
+                              color: SupplyMapColors.textSecondary, size: 16),
+                          onPressed: widget.onNewSearch,
+                          tooltip: 'New search',
+                          padding: EdgeInsets.zero,
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -1580,17 +1707,43 @@ class _ResultCardState extends State<_ResultCard> {
   bool _hovered = false;
   bool _isFavorite = false;
   bool _favLoading = false;
+  String? _note;
+  bool _noteExpanded = false;
+  final _noteController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
     _checkFavorite();
+    _loadNote();
   }
 
   @override
   void didUpdateWidget(covariant _ResultCard oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.store.id != widget.store.id) _checkFavorite();
+    if (oldWidget.store.id != widget.store.id) {
+      _checkFavorite();
+      _loadNote();
+    }
+  }
+
+  Future<void> _loadNote() async {
+    final note = await db.getStoreNote(widget.store.id);
+    if (mounted) {
+      setState(() => _note = note);
+      _noteController.text = note ?? '';
+    }
+  }
+
+  Future<void> _saveNote() async {
+    final text = _noteController.text.trim();
+    await db.saveStoreNote(widget.store.id, text);
+    if (mounted) {
+      setState(() {
+        _note = text.isEmpty ? null : text;
+        _noteExpanded = false;
+      });
+    }
   }
 
   Future<void> _checkFavorite() async {
@@ -1828,12 +1981,40 @@ class _ResultCardState extends State<_ResultCard> {
                   ],
                 ),
               ],
-              // Price + store type badges
+              // Price + store type + hours badges
               const SizedBox(height: 8),
-              Wrap(
+              Builder(builder: (context) {
+                final hoursInfo = _parseHoursStatus(widget.store.openingHours);
+                return Wrap(
                 spacing: 6,
                 runSpacing: 4,
                 children: [
+                  // Hours status badge
+                  if (hoursInfo.status != _HoursStatus.unknown)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: hoursInfo.status == _HoursStatus.open
+                            ? SupplyMapColors.accentGreen.withValues(alpha: dark ? 0.15 : 0.2)
+                            : hoursInfo.status == _HoursStatus.closingSoon
+                                ? const Color(0xFFFFA726).withValues(alpha: 0.2)
+                                : SupplyMapColors.red.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        hoursInfo.label,
+                        style: _outfit(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: hoursInfo.status == _HoursStatus.open
+                              ? (dark ? SupplyMapColors.accentGreen : const Color(0xFF1B5E20))
+                              : hoursInfo.status == _HoursStatus.closingSoon
+                                  ? const Color(0xFFE65100)
+                                  : SupplyMapColors.red,
+                        ),
+                      ),
+                    ),
                   // Price badge (from Google Shopping)
                   if (widget.store.priceLabel != null)
                     Container(
@@ -1877,7 +2058,8 @@ class _ResultCardState extends State<_ResultCard> {
                       ),
                     ),
                 ],
-              ),
+              );
+              }),
               const SizedBox(height: 8),
               // Meta row
               Wrap(
@@ -2021,6 +2203,132 @@ class _ResultCardState extends State<_ResultCard> {
                   }).toList(),
                 ),
               ],
+              // User note
+              const SizedBox(height: 8),
+              GestureDetector(
+                onTap: () => setState(() {
+                  _noteExpanded = !_noteExpanded;
+                  if (_noteExpanded) _noteController.text = _note ?? '';
+                }),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      _note != null ? Icons.sticky_note_2 : Icons.sticky_note_2_outlined,
+                      size: 14,
+                      color: _note != null
+                          ? SupplyMapColors.accentGreen
+                          : fg.withValues(alpha: 0.5),
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      _note != null ? 'View note' : 'Add note',
+                      style: _outfit(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w500,
+                        color: _note != null
+                            ? SupplyMapColors.accentGreen
+                            : fg.withValues(alpha: 0.5),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (_noteExpanded) ...[
+                const SizedBox(height: 8),
+                Container(
+                  decoration: BoxDecoration(
+                    color: dark
+                        ? Colors.white.withValues(alpha: 0.06)
+                        : Colors.black.withValues(alpha: 0.05),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  padding: const EdgeInsets.all(8),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      TextField(
+                        controller: _noteController,
+                        maxLines: 3,
+                        style: _outfit(
+                          fontSize: 12,
+                          color: fg,
+                        ),
+                        decoration: InputDecoration(
+                          hintText: 'Your notes about this store...',
+                          hintStyle: _outfit(
+                            fontSize: 12,
+                            color: fg.withValues(alpha: 0.4),
+                          ),
+                          border: InputBorder.none,
+                          contentPadding: EdgeInsets.zero,
+                          isDense: true,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: GestureDetector(
+                          onTap: _saveNote,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 12, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: SupplyMapColors.accentGreen,
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              'Save',
+                              style: _outfit(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+              // Directions button
+              const SizedBox(height: 12),
+              GestureDetector(
+                onTap: () => _safeLaunch(
+                  'https://www.google.com/maps/dir/?api=1&destination=${widget.store.lat},${widget.store.lng}',
+                ),
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(vertical: 10),
+                  decoration: BoxDecoration(
+                    color: dark
+                        ? SupplyMapColors.accentGreen.withValues(alpha: 0.12)
+                        : Colors.white.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: dark
+                          ? SupplyMapColors.accentGreen.withValues(alpha: 0.3)
+                          : Colors.white.withValues(alpha: 0.25),
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.directions, size: 16, color: fg),
+                      const SizedBox(width: 6),
+                      Text(
+                        'Get Directions',
+                        style: _outfit(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: fg,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
                   ], // inner Column children
                 ), // inner Column
               ), // Padding
