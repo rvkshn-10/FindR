@@ -109,6 +109,13 @@ class _SearchScreenState extends State<SearchScreen> {
     await prefs.setStringList(_kRecentSearchesKey, _recentSearches);
   }
 
+  Future<void> _removeRecentSearch(String term) async {
+    _recentSearches.remove(term);
+    setState(() {});
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setStringList(_kRecentSearchesKey, _recentSearches);
+  }
+
   @override
   void dispose() {
     _itemController.dispose();
@@ -461,9 +468,11 @@ class _SearchScreenState extends State<SearchScreen> {
                           ? _recentSearches
                           : _kDefaultSuggestions)
                       .map((term) {
+                    final isRecent = _recentSearches.contains(term);
                     return _SuggestionPill(
                       label: term,
                       onTap: () => _searchFor(term),
+                      onRemove: isRecent ? () => _removeRecentSearch(term) : null,
                     );
                   }).toList(),
                 ),
@@ -924,10 +933,15 @@ class _SearchButton extends StatelessWidget {
 // ── Suggestion pill ───────────────────────────────────────────────────────
 
 class _SuggestionPill extends StatefulWidget {
-  const _SuggestionPill({required this.label, required this.onTap});
+  const _SuggestionPill({
+    required this.label,
+    required this.onTap,
+    this.onRemove,
+  });
 
   final String label;
   final VoidCallback onTap;
+  final VoidCallback? onRemove;
 
   @override
   State<_SuggestionPill> createState() => _SuggestionPillState();
@@ -947,7 +961,12 @@ class _SuggestionPillState extends State<_SuggestionPill> {
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 200),
           transform: Matrix4.translationValues(0, _hovered ? -2 : 0, 0),
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+          padding: EdgeInsets.only(
+            left: 20,
+            right: widget.onRemove != null ? 8 : 20,
+            top: 10,
+            bottom: 10,
+          ),
           decoration: BoxDecoration(
             color: _hovered
                 ? SupplyMapColors.borderSubtle
@@ -955,13 +974,33 @@ class _SuggestionPillState extends State<_SuggestionPill> {
             borderRadius: BorderRadius.circular(kRadiusPill),
             border: Border.all(color: SupplyMapColors.borderSubtle),
           ),
-          child: Text(
-            widget.label,
-            style: _outfit(
-              fontSize: 14,
-              fontWeight: FontWeight.w500,
-              color: SupplyMapColors.textBlack,
-            ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                widget.label,
+                style: _outfit(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                  color: SupplyMapColors.textBlack,
+                ),
+              ),
+              if (widget.onRemove != null) ...[
+                const SizedBox(width: 6),
+                GestureDetector(
+                  onTap: widget.onRemove,
+                  behavior: HitTestBehavior.opaque,
+                  child: Padding(
+                    padding: const EdgeInsets.all(2),
+                    child: Icon(
+                      Icons.close,
+                      size: 14,
+                      color: SupplyMapColors.textTertiary,
+                    ),
+                  ),
+                ),
+              ],
+            ],
           ),
         ),
       ),
