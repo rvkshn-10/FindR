@@ -150,12 +150,12 @@ class _ProfileScreenState extends State<ProfileScreen>
 
   @override
   Widget build(BuildContext context) {
+    final ac = AppColors.of(context);
     return Scaffold(
       backgroundColor: Colors.transparent,
       body: SafeArea(
         child: Column(
           children: [
-            // Header
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
               child: Row(
@@ -165,10 +165,9 @@ class _ProfileScreenState extends State<ProfileScreen>
                       width: 40,
                       height: 40,
                       decoration: BoxDecoration(
-                        color: Colors.white,
+                        color: ac.cardBg,
                         shape: BoxShape.circle,
-                        border:
-                            Border.all(color: SupplyMapColors.borderSubtle),
+                        border: Border.all(color: ac.borderSubtle),
                       ),
                       child: IconButton(
                         icon: const Icon(Icons.arrow_back, size: 18),
@@ -182,20 +181,19 @@ class _ProfileScreenState extends State<ProfileScreen>
               ),
             ),
             const SizedBox(height: 16),
-            // Tab bar
             Container(
               margin: const EdgeInsets.symmetric(horizontal: 16),
               decoration: BoxDecoration(
-                color: SupplyMapColors.glass,
+                color: ac.glass,
                 borderRadius: BorderRadius.circular(kRadiusMd),
               ),
               child: TabBar(
                 controller: _tabController,
-                labelColor: SupplyMapColors.accentGreen,
-                unselectedLabelColor: SupplyMapColors.textTertiary,
+                labelColor: ac.accentGreen,
+                unselectedLabelColor: ac.textTertiary,
                 indicatorSize: TabBarIndicatorSize.tab,
                 indicator: BoxDecoration(
-                  color: Colors.white,
+                  color: ac.cardBg,
                   borderRadius: BorderRadius.circular(kRadiusMd),
                   boxShadow: const [
                     BoxShadow(
@@ -252,7 +250,6 @@ class _ProfileScreenState extends State<ProfileScreen>
               ),
             ),
             const SizedBox(height: 8),
-            // Tab content
             Expanded(
               child: TabBarView(
                 controller: _tabController,
@@ -270,6 +267,7 @@ class _ProfileScreenState extends State<ProfileScreen>
   }
 
   Widget _buildProfileHeader() {
+    final ac = AppColors.of(context);
     return Row(
       children: [
         Container(
@@ -277,9 +275,9 @@ class _ProfileScreenState extends State<ProfileScreen>
           height: 48,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            color: SupplyMapColors.accentGreen.withValues(alpha: 0.15),
+            color: ac.accentGreen.withValues(alpha: 0.15),
             border: Border.all(
-              color: SupplyMapColors.accentGreen.withValues(alpha: 0.3),
+              color: ac.accentGreen.withValues(alpha: 0.3),
               width: 2,
             ),
           ),
@@ -289,7 +287,7 @@ class _ProfileScreenState extends State<ProfileScreen>
               style: _outfit(
                 fontSize: 20,
                 fontWeight: FontWeight.w700,
-                color: SupplyMapColors.accentGreen,
+                color: ac.accentGreen,
               ),
             ),
           ),
@@ -304,13 +302,12 @@ class _ProfileScreenState extends State<ProfileScreen>
                 style: _outfit(
                   fontSize: 18,
                   fontWeight: FontWeight.w700,
-                  color: SupplyMapColors.textBlack,
+                  color: ac.textPrimary,
                 ),
               ),
               Text(
                 'Search history, favorites & more',
-                style: _outfit(
-                    fontSize: 12, color: SupplyMapColors.textTertiary),
+                style: _outfit(fontSize: 12, color: ac.textTertiary),
               ),
             ],
           ),
@@ -324,9 +321,10 @@ class _ProfileScreenState extends State<ProfileScreen>
   // ---------------------------------------------------------------------------
 
   Widget _buildSearchHistory() {
+    final ac = AppColors.of(context);
     if (_loadingSearches) {
-      return const Center(
-        child: CircularProgressIndicator(color: SupplyMapColors.accentGreen),
+      return Center(
+        child: CircularProgressIndicator(color: ac.accentGreen),
       );
     }
     if (_searches.isEmpty) {
@@ -354,7 +352,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                   style: _outfit(
                       fontSize: 12,
                       fontWeight: FontWeight.w500,
-                      color: SupplyMapColors.red),
+                      color: ac.red),
                 ),
               ),
             ],
@@ -419,9 +417,10 @@ class _ProfileScreenState extends State<ProfileScreen>
   // ---------------------------------------------------------------------------
 
   Widget _buildFavorites() {
+    final ac = AppColors.of(context);
     if (_loadingFavorites) {
-      return const Center(
-        child: CircularProgressIndicator(color: SupplyMapColors.accentGreen),
+      return Center(
+        child: CircularProgressIndicator(color: ac.accentGreen),
       );
     }
     if (_favorites.isEmpty) {
@@ -466,9 +465,10 @@ class _ProfileScreenState extends State<ProfileScreen>
   // ---------------------------------------------------------------------------
 
   Widget _buildRecommendations() {
+    final ac = AppColors.of(context);
     if (_loadingRecs) {
-      return const Center(
-        child: CircularProgressIndicator(color: SupplyMapColors.accentGreen),
+      return Center(
+        child: CircularProgressIndicator(color: ac.accentGreen),
       );
     }
     return Column(
@@ -486,8 +486,8 @@ class _ProfileScreenState extends State<ProfileScreen>
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   colors: [
-                    SupplyMapColors.accentGreen,
-                    SupplyMapColors.accentGreen.withValues(alpha: 0.85),
+                    ac.accentGreen,
+                    ac.accentGreen.withValues(alpha: 0.85),
                   ],
                 ),
                 borderRadius: BorderRadius.circular(kRadiusMd),
@@ -526,7 +526,7 @@ class _ProfileScreenState extends State<ProfileScreen>
             child: Text(
               'Search for some items first so the AI can learn your preferences!',
               textAlign: TextAlign.center,
-              style: _outfit(fontSize: 13, color: SupplyMapColors.textTertiary),
+              style: _outfit(fontSize: 13, color: ac.textTertiary),
             ),
           ),
         Expanded(
@@ -572,10 +572,11 @@ class _CountBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final ac = AppColors.of(context);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
       decoration: BoxDecoration(
-        color: SupplyMapColors.accentGreen.withValues(alpha: 0.15),
+        color: ac.accentGreen.withValues(alpha: 0.15),
         borderRadius: BorderRadius.circular(10),
       ),
       child: Text(
@@ -583,7 +584,7 @@ class _CountBadge extends StatelessWidget {
         style: _outfit(
             fontSize: 10,
             fontWeight: FontWeight.w600,
-            color: SupplyMapColors.accentGreen),
+            color: ac.accentGreen),
       ),
     );
   }
@@ -605,14 +606,15 @@ class _HistoryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final ac = AppColors.of(context);
     return GestureDetector(
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: ac.cardBg,
           borderRadius: BorderRadius.circular(kRadiusMd),
-          border: Border.all(color: SupplyMapColors.borderSubtle),
+          border: Border.all(color: ac.borderSubtle),
         ),
         child: Row(
           children: [
@@ -620,11 +622,11 @@ class _HistoryCard extends StatelessWidget {
               width: 40,
               height: 40,
               decoration: BoxDecoration(
-                color: SupplyMapColors.accentGreen.withValues(alpha: 0.1),
+                color: ac.accentGreen.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: const Icon(Icons.search,
-                  size: 20, color: SupplyMapColors.accentGreen),
+              child: Icon(Icons.search,
+                  size: 20, color: ac.accentGreen),
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -635,12 +637,12 @@ class _HistoryCard extends StatelessWidget {
                       style: _outfit(
                           fontSize: 14,
                           fontWeight: FontWeight.w600,
-                          color: SupplyMapColors.textBlack)),
+                          color: ac.textPrimary)),
                   const SizedBox(height: 2),
                   Text(
                     '$resultCount results  ·  $location',
                     style: _outfit(
-                        fontSize: 11, color: SupplyMapColors.textTertiary),
+                        fontSize: 11, color: ac.textTertiary),
                     overflow: TextOverflow.ellipsis,
                   ),
                 ],
@@ -649,12 +651,12 @@ class _HistoryCard extends StatelessWidget {
             if (timeLabel.isNotEmpty)
               Text(timeLabel,
                   style: _outfit(
-                      fontSize: 10, color: SupplyMapColors.textTertiary)),
+                      fontSize: 10, color: ac.textTertiary)),
             const SizedBox(width: 8),
             GestureDetector(
               onTap: onDelete,
-              child: const Icon(Icons.close,
-                  size: 16, color: SupplyMapColors.textTertiary),
+              child: Icon(Icons.close,
+                  size: 16, color: ac.textTertiary),
             ),
           ],
         ),
@@ -682,13 +684,14 @@ class _FavoriteCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final ac = AppColors.of(context);
     return GestureDetector(
       onTap: onTap,
       child: Container(
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: ac.cardBg,
           borderRadius: BorderRadius.circular(kRadiusMd),
-          border: Border.all(color: SupplyMapColors.borderSubtle),
+          border: Border.all(color: ac.borderSubtle),
         ),
         clipBehavior: Clip.antiAlias,
         child: Column(
@@ -700,11 +703,11 @@ class _FavoriteCard extends StatelessWidget {
                 width: double.infinity,
                 child: Image.network(thumbnail!, fit: BoxFit.cover,
                     errorBuilder: (_, __, ___) => Container(
-                          color: SupplyMapColors.glass,
-                          child: const Center(
+                          color: ac.glass,
+                          child: Center(
                             child: Icon(Icons.store,
                                 size: 32,
-                                color: SupplyMapColors.borderStrong),
+                                color: ac.borderStrong),
                           ),
                         )),
               ),
@@ -720,12 +723,12 @@ class _FavoriteCard extends StatelessWidget {
                             style: _outfit(
                                 fontSize: 15,
                                 fontWeight: FontWeight.w700,
-                                color: SupplyMapColors.textBlack)),
+                                color: ac.textPrimary)),
                         const SizedBox(height: 2),
                         Text(address,
                             style: _outfit(
                                 fontSize: 12,
-                                color: SupplyMapColors.textSecondary),
+                                color: ac.textSecondary),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis),
                         const SizedBox(height: 4),
@@ -739,7 +742,7 @@ class _FavoriteCard extends StatelessWidget {
                                   style: _outfit(
                                       fontSize: 11,
                                       fontWeight: FontWeight.w600,
-                                      color: SupplyMapColors.textSecondary)),
+                                      color: ac.textSecondary)),
                               const SizedBox(width: 8),
                             ],
                             if (shopType != null)
@@ -747,23 +750,23 @@ class _FavoriteCard extends StatelessWidget {
                                 padding: const EdgeInsets.symmetric(
                                     horizontal: 6, vertical: 2),
                                 decoration: BoxDecoration(
-                                  color: SupplyMapColors.glass,
+                                  color: ac.glass,
                                   borderRadius: BorderRadius.circular(4),
                                 ),
                                 child: Text(shopType!.replaceAll('_', ' '),
                                     style: _outfit(
                                         fontSize: 10,
-                                        color: SupplyMapColors.textTertiary)),
+                                        color: ac.textTertiary)),
                               ),
                             const SizedBox(width: 8),
-                            const Icon(Icons.search,
+                            Icon(Icons.search,
                                 size: 12,
-                                color: SupplyMapColors.textTertiary),
+                                color: ac.textTertiary),
                             const SizedBox(width: 2),
                             Text(searchItem,
                                 style: _outfit(
                                     fontSize: 10,
-                                    color: SupplyMapColors.textTertiary)),
+                                    color: ac.textTertiary)),
                           ],
                         ),
                       ],
@@ -774,11 +777,11 @@ class _FavoriteCard extends StatelessWidget {
                     child: Container(
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
-                        color: SupplyMapColors.red.withValues(alpha: 0.1),
+                        color: ac.red.withValues(alpha: 0.1),
                         shape: BoxShape.circle,
                       ),
-                      child: const Icon(Icons.favorite,
-                          size: 18, color: SupplyMapColors.red),
+                      child: Icon(Icons.favorite,
+                          size: 18, color: ac.red),
                     ),
                   ),
                 ],
@@ -804,6 +807,7 @@ class _RecommendationCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final ac = AppColors.of(context);
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -816,7 +820,7 @@ class _RecommendationCard extends StatelessWidget {
           ),
           borderRadius: BorderRadius.circular(kRadiusMd),
           border: Border.all(
-              color: SupplyMapColors.accentGreen.withValues(alpha: 0.2)),
+              color: ac.accentGreen.withValues(alpha: 0.2)),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -827,11 +831,11 @@ class _RecommendationCard extends StatelessWidget {
                   padding: const EdgeInsets.all(5),
                   decoration: BoxDecoration(
                     color:
-                        SupplyMapColors.accentGreen.withValues(alpha: 0.15),
+                        ac.accentGreen.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(6),
                   ),
-                  child: const Icon(Icons.auto_awesome,
-                      size: 14, color: SupplyMapColors.accentGreen),
+                  child: Icon(Icons.auto_awesome,
+                      size: 14, color: ac.accentGreen),
                 ),
                 const SizedBox(width: 8),
                 Expanded(
@@ -839,10 +843,10 @@ class _RecommendationCard extends StatelessWidget {
                       style: _outfit(
                           fontSize: 14,
                           fontWeight: FontWeight.w700,
-                          color: SupplyMapColors.textBlack)),
+                          color: ac.textPrimary)),
                 ),
-                const Icon(Icons.arrow_forward_ios,
-                    size: 14, color: SupplyMapColors.textTertiary),
+                Icon(Icons.arrow_forward_ios,
+                    size: 14, color: ac.textTertiary),
               ],
             ),
             if (content.isNotEmpty) ...[
@@ -850,7 +854,7 @@ class _RecommendationCard extends StatelessWidget {
               Text(content,
                   style: _outfit(
                       fontSize: 12,
-                      color: SupplyMapColors.textSecondary,
+                      color: ac.textSecondary,
                       height: 1.4)),
             ],
             if (basedOn.isNotEmpty) ...[
@@ -859,7 +863,7 @@ class _RecommendationCard extends StatelessWidget {
                   style: _outfit(
                       fontSize: 11,
                       fontWeight: FontWeight.w500,
-                      color: SupplyMapColors.accentGreen)),
+                      color: ac.accentGreen)),
             ],
           ],
         ),
@@ -880,27 +884,27 @@ class _EmptyTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final ac = AppColors.of(context);
     return Center(
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(icon,
               size: 48,
-              color: SupplyMapColors.borderStrong.withValues(alpha: 0.5)),
+              color: ac.borderStrong.withValues(alpha: 0.5)),
           const SizedBox(height: 12),
           Text(title,
               style: _outfit(
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
-                  color: SupplyMapColors.textSecondary)),
+                  color: ac.textSecondary)),
           const SizedBox(height: 6),
           Text(subtitle,
               textAlign: TextAlign.center,
               style:
-                  _outfit(fontSize: 13, color: SupplyMapColors.textTertiary)),
+                  _outfit(fontSize: 13, color: ac.textTertiary)),
         ],
       ),
     );
   }
 }
-
