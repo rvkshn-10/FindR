@@ -1726,6 +1726,12 @@ class _ResultCardState extends State<_ResultCard> {
   }
 
   @override
+  void dispose() {
+    _noteController.dispose();
+    super.dispose();
+  }
+
+  @override
   void didUpdateWidget(covariant _ResultCard oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.store.id != widget.store.id) {
@@ -1993,6 +1999,7 @@ class _ResultCardState extends State<_ResultCard> {
               const SizedBox(height: 8),
               Builder(builder: (context) {
                 final hoursInfo = _parseHoursStatus(widget.store.openingHours);
+                final typeLabel = _storeTypeLabel(widget.store);
                 return Wrap(
                 spacing: 6,
                 runSpacing: 4,
@@ -2046,7 +2053,7 @@ class _ResultCardState extends State<_ResultCard> {
                       ),
                     ),
                   // Store type badge
-                  if (_storeTypeLabel(widget.store) != null)
+                  if (typeLabel != null)
                     Container(
                       padding: const EdgeInsets.symmetric(
                           horizontal: 8, vertical: 3),
@@ -2057,7 +2064,7 @@ class _ResultCardState extends State<_ResultCard> {
                         borderRadius: BorderRadius.circular(6),
                       ),
                       child: Text(
-                        _storeTypeLabel(widget.store)!,
+                        typeLabel,
                         style: _outfit(
                           fontSize: 12,
                           fontWeight: FontWeight.w500,
@@ -2444,6 +2451,7 @@ class _SelectedStorePopup extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final ac = AppColors.of(context);
+    final typeLabel = _storeTypeLabel(store);
     return Container(
       decoration: BoxDecoration(
         color: ac.sidebarBg,
@@ -2491,7 +2499,7 @@ class _SelectedStorePopup extends StatelessWidget {
             '${store.priceLabel != null ? '${store.priceLabel} · ' : ''}'
             '${formatDistance(store.distanceKm, useKm: settings.useKm)} away'
             '${store.durationMinutes != null ? ' · ~${store.durationMinutes} min' : ''}'
-            '${_storeTypeLabel(store) != null ? ' · ${_storeTypeLabel(store)}' : ''}',
+            '${typeLabel != null ? ' · $typeLabel' : ''}',
             style: _outfit(
                 fontSize: 12, color: ac.textSecondary),
           ),

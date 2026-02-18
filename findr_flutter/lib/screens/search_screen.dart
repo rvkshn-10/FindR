@@ -156,7 +156,6 @@ class _SearchScreenState extends State<SearchScreen> {
   bool _membershipsOnly = false;
   final Set<String> _selectedStores = {};
   List<String> _recentSearches = [];
-  bool _onboardingSeen = false;
   bool _showOnboarding = false;
 
   @override
@@ -174,7 +173,6 @@ class _SearchScreenState extends State<SearchScreen> {
     if (!seen && mounted) {
       setState(() => _showOnboarding = true);
     }
-    _onboardingSeen = seen;
   }
 
   Future<void> _dismissOnboarding() async {
@@ -364,14 +362,13 @@ class _SearchScreenState extends State<SearchScreen> {
           final req = await Geolocator.requestPermission();
           if (req == LocationPermission.denied ||
               req == LocationPermission.deniedForever) {
+            if (!mounted) return;
             setState(() => _loading = false);
-            if (mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                    content: Text(
-                        'Location denied. Enter a city or address below.')),
-              );
-            }
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                  content: Text(
+                      'Location denied. Enter a city or address below.')),
+            );
             return;
           }
         }
@@ -486,14 +483,13 @@ class _SearchScreenState extends State<SearchScreen> {
     } catch (e, st) {
       print('[Wayvio] _submit ERROR: $e');
       print('[Wayvio] _submit STACK: $st');
+      if (!mounted) return;
       setState(() => _loading = false);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-              content:
-                  Text(e.toString().replaceFirst('Exception: ', ''))),
-        );
-      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+            content:
+                Text(e.toString().replaceFirst('Exception: ', ''))),
+      );
     } finally {
       if (mounted) setState(() { _loading = false; _geocoding = false; });
     }
