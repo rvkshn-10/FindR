@@ -514,6 +514,7 @@ class _ResultsScreenState extends State<ResultsScreen> {
   @override
   Widget build(BuildContext context) {
     final settings = context.watch<SettingsProvider>();
+    final ac = AppColors.of(context);
 
     // Loading — shimmer skeleton cards
     if (_loading) {
@@ -525,13 +526,13 @@ class _ResultsScreenState extends State<ResultsScreen> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const CircularProgressIndicator(
-                    color: SupplyMapColors.accentGreen),
+                CircularProgressIndicator(
+                    color: ac.accentGreen),
                 const SizedBox(height: 20),
                 Text(
                   'Finding nearby stores…',
                   style: _outfit(
-                      fontSize: 14, color: SupplyMapColors.textSecondary),
+                      fontSize: 14, color: ac.textSecondary),
                 ),
                 const SizedBox(height: 28),
                 ...List.generate(
@@ -560,14 +561,14 @@ class _ResultsScreenState extends State<ResultsScreen> {
                 Text(
                   _error!,
                   style: _outfit(
-                      color: SupplyMapColors.red, fontSize: 14),
+                      color: ac.red, fontSize: 14),
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 16),
                 Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    _pillButton('Back', onTap: () {
+                    _pillButton(context, 'Back', onTap: () {
                       if (widget.onNewSearch != null) {
                         widget.onNewSearch!();
                       } else {
@@ -575,7 +576,7 @@ class _ResultsScreenState extends State<ResultsScreen> {
                       }
                     }),
                     const SizedBox(width: 12),
-                    _pillButton('Try again', onTap: _load),
+                    _pillButton(context, 'Try again', onTap: _load),
                   ],
                 ),
               ],
@@ -590,7 +591,7 @@ class _ResultsScreenState extends State<ResultsScreen> {
       return Scaffold(
         backgroundColor: Colors.transparent,
         body: Center(
-          child: Text('Loading…', style: _outfit(color: SupplyMapColors.textSecondary)),
+          child: Text('Loading…', style: _outfit(color: ac.textSecondary)),
         ),
       );
     }
@@ -705,13 +706,13 @@ class _ResultsScreenState extends State<ResultsScreen> {
             snapSizes: const [0.10, 0.35, 0.85],
             builder: (context, scrollController) {
               return Container(
-                decoration: const BoxDecoration(
-                  color: SupplyMapColors.sidebarBg,
-                  borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+                decoration: BoxDecoration(
+                  color: ac.sidebarBg,
+                  borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
                   border: Border(
-                    top: BorderSide(color: SupplyMapColors.borderSubtle),
+                    top: BorderSide(color: ac.borderSubtle),
                   ),
-                  boxShadow: [
+                  boxShadow: const [
                     BoxShadow(
                       color: Color(0x121A1918),
                       blurRadius: 24,
@@ -796,6 +797,7 @@ class _ResultsScreenState extends State<ResultsScreen> {
   // Settings overlay wrapper
   // -----------------------------------------------------------------------
   Widget _buildSheetHeader(List<Store> stores) {
+    final ac = AppColors.of(context);
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -806,7 +808,7 @@ class _ResultsScreenState extends State<ResultsScreen> {
             width: 40,
             height: 4,
             decoration: BoxDecoration(
-              color: SupplyMapColors.borderStrong,
+              color: ac.borderStrong,
               borderRadius: BorderRadius.circular(2),
             ),
           ),
@@ -822,14 +824,14 @@ class _ResultsScreenState extends State<ResultsScreen> {
                     text: 'Results for ',
                     style: _outfit(
                       fontSize: 16,
-                      color: SupplyMapColors.textSecondary,
+                      color: ac.textSecondary,
                     ),
                     children: [
                       TextSpan(
                         text: _currentItem,
                         style: _outfit(
                             fontWeight: FontWeight.w700,
-                            color: SupplyMapColors.textBlack),
+                            color: ac.textPrimary),
                       ),
                     ],
                   ),
@@ -838,7 +840,7 @@ class _ResultsScreenState extends State<ResultsScreen> {
               Text(
                 '${stores.length} found',
                 style: _outfit(
-                    fontSize: 13, color: SupplyMapColors.textTertiary),
+                    fontSize: 13, color: ac.textTertiary),
               ),
             ],
           ),
@@ -848,19 +850,19 @@ class _ResultsScreenState extends State<ResultsScreen> {
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
             child: Row(
               children: [
-                const SizedBox(
+                SizedBox(
                   width: 12,
                   height: 12,
                   child: CircularProgressIndicator(
                     strokeWidth: 1.5,
-                    color: SupplyMapColors.accentGreen,
+                    color: ac.accentGreen,
                   ),
                 ),
                 const SizedBox(width: 8),
                 Text(
                   'Refining distances…',
                   style: _outfit(
-                      fontSize: 11, color: SupplyMapColors.textTertiary),
+                      fontSize: 11, color: ac.textTertiary),
                 ),
               ],
             ),
@@ -871,17 +873,17 @@ class _ResultsScreenState extends State<ResultsScreen> {
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
             child: Row(
               children: [
-                const SizedBox(
+                SizedBox(
                   width: 12, height: 12,
                   child: CircularProgressIndicator(
                     strokeWidth: 1.5,
-                    color: SupplyMapColors.accentGreen,
+                    color: ac.accentGreen,
                   ),
                 ),
                 const SizedBox(width: 8),
                 Text('Fetching prices…',
                     style: _outfit(
-                        fontSize: 11, color: SupplyMapColors.textTertiary)),
+                        fontSize: 11, color: ac.textTertiary)),
               ],
             ),
           )
@@ -891,16 +893,16 @@ class _ResultsScreenState extends State<ResultsScreen> {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               decoration: BoxDecoration(
-                color: SupplyMapColors.accentGreen.withValues(alpha: 0.08),
+                color: ac.accentGreen.withValues(alpha: 0.08),
                 borderRadius: BorderRadius.circular(8),
                 border: Border.all(
-                  color: SupplyMapColors.accentGreen.withValues(alpha: 0.2),
+                  color: ac.accentGreen.withValues(alpha: 0.2),
                 ),
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.sell_outlined,
-                      size: 14, color: SupplyMapColors.accentGreen),
+                  Icon(Icons.sell_outlined,
+                      size: 14, color: ac.accentGreen),
                   const SizedBox(width: 6),
                   Expanded(
                     child: Builder(builder: (ctx) {
@@ -912,7 +914,7 @@ class _ResultsScreenState extends State<ResultsScreen> {
                         style: _outfit(
                           fontSize: 11,
                           fontWeight: FontWeight.w600,
-                          color: SupplyMapColors.textBlack,
+                          color: ac.textPrimary,
                         ),
                       );
                     }),
@@ -931,7 +933,7 @@ class _ResultsScreenState extends State<ResultsScreen> {
                 style: _outfit(
                   fontSize: 11,
                   fontWeight: FontWeight.w500,
-                  color: SupplyMapColors.textTertiary,
+                  color: ac.textTertiary,
                 ),
               ),
               const SizedBox(width: 6),
@@ -967,6 +969,7 @@ class _ResultsScreenState extends State<ResultsScreen> {
     required BuildContext context,
     required Widget child,
   }) {
+    final ac = AppColors.of(context);
     final screenW = MediaQuery.of(context).size.width;
     final sidebarW = screenW < 400 ? screenW.toDouble() : 320.0;
     return Stack(
@@ -987,7 +990,7 @@ class _ResultsScreenState extends State<ResultsScreen> {
               style: _outfit(
                 fontSize: 11,
                 fontWeight: FontWeight.w500,
-                color: SupplyMapColors.textSecondary,
+                color: ac.textSecondary,
               ),
             ),
           ),
@@ -1000,9 +1003,9 @@ class _ResultsScreenState extends State<ResultsScreen> {
             width: 44,
             height: 44,
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: ac.cardBg,
               shape: BoxShape.circle,
-              border: Border.all(color: SupplyMapColors.borderSubtle),
+              border: Border.all(color: ac.borderSubtle),
               boxShadow: const [
                 BoxShadow(
                   color: Color(0x081A1918),
@@ -1012,8 +1015,8 @@ class _ResultsScreenState extends State<ResultsScreen> {
               ],
             ),
             child: IconButton(
-              icon: const Icon(Icons.settings,
-                  color: SupplyMapColors.textSecondary, size: 20),
+              icon: Icon(Icons.settings,
+                  color: ac.textSecondary, size: 20),
               tooltip: 'Settings',
               onPressed: () =>
                   setState(() => _settingsOpen = !_settingsOpen),
@@ -1049,6 +1052,7 @@ class _ResultsScreenState extends State<ResultsScreen> {
   // Build flutter_map markers
   // -----------------------------------------------------------------------
   List<Marker> _buildMarkers(List<Store> stores) {
+    final ac = AppColors.of(context);
     final markers = <Marker>[];
 
     // User location marker
@@ -1059,12 +1063,12 @@ class _ResultsScreenState extends State<ResultsScreen> {
         height: 28,
         child: Container(
           decoration: BoxDecoration(
-            color: SupplyMapColors.blue,
+            color: ac.blue,
             shape: BoxShape.circle,
             border: Border.all(color: Colors.white, width: 2.5),
             boxShadow: [
               BoxShadow(
-                color: SupplyMapColors.blue.withValues(alpha: 0.4),
+                color: ac.blue.withValues(alpha: 0.4),
                 blurRadius: 8,
               ),
             ],
@@ -1083,11 +1087,11 @@ class _ResultsScreenState extends State<ResultsScreen> {
       Color pinColor;
       switch (style) {
         case _CardStyle.closest:
-          pinColor = SupplyMapColors.red;
+          pinColor = ac.red;
         case _CardStyle.fastest:
-          pinColor = SupplyMapColors.purple;
+          pinColor = ac.purple;
         case _CardStyle.nearby:
-          pinColor = SupplyMapColors.accentGreen;
+          pinColor = ac.accentGreen;
         case _CardStyle.standard:
           pinColor = SupplyMapColors.accentWarm;
       }
@@ -1142,8 +1146,9 @@ class _ResultsScreenState extends State<ResultsScreen> {
     Store? selectedStore,
     SettingsProvider settings,
   ) {
+    final ac = AppColors.of(context);
     return Container(
-      color: SupplyMapColors.mapBg,
+      color: ac.mapBg,
       child: stores.isEmpty
           ? const Center(child: _EmptyState())
           : Stack(
@@ -1166,8 +1171,8 @@ class _ResultsScreenState extends State<ResultsScreen> {
                           point: LatLng(widget.lat, widget.lng),
                           radius: searchRadiusMeters,
                           useRadiusInMeter: true,
-                          color: SupplyMapColors.blue.withValues(alpha: 0.08),
-                          borderColor: SupplyMapColors.blue.withValues(alpha: 0.25),
+                          color: ac.blue.withValues(alpha: 0.08),
+                          borderColor: ac.blue.withValues(alpha: 0.25),
                           borderStrokeWidth: 2,
                         ),
                       ],
@@ -1328,13 +1333,14 @@ class _SidebarState extends State<_Sidebar> {
 
   @override
   Widget build(BuildContext context) {
+    final ac = AppColors.of(context);
     return Container(
           width: 440,
-          decoration: const BoxDecoration(
-            color: SupplyMapColors.sidebarBg,
+          decoration: BoxDecoration(
+            color: ac.sidebarBg,
             border: Border(
               left: BorderSide(
-                  color: SupplyMapColors.borderSubtle, width: 1),
+                  color: ac.borderSubtle, width: 1),
             ),
           ),
           padding: const EdgeInsets.all(24),
@@ -1353,7 +1359,7 @@ class _SidebarState extends State<_Sidebar> {
                           style: _outfit(
                             fontSize: 28,
                             fontWeight: FontWeight.w700,
-                            color: SupplyMapColors.textBlack,
+                            color: ac.textPrimary,
                             letterSpacing: -0.5,
                           ),
                         ),
@@ -1363,14 +1369,14 @@ class _SidebarState extends State<_Sidebar> {
                             text: 'Searching for ',
                             style: _outfit(
                               fontSize: 14,
-                              color: SupplyMapColors.textSecondary,
+                              color: ac.textSecondary,
                             ),
                             children: [
                               TextSpan(
                                 text: widget.query,
                                 style: _outfit(
                                   fontWeight: FontWeight.w700,
-                                  color: SupplyMapColors.textBlack,
+                                  color: ac.textPrimary,
                                 ),
                               ),
                             ],
@@ -1385,13 +1391,13 @@ class _SidebarState extends State<_Sidebar> {
                       Container(
                         width: 36,
                         height: 36,
-                        decoration: const BoxDecoration(
-                          color: SupplyMapColors.glass,
+                        decoration: BoxDecoration(
+                          color: ac.glass,
                           shape: BoxShape.circle,
                         ),
                         child: IconButton(
-                          icon: const Icon(Icons.share_outlined,
-                              color: SupplyMapColors.textSecondary, size: 16),
+                          icon: Icon(Icons.share_outlined,
+                              color: ac.textSecondary, size: 16),
                           onPressed: () => _shareResults(context),
                           tooltip: 'Share results',
                           padding: EdgeInsets.zero,
@@ -1401,13 +1407,13 @@ class _SidebarState extends State<_Sidebar> {
                       Container(
                         width: 36,
                         height: 36,
-                        decoration: const BoxDecoration(
-                          color: SupplyMapColors.glass,
+                        decoration: BoxDecoration(
+                          color: ac.glass,
                           shape: BoxShape.circle,
                         ),
                         child: IconButton(
-                          icon: const Icon(Icons.close,
-                              color: SupplyMapColors.textSecondary, size: 16),
+                          icon: Icon(Icons.close,
+                              color: ac.textSecondary, size: 16),
                           onPressed: widget.onNewSearch,
                           tooltip: 'New search',
                           padding: EdgeInsets.zero,
@@ -1422,26 +1428,26 @@ class _SidebarState extends State<_Sidebar> {
               Container(
                 height: 44,
                 decoration: BoxDecoration(
-                  color: SupplyMapColors.bodyBg,
+                  color: ac.bodyBg,
                   borderRadius: BorderRadius.circular(kRadiusMd),
-                  border: Border.all(color: SupplyMapColors.borderSubtle),
+                  border: Border.all(color: ac.borderSubtle),
                 ),
                 child: Row(
                   children: [
-                    const Padding(
-                      padding: EdgeInsets.only(left: 12),
+                    Padding(
+                      padding: const EdgeInsets.only(left: 12),
                       child: Icon(Icons.search,
-                          size: 16, color: SupplyMapColors.textTertiary),
+                          size: 16, color: ac.textTertiary),
                     ),
                     Expanded(
                       child: TextField(
                         controller: _searchController,
                         style: _outfit(
-                            fontSize: 14, color: SupplyMapColors.textBlack),
+                            fontSize: 14, color: ac.textPrimary),
                         decoration: InputDecoration(
                           hintText: 'Search for something else…',
                           hintStyle: _outfit(
-                              fontSize: 14, color: SupplyMapColors.textTertiary),
+                              fontSize: 14, color: ac.textTertiary),
                           border: InputBorder.none,
                           enabledBorder: InputBorder.none,
                           focusedBorder: InputBorder.none,
@@ -1459,7 +1465,7 @@ class _SidebarState extends State<_Sidebar> {
                         margin: const EdgeInsets.only(right: 6),
                         padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
-                          color: SupplyMapColors.accentGreen,
+                          color: ac.accentGreen,
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: const Icon(Icons.arrow_forward,
@@ -1474,12 +1480,12 @@ class _SidebarState extends State<_Sidebar> {
                   padding: const EdgeInsets.only(top: 12, bottom: 4),
                   child: Row(
                     children: [
-                      const SizedBox(
+                      SizedBox(
                         width: 12,
                         height: 12,
                         child: CircularProgressIndicator(
                           strokeWidth: 1.5,
-                          color: SupplyMapColors.accentGreen,
+                          color: ac.accentGreen,
                         ),
                       ),
                       const SizedBox(width: 8),
@@ -1487,7 +1493,7 @@ class _SidebarState extends State<_Sidebar> {
                         'Refining distances…',
                         style: _outfit(
                             fontSize: 11,
-                            color: SupplyMapColors.textTertiary),
+                            color: ac.textTertiary),
                       ),
                     ],
                   ),
@@ -1504,12 +1510,12 @@ class _SidebarState extends State<_Sidebar> {
                   padding: const EdgeInsets.only(bottom: 12),
                   child: Row(
                     children: [
-                      const SizedBox(
+                      SizedBox(
                         width: 12,
                         height: 12,
                         child: CircularProgressIndicator(
                           strokeWidth: 1.5,
-                          color: SupplyMapColors.accentGreen,
+                          color: ac.accentGreen,
                         ),
                       ),
                       const SizedBox(width: 8),
@@ -1517,7 +1523,7 @@ class _SidebarState extends State<_Sidebar> {
                         'Fetching prices…',
                         style: _outfit(
                             fontSize: 11,
-                            color: SupplyMapColors.textTertiary),
+                            color: ac.textTertiary),
                       ),
                     ],
                   ),
@@ -1530,17 +1536,17 @@ class _SidebarState extends State<_Sidebar> {
                     padding:
                         const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                     decoration: BoxDecoration(
-                      color: SupplyMapColors.accentGreen.withValues(alpha: 0.08),
+                      color: ac.accentGreen.withValues(alpha: 0.08),
                       borderRadius: BorderRadius.circular(10),
                       border: Border.all(
                         color:
-                            SupplyMapColors.accentGreen.withValues(alpha: 0.2),
+                            ac.accentGreen.withValues(alpha: 0.2),
                       ),
                     ),
                     child: Row(
                       children: [
-                        const Icon(Icons.sell_outlined,
-                            size: 16, color: SupplyMapColors.accentGreen),
+                        Icon(Icons.sell_outlined,
+                            size: 16, color: ac.accentGreen),
                         const SizedBox(width: 8),
                         Expanded(
                           child: Text(
@@ -1550,15 +1556,15 @@ class _SidebarState extends State<_Sidebar> {
                             style: _outfit(
                               fontSize: 12,
                               fontWeight: FontWeight.w600,
-                              color: SupplyMapColors.textBlack,
+                              color: ac.textPrimary,
                             ),
                           ),
                         ),
-                        const Tooltip(
+                        Tooltip(
                           message: 'Prices from Google Shopping (online)',
                           child: Icon(Icons.info_outline,
                               size: 14,
-                              color: SupplyMapColors.textTertiary),
+                              color: ac.textTertiary),
                         ),
                       ],
                     ),
@@ -1575,7 +1581,7 @@ class _SidebarState extends State<_Sidebar> {
                       style: _outfit(
                         fontSize: 12,
                         fontWeight: FontWeight.w500,
-                        color: SupplyMapColors.textTertiary,
+                        color: ac.textTertiary,
                       ),
                     ),
                     const SizedBox(width: 8),
@@ -1787,6 +1793,7 @@ class _ResultCardState extends State<_ResultCard> {
 
   @override
   Widget build(BuildContext context) {
+    final ac = AppColors.of(context);
     final bg = _cardBg(widget.style);
     final dark = _cardDarkText(widget.style);
     final fg = dark ? SupplyMapColors.textBlack : Colors.white;
@@ -1812,7 +1819,7 @@ class _ResultCardState extends State<_ResultCard> {
             color: bg,
             borderRadius: BorderRadius.circular(kRadiusLg),
             border: isGlass
-                ? Border.all(color: SupplyMapColors.glassBorder)
+                ? Border.all(color: ac.glassBorder)
                 : (widget.isSelected
                     ? Border.all(color: Colors.white, width: 2)
                     : null),
@@ -1907,7 +1914,7 @@ class _ResultCardState extends State<_ResultCard> {
                                   key: ValueKey(_isFavorite),
                                   size: 20,
                                   color: _isFavorite
-                                      ? SupplyMapColors.red
+                                      ? ac.red
                                       : fg.withValues(alpha: 0.6),
                                 ),
                         ),
@@ -1996,10 +2003,10 @@ class _ResultCardState extends State<_ResultCard> {
                           horizontal: 8, vertical: 3),
                       decoration: BoxDecoration(
                         color: hoursInfo.status == _HoursStatus.open
-                            ? SupplyMapColors.accentGreen.withValues(alpha: dark ? 0.15 : 0.2)
+                            ? ac.accentGreen.withValues(alpha: dark ? 0.15 : 0.2)
                             : hoursInfo.status == _HoursStatus.closingSoon
                                 ? const Color(0xFFFFA726).withValues(alpha: 0.2)
-                                : SupplyMapColors.red.withValues(alpha: 0.15),
+                                : ac.red.withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(6),
                       ),
                       child: Text(
@@ -2008,10 +2015,10 @@ class _ResultCardState extends State<_ResultCard> {
                           fontSize: 11,
                           fontWeight: FontWeight.w600,
                           color: hoursInfo.status == _HoursStatus.open
-                              ? (dark ? SupplyMapColors.accentGreen : const Color(0xFF1B5E20))
+                              ? (dark ? ac.accentGreen : const Color(0xFF1B5E20))
                               : hoursInfo.status == _HoursStatus.closingSoon
                                   ? const Color(0xFFE65100)
-                                  : SupplyMapColors.red,
+                                  : ac.red,
                         ),
                       ),
                     ),
@@ -2022,7 +2029,7 @@ class _ResultCardState extends State<_ResultCard> {
                           horizontal: 8, vertical: 3),
                       decoration: BoxDecoration(
                         color: dark
-                            ? SupplyMapColors.accentGreen.withValues(alpha: 0.15)
+                            ? ac.accentGreen.withValues(alpha: 0.15)
                             : Colors.white.withValues(alpha: 0.2),
                         borderRadius: BorderRadius.circular(6),
                       ),
@@ -2032,7 +2039,7 @@ class _ResultCardState extends State<_ResultCard> {
                           fontSize: 14,
                           fontWeight: FontWeight.w700,
                           color: dark
-                              ? SupplyMapColors.accentGreen
+                              ? ac.accentGreen
                               : Colors.white,
                         ),
                       ),
@@ -2217,7 +2224,7 @@ class _ResultCardState extends State<_ResultCard> {
                       _note != null ? Icons.sticky_note_2 : Icons.sticky_note_2_outlined,
                       size: 14,
                       color: _note != null
-                          ? SupplyMapColors.accentGreen
+                          ? ac.accentGreen
                           : fg.withValues(alpha: 0.5),
                     ),
                     const SizedBox(width: 4),
@@ -2227,7 +2234,7 @@ class _ResultCardState extends State<_ResultCard> {
                         fontSize: 11,
                         fontWeight: FontWeight.w500,
                         color: _note != null
-                            ? SupplyMapColors.accentGreen
+                            ? ac.accentGreen
                             : fg.withValues(alpha: 0.5),
                       ),
                     ),
@@ -2274,7 +2281,7 @@ class _ResultCardState extends State<_ResultCard> {
                             padding: const EdgeInsets.symmetric(
                                 horizontal: 12, vertical: 4),
                             decoration: BoxDecoration(
-                              color: SupplyMapColors.accentGreen,
+                              color: ac.accentGreen,
                               borderRadius: BorderRadius.circular(6),
                             ),
                             child: Text(
@@ -2303,12 +2310,12 @@ class _ResultCardState extends State<_ResultCard> {
                   padding: const EdgeInsets.symmetric(vertical: 10),
                   decoration: BoxDecoration(
                     color: dark
-                        ? SupplyMapColors.accentGreen.withValues(alpha: 0.12)
+                        ? ac.accentGreen.withValues(alpha: 0.12)
                         : Colors.white.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(8),
                     border: Border.all(
                       color: dark
-                          ? SupplyMapColors.accentGreen.withValues(alpha: 0.3)
+                          ? ac.accentGreen.withValues(alpha: 0.3)
                           : Colors.white.withValues(alpha: 0.25),
                     ),
                   ),
@@ -2379,6 +2386,7 @@ class _MapControlBtnState extends State<_MapControlBtn> {
 
   @override
   Widget build(BuildContext context) {
+    final ac = AppColors.of(context);
     return MouseRegion(
       onEnter: (_) => setState(() => _hovered = true),
       onExit: (_) => setState(() => _hovered = false),
@@ -2392,11 +2400,11 @@ class _MapControlBtnState extends State<_MapControlBtn> {
             height: 48,
             decoration: BoxDecoration(
               color: _hovered
-                  ? SupplyMapColors.borderSubtle
-                  : Colors.white,
+                  ? ac.borderSubtle
+                  : ac.cardBg,
               borderRadius: BorderRadius.circular(14),
               border: Border.all(
-                  color: SupplyMapColors.borderSubtle),
+                  color: ac.borderSubtle),
               boxShadow: const [
                 BoxShadow(
                   color: Color(0x081A1918),
@@ -2407,7 +2415,7 @@ class _MapControlBtnState extends State<_MapControlBtn> {
             ),
             alignment: Alignment.center,
             child: Icon(widget.icon,
-                color: SupplyMapColors.textBlack, size: 20),
+                color: ac.textPrimary, size: 20),
           ),
         ),
       ),
@@ -2434,11 +2442,12 @@ class _SelectedStorePopup extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final ac = AppColors.of(context);
     return Container(
       decoration: BoxDecoration(
-        color: SupplyMapColors.sidebarBg,
+        color: ac.sidebarBg,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: SupplyMapColors.borderSubtle),
+        border: Border.all(color: ac.borderSubtle),
         boxShadow: const [
           BoxShadow(
             color: Color(0x151A1918),
@@ -2454,8 +2463,8 @@ class _SelectedStorePopup extends StatelessWidget {
         children: [
           Row(
             children: [
-              const Icon(Icons.store,
-                  size: 16, color: SupplyMapColors.accentGreen),
+              Icon(Icons.store,
+                  size: 16, color: ac.accentGreen),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
@@ -2465,14 +2474,14 @@ class _SelectedStorePopup extends StatelessWidget {
                   style: _outfit(
                     fontWeight: FontWeight.w700,
                     fontSize: 14,
-                    color: SupplyMapColors.textBlack,
+                    color: ac.textPrimary,
                   ),
                 ),
               ),
               GestureDetector(
                 onTap: onClose,
-                child: const Icon(Icons.close,
-                    size: 14, color: SupplyMapColors.textTertiary),
+                child: Icon(Icons.close,
+                    size: 14, color: ac.textTertiary),
               ),
             ],
           ),
@@ -2483,7 +2492,7 @@ class _SelectedStorePopup extends StatelessWidget {
             '${store.durationMinutes != null ? ' · ~${store.durationMinutes} min' : ''}'
             '${_storeTypeLabel(store) != null ? ' · ${_storeTypeLabel(store)}' : ''}',
             style: _outfit(
-                fontSize: 12, color: SupplyMapColors.textSecondary),
+                fontSize: 12, color: ac.textSecondary),
           ),
           if (store.rating != null) ...[
             const SizedBox(height: 2),
@@ -2497,7 +2506,7 @@ class _SelectedStorePopup extends StatelessWidget {
                   '${store.rating!.toStringAsFixed(1)}'
                   '${store.reviewCount != null ? ' (${_formatReviewCount(store.reviewCount!)})' : ''}',
                   style: _outfit(
-                      fontSize: 11, color: SupplyMapColors.textTertiary),
+                      fontSize: 11, color: ac.textTertiary),
                 ),
               ],
             ),
@@ -2507,7 +2516,7 @@ class _SelectedStorePopup extends StatelessWidget {
             Text(
               store.openingHours!,
               style: _outfit(
-                  fontSize: 11, color: SupplyMapColors.textTertiary),
+                  fontSize: 11, color: ac.textTertiary),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
@@ -2520,7 +2529,7 @@ class _SelectedStorePopup extends StatelessWidget {
               padding: const EdgeInsets.symmetric(
                   horizontal: 12, vertical: 6),
               decoration: BoxDecoration(
-                color: SupplyMapColors.accentGreen,
+                color: ac.accentGreen,
                 borderRadius:
                     BorderRadius.circular(kRadiusPill),
               ),
@@ -2564,32 +2573,35 @@ class _AiInsightCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final ac = AppColors.of(context);
     return Container(
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFFF0F7F3), Color(0xFFEDF5F0)],
+        gradient: LinearGradient(
+          colors: ac.isDark
+              ? [const Color(0xFF1A2E22), const Color(0xFF1C2D23)]
+              : [const Color(0xFFF0F7F3), const Color(0xFFEDF5F0)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(kRadiusMd),
         border: Border.all(
-          color: SupplyMapColors.accentGreen.withValues(alpha: 0.25),
+          color: ac.accentGreen.withValues(alpha: 0.25),
         ),
       ),
       padding: const EdgeInsets.all(16),
-      child: _loading ? _buildLoading() : _buildContent(),
+      child: _loading ? _buildLoading(ac) : _buildContent(ac),
     );
   }
 
-  Widget _buildLoading() {
+  Widget _buildLoading(AppColors ac) {
     return Row(
       children: [
-        const SizedBox(
+        SizedBox(
           width: 16,
           height: 16,
           child: CircularProgressIndicator(
             strokeWidth: 2,
-            color: SupplyMapColors.accentGreen,
+            color: ac.accentGreen,
           ),
         ),
         const SizedBox(width: 12),
@@ -2598,14 +2610,14 @@ class _AiInsightCard extends StatelessWidget {
           style: _outfit(
             fontSize: 13,
             fontWeight: FontWeight.w500,
-            color: SupplyMapColors.textSecondary,
+            color: ac.textSecondary,
           ),
         ),
       ],
     );
   }
 
-  Widget _buildContent() {
+  Widget _buildContent(AppColors ac) {
     final s = summary!;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -2616,11 +2628,11 @@ class _AiInsightCard extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(5),
               decoration: BoxDecoration(
-                color: SupplyMapColors.accentGreen.withValues(alpha: 0.15),
+                color: ac.accentGreen.withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(6),
               ),
-              child: const Icon(Icons.auto_awesome,
-                  size: 14, color: SupplyMapColors.accentGreen),
+              child: Icon(Icons.auto_awesome,
+                  size: 14, color: ac.accentGreen),
             ),
             const SizedBox(width: 8),
             Text(
@@ -2629,7 +2641,7 @@ class _AiInsightCard extends StatelessWidget {
                 fontSize: 12,
                 fontWeight: FontWeight.w700,
                 letterSpacing: 0.5,
-                color: SupplyMapColors.accentGreen,
+                color: ac.accentGreen,
               ),
             ),
           ],
@@ -2641,7 +2653,7 @@ class _AiInsightCard extends StatelessWidget {
           style: _outfit(
             fontSize: 14,
             fontWeight: FontWeight.w600,
-            color: SupplyMapColors.textBlack,
+            color: ac.textPrimary,
             height: 1.4,
           ),
         ),
@@ -2651,7 +2663,7 @@ class _AiInsightCard extends StatelessWidget {
             s.reasoning,
             style: _outfit(
               fontSize: 12,
-              color: SupplyMapColors.textSecondary,
+              color: ac.textSecondary,
               height: 1.4,
             ),
           ),
@@ -2663,10 +2675,10 @@ class _AiInsightCard extends StatelessWidget {
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Padding(
-                      padding: EdgeInsets.only(top: 2),
+                    Padding(
+                      padding: const EdgeInsets.only(top: 2),
                       child: Icon(Icons.lightbulb_outline,
-                          size: 13, color: SupplyMapColors.accentGreen),
+                          size: 13, color: ac.accentGreen),
                     ),
                     const SizedBox(width: 6),
                     Expanded(
@@ -2674,7 +2686,7 @@ class _AiInsightCard extends StatelessWidget {
                         tip,
                         style: _outfit(
                           fontSize: 12,
-                          color: SupplyMapColors.textSecondary,
+                          color: ac.textSecondary,
                           height: 1.3,
                         ),
                       ),
@@ -2827,6 +2839,7 @@ class _SortChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final ac = AppColors.of(context);
     return GestureDetector(
       onTap: onTap,
       child: AnimatedContainer(
@@ -2834,13 +2847,13 @@ class _SortChip extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
         decoration: BoxDecoration(
           color: selected
-              ? SupplyMapColors.accentGreen.withValues(alpha: 0.15)
-              : SupplyMapColors.glass,
+              ? ac.accentGreen.withValues(alpha: 0.15)
+              : ac.glass,
           borderRadius: BorderRadius.circular(8),
           border: Border.all(
             color: selected
-                ? SupplyMapColors.accentGreen.withValues(alpha: 0.5)
-                : SupplyMapColors.borderSubtle,
+                ? ac.accentGreen.withValues(alpha: 0.5)
+                : ac.borderSubtle,
           ),
         ),
         child: Row(
@@ -2849,8 +2862,8 @@ class _SortChip extends StatelessWidget {
             Icon(icon,
                 size: 14,
                 color: selected
-                    ? SupplyMapColors.accentGreen
-                    : SupplyMapColors.textTertiary),
+                    ? ac.accentGreen
+                    : ac.textTertiary),
             const SizedBox(width: 4),
             Text(
               label,
@@ -2858,8 +2871,8 @@ class _SortChip extends StatelessWidget {
                 fontSize: 11,
                 fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
                 color: selected
-                    ? SupplyMapColors.accentGreen
-                    : SupplyMapColors.textSecondary,
+                    ? ac.accentGreen
+                    : ac.textSecondary,
               ),
             ),
           ],
@@ -2874,19 +2887,20 @@ class _EmptyState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final ac = AppColors.of(context);
     return Center(
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(Icons.storefront_outlined,
-              size: 48, color: SupplyMapColors.borderStrong.withValues(alpha: 0.5)),
+              size: 48, color: ac.borderStrong.withValues(alpha: 0.5)),
           const SizedBox(height: 12),
           Text(
             'No stores found nearby',
             style: _outfit(
               fontSize: 16,
               fontWeight: FontWeight.w600,
-              color: SupplyMapColors.textSecondary,
+              color: ac.textSecondary,
             ),
           ),
           const SizedBox(height: 6),
@@ -2895,7 +2909,7 @@ class _EmptyState extends StatelessWidget {
             textAlign: TextAlign.center,
             style: _outfit(
               fontSize: 13,
-              color: SupplyMapColors.textTertiary,
+              color: ac.textTertiary,
             ),
           ),
         ],
@@ -2937,6 +2951,7 @@ class _NoResultsPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final ac = AppColors.of(context);
     final isNarrow = MediaQuery.of(context).size.width < 500;
 
     return SafeArea(
@@ -2956,13 +2971,13 @@ class _NoResultsPage extends StatelessWidget {
                   width: 80,
                   height: 80,
                   decoration: BoxDecoration(
-                    color: SupplyMapColors.red.withValues(alpha: 0.08),
+                    color: ac.red.withValues(alpha: 0.08),
                     shape: BoxShape.circle,
                   ),
                   child: Icon(
                     Icons.search_off_rounded,
                     size: 40,
-                    color: SupplyMapColors.red.withValues(alpha: 0.6),
+                    color: ac.red.withValues(alpha: 0.6),
                   ),
                 ),
                 const SizedBox(height: 20),
@@ -2974,7 +2989,7 @@ class _NoResultsPage extends StatelessWidget {
                   style: _outfit(
                     fontSize: isNarrow ? 20 : 24,
                     fontWeight: FontWeight.w700,
-                    color: SupplyMapColors.textBlack,
+                    color: ac.textPrimary,
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -2985,7 +3000,7 @@ class _NoResultsPage extends StatelessWidget {
                   textAlign: TextAlign.center,
                   style: _outfit(
                     fontSize: 14,
-                    color: SupplyMapColors.textSecondary,
+                    color: ac.textSecondary,
                     height: 1.5,
                   ),
                 ),
@@ -2996,58 +3011,58 @@ class _NoResultsPage extends StatelessWidget {
                   width: double.infinity,
                   padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: ac.cardBg,
                     borderRadius: BorderRadius.circular(kRadiusMd),
-                    border: Border.all(color: SupplyMapColors.borderSubtle),
+                    border: Border.all(color: ac.borderSubtle),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Row(
                         children: [
-                          const Icon(Icons.lightbulb_outline,
-                              size: 18, color: SupplyMapColors.accentGreen),
+                          Icon(Icons.lightbulb_outline,
+                              size: 18, color: ac.accentGreen),
                           const SizedBox(width: 8),
                           Text(
                             'Tips to get results',
                             style: _outfit(
                               fontSize: 15,
                               fontWeight: FontWeight.w700,
-                              color: SupplyMapColors.textBlack,
+                              color: ac.textPrimary,
                             ),
                           ),
                         ],
                       ),
                       const SizedBox(height: 14),
-                      _tipRow(Icons.zoom_out_map, 'Increase your search radius',
+                      _tipRow(ac, Icons.zoom_out_map, 'Increase your search radius',
                           'Currently set to ${radiusMiles.round()} mi — try a larger area'),
                       const SizedBox(height: 12),
-                      _tipRow(Icons.edit, 'Use a broader search term',
+                      _tipRow(ac, Icons.edit, 'Use a broader search term',
                           'e.g. "laptop" instead of a specific model name'),
                       const SizedBox(height: 12),
-                      _tipRow(Icons.tune, 'Remove active filters',
+                      _tipRow(ac, Icons.tune, 'Remove active filters',
                           'Quality tier or store-name filters may be too narrow'),
                       const SizedBox(height: 12),
-                      _tipRow(Icons.location_on_outlined, 'Check your location',
+                      _tipRow(ac, Icons.location_on_outlined, 'Check your location',
                           'Make sure your address or GPS is accurate'),
                       if (alternatives != null && alternatives!.isNotEmpty) ...[
                         const SizedBox(height: 12),
-                        const Divider(color: SupplyMapColors.borderSubtle, height: 1),
+                        Divider(color: ac.borderSubtle, height: 1),
                         const SizedBox(height: 12),
                         ...alternatives!.map((alt) => Padding(
                           padding: const EdgeInsets.only(bottom: 8),
                           child: Row(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              const Icon(Icons.arrow_forward,
-                                  size: 14, color: SupplyMapColors.accentGreen),
+                              Icon(Icons.arrow_forward,
+                                  size: 14, color: ac.accentGreen),
                               const SizedBox(width: 8),
                               Expanded(
                                 child: Text(
                                   alt,
                                   style: _outfit(
                                     fontSize: 13,
-                                    color: SupplyMapColors.textSecondary,
+                                    color: ac.textSecondary,
                                     height: 1.4,
                                   ),
                                 ),
@@ -3067,7 +3082,7 @@ class _NoResultsPage extends StatelessWidget {
                   style: _outfit(
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
-                    color: SupplyMapColors.textTertiary,
+                    color: ac.textTertiary,
                   ),
                 ),
                 const SizedBox(height: 10),
@@ -3082,17 +3097,17 @@ class _NoResultsPage extends StatelessWidget {
                         padding: const EdgeInsets.symmetric(
                             horizontal: 14, vertical: 8),
                         decoration: BoxDecoration(
-                          color: SupplyMapColors.glass,
+                          color: ac.glass,
                           borderRadius: BorderRadius.circular(kRadiusPill),
                           border: Border.all(
-                              color: SupplyMapColors.borderSubtle),
+                              color: ac.borderSubtle),
                         ),
                         child: Text(
                           s,
                           style: _outfit(
                             fontSize: 13,
                             fontWeight: FontWeight.w500,
-                            color: SupplyMapColors.textBlack,
+                            color: ac.textPrimary,
                           ),
                         ),
                       ),
@@ -3105,7 +3120,7 @@ class _NoResultsPage extends StatelessWidget {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    _pillButton('Go back', onTap: onBack),
+                    _pillButton(context, 'Go back', onTap: onBack),
                     const SizedBox(width: 12),
                     GestureDetector(
                       onTap: onRetry,
@@ -3113,7 +3128,7 @@ class _NoResultsPage extends StatelessWidget {
                         padding: const EdgeInsets.symmetric(
                             horizontal: 24, vertical: 12),
                         decoration: BoxDecoration(
-                          color: SupplyMapColors.accentGreen,
+                          color: ac.accentGreen,
                           borderRadius: BorderRadius.circular(kRadiusPill),
                         ),
                         child: Text(
@@ -3136,7 +3151,7 @@ class _NoResultsPage extends StatelessWidget {
     );
   }
 
-  Widget _tipRow(IconData icon, String title, String subtitle) {
+  Widget _tipRow(AppColors ac, IconData icon, String title, String subtitle) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -3144,10 +3159,10 @@ class _NoResultsPage extends StatelessWidget {
           width: 32,
           height: 32,
           decoration: BoxDecoration(
-            color: SupplyMapColors.accentGreen.withValues(alpha: 0.1),
+            color: ac.accentGreen.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(8),
           ),
-          child: Icon(icon, size: 16, color: SupplyMapColors.accentGreen),
+          child: Icon(icon, size: 16, color: ac.accentGreen),
         ),
         const SizedBox(width: 12),
         Expanded(
@@ -3158,13 +3173,13 @@ class _NoResultsPage extends StatelessWidget {
                   style: _outfit(
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
-                    color: SupplyMapColors.textBlack,
+                    color: ac.textPrimary,
                   )),
               const SizedBox(height: 2),
               Text(subtitle,
                   style: _outfit(
                     fontSize: 12,
-                    color: SupplyMapColors.textTertiary,
+                    color: ac.textTertiary,
                     height: 1.3,
                   )),
             ],
@@ -3179,23 +3194,24 @@ class _NoResultsPage extends StatelessWidget {
 // Helper
 // ---------------------------------------------------------------------------
 
-Widget _pillButton(String label, {required VoidCallback onTap}) {
+Widget _pillButton(BuildContext context, String label, {required VoidCallback onTap}) {
+  final ac = AppColors.of(context);
   return GestureDetector(
     onTap: onTap,
     child: Container(
       padding:
           const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
       decoration: BoxDecoration(
-        color: SupplyMapColors.glass,
+        color: ac.glass,
         borderRadius: BorderRadius.circular(kRadiusPill),
-        border: Border.all(color: SupplyMapColors.borderSubtle),
+        border: Border.all(color: ac.borderSubtle),
       ),
       child: Text(
         label,
         style: _outfit(
           fontSize: 14,
           fontWeight: FontWeight.w500,
-          color: SupplyMapColors.textBlack,
+          color: ac.textPrimary,
         ),
       ),
     ),
