@@ -20,22 +20,23 @@ TextStyle _noTextShadow(TextStyle s) {
 /// Warm, cream-toned light theme (Scandinavian minimal).
 ThemeData get _supplyMapTheme {
   final base = GoogleFonts.outfitTextTheme(ThemeData.light().textTheme);
+  TextStyle safe(TextStyle? s) => s != null ? _noTextShadow(s) : const TextStyle();
   final textTheme = TextTheme(
-    displayLarge: _noTextShadow(base.displayLarge!),
-    displayMedium: _noTextShadow(base.displayMedium!),
-    displaySmall: _noTextShadow(base.displaySmall!),
-    headlineLarge: _noTextShadow(base.headlineLarge!),
-    headlineMedium: _noTextShadow(base.headlineMedium!),
-    headlineSmall: _noTextShadow(base.headlineSmall!),
-    titleLarge: _noTextShadow(base.titleLarge!),
-    titleMedium: _noTextShadow(base.titleMedium!),
-    titleSmall: _noTextShadow(base.titleSmall!),
-    bodyLarge: _noTextShadow(base.bodyLarge!),
-    bodyMedium: _noTextShadow(base.bodyMedium!),
-    bodySmall: _noTextShadow(base.bodySmall!),
-    labelLarge: _noTextShadow(base.labelLarge!),
-    labelMedium: _noTextShadow(base.labelMedium!),
-    labelSmall: _noTextShadow(base.labelSmall!),
+    displayLarge: safe(base.displayLarge),
+    displayMedium: safe(base.displayMedium),
+    displaySmall: safe(base.displaySmall),
+    headlineLarge: safe(base.headlineLarge),
+    headlineMedium: safe(base.headlineMedium),
+    headlineSmall: safe(base.headlineSmall),
+    titleLarge: safe(base.titleLarge),
+    titleMedium: safe(base.titleMedium),
+    titleSmall: safe(base.titleSmall),
+    bodyLarge: safe(base.bodyLarge),
+    bodyMedium: safe(base.bodyMedium),
+    bodySmall: safe(base.bodySmall),
+    labelLarge: safe(base.labelLarge),
+    labelMedium: safe(base.labelMedium),
+    labelSmall: safe(base.labelSmall),
   );
   return ThemeData(
     useMaterial3: true,
@@ -93,7 +94,7 @@ class WayvioApp extends StatelessWidget {
           // Force no text shadows app-wide to avoid blurRadius assertion on hover.
           final theme = Theme.of(context);
           return DefaultTextStyle(
-            style: _noTextShadow(theme.textTheme.bodyLarge!),
+            style: _noTextShadow(theme.textTheme.bodyLarge ?? const TextStyle()),
             child: child ?? const SizedBox.shrink(),
           );
         },

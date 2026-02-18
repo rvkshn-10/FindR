@@ -97,14 +97,24 @@ class _SupplyMapShellState extends State<SupplyMapShell> {
           ),
         );
       case _Page.results:
+        final params = _resultParams;
+        if (params == null) {
+          return KeyedSubtree(
+            key: const ValueKey<String>('search'),
+            child: SearchScreen(
+              onSearchResult: _onSearchResult,
+              onOpenProfile: _openProfile,
+            ),
+          );
+        }
         return KeyedSubtree(
           key: const ValueKey<String>('results'),
           child: ResultsScreen(
-            item: _resultParams!.item,
-            lat: _resultParams!.lat,
-            lng: _resultParams!.lng,
-            maxDistanceMiles: _resultParams!.maxDistanceMiles,
-            filters: _resultParams!.filters,
+            item: params.item,
+            lat: params.lat,
+            lng: params.lng,
+            maxDistanceMiles: params.maxDistanceMiles,
+            filters: params.filters,
             onNewSearch: _onNewSearch,
           ),
         );

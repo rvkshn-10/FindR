@@ -278,11 +278,12 @@ class _TopoPainter extends CustomPainter {
     final rng = math.Random(42);
 
     // Parallax: how far the mouse is from center, normalized to -1..1.
+    final mp = mousePos;
     double px = 0.0;
     double py = 0.0;
-    if (mousePos != null && size.width > 0 && size.height > 0) {
-      px = (mousePos!.dx - size.width / 2) / (size.width / 2);
-      py = (mousePos!.dy - size.height / 2) / (size.height / 2);
+    if (mp != null && size.width > 0 && size.height > 0) {
+      px = (mp.dx - size.width / 2) / (size.width / 2);
+      py = (mp.dy - size.height / 2) / (size.height / 2);
     }
 
     // Reusable paint object.
@@ -306,9 +307,9 @@ class _TopoPainter extends CustomPainter {
 
       // Proximity boost: thicken & brighten rings near the cursor.
       double proximity = 0.0;
-      if (mousePos != null) {
-        final dx = (mousePos!.dx - cx) / rx;
-        final dy = (mousePos!.dy - cy) / ry;
+      if (mp != null) {
+        final dx = (mp.dx - cx) / rx;
+        final dy = (mp.dy - cy) / ry;
         final normalDist = math.sqrt(dx * dx + dy * dy);
         final distFromRing = (normalDist - 1.0).abs();
         proximity = (1.0 - distFromRing * 2.5).clamp(0.0, 1.0); // 1/0.4=2.5

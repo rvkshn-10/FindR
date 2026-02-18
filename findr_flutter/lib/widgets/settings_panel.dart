@@ -143,7 +143,9 @@ class SettingsPanel extends StatelessWidget {
                     ),
                     child: DropdownButtonHideUnderline(
                       child: DropdownButton<String>(
-                        value: settings.currency,
+                        value: _currencies.contains(settings.currency)
+                            ? settings.currency
+                            : 'USD',
                         dropdownColor: SupplyMapColors.sidebarBg,
                         isExpanded: true,
                         style: _outfit(

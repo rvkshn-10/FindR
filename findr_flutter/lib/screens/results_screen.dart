@@ -261,20 +261,15 @@ class _ResultsScreenState extends State<ResultsScreen> {
               .catchError((_) => null);
         }).toList();
 
-        // Wait for all.
-        final results = await Future.wait([
+        // Wait for all in parallel (type-safe).
+        final (enriched, aiSummary, prices, krogerPrices) = await (
           enrichFuture,
           aiFuture,
           priceFuture,
           Future.wait(krogerPriceFutures),
-        ]);
+        ).wait;
 
         if (!mounted || gen != _loadGeneration) return;
-
-        final enriched = results[0] as SearchResult;
-        final aiSummary = results[1] as AiResultSummary?;
-        final prices = results[2] as PriceData?;
-        final krogerPrices = results[3] as List<KrogerPriceData?>;
 
         // Build a map of Kroger locationId → price data.
         final krogerPriceMap = <String, KrogerPriceData>{};
@@ -520,7 +515,7 @@ class _ResultsScreenState extends State<ResultsScreen> {
 
     final isWide = MediaQuery.of(context).size.width >= 500;
 
-    final mapWidget = _buildMapArea(stores, result, searchRadiusMeters, selectedStore, settings);
+    final mapWidget = _buildMapArea(stores, searchRadiusMeters, selectedStore, settings);
 
     // Wide (web / tablet): map left + store list (sidebar) right
     if (isWide) {
@@ -1027,7 +1022,6 @@ class _ResultsScreenState extends State<ResultsScreen> {
   // -----------------------------------------------------------------------
   Widget _buildMapArea(
     List<Store> stores,
-    SearchResult result,
     double searchRadiusMeters,
     Store? selectedStore,
     SettingsProvider settings,
