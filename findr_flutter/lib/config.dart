@@ -53,7 +53,7 @@ const double kMapSelectZoom = 17.5;
 // Search radius bounds (miles, user-facing)
 // ---------------------------------------------------------------------------
 
-const double kMinRadiusMiles = 1;
+const double kMinRadiusMiles = 3;
 const double kMaxRadiusMiles = 25;
 const double kDefaultRadiusMiles = 5;
 
