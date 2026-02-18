@@ -29,14 +29,14 @@ const String kHttpUserAgent = 'Wayvio/1.0 (Flutter; contact via project repo)';
 // ---------------------------------------------------------------------------
 
 const Duration kGeocodeTimeout = Duration(seconds: 10);
-const Duration kOverpassTimeout = Duration(seconds: 30);
+const Duration kOverpassTimeout = Duration(seconds: 20);
 const Duration kOsrmTimeout = Duration(seconds: 10);
 
 // ---------------------------------------------------------------------------
 // Store search defaults
 // ---------------------------------------------------------------------------
 
-const int kMaxStoresDisplay = 25;
+const int kMaxStoresDisplay = 10;
 const int kMaxStoresForRoad = 25;
 const int kMaxOsrmDest = 25;
 const double kAvgSpeedKmh = 50.0;
@@ -46,7 +46,7 @@ const int kDefaultOverpassRadiusM = 5000;
 // Map defaults
 // ---------------------------------------------------------------------------
 
-const double kMapInitialZoom = 10.0;
+const double kMapInitialZoom = 14.0;
 const double kMapSelectZoom = 17.5;
 
 // ---------------------------------------------------------------------------
@@ -54,8 +54,8 @@ const double kMapSelectZoom = 17.5;
 // ---------------------------------------------------------------------------
 
 const double kMinRadiusMiles = 1;
-const double kMaxRadiusMiles = 500;
-const double kDefaultRadiusMiles = 50;
+const double kMaxRadiusMiles = 25;
+const double kDefaultRadiusMiles = 5;
 
 // ---------------------------------------------------------------------------
 // Input limits

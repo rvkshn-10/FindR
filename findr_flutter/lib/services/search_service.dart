@@ -55,7 +55,7 @@ Future<SearchResult> searchFast({
   double maxDistanceKm = 8.0,
   SearchFilters? filters,
 }) async {
-  final radiusM = (maxDistanceKm * 1000).clamp(1000.0, 160000.0);
+  final radiusM = (maxDistanceKm * 1000).clamp(1000.0, 25000.0);
   final filterInfo = filtersForItem(item);
   final isDining = filterInfo.isDining;
   final isService = filterInfo.isService;

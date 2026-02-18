@@ -179,25 +179,22 @@ Future<List<OverpassStore>> fetchNearbyStores(
     final shopTypes = filterResult.shopFilter?.split('|') ??
         ['electronics', 'hardware', 'doityourself', 'department_store',
          'variety_store', 'general', 'wholesale', 'discount'];
-    final maxShops = radiusM > 80000 ? 4 : (radiusM > 40000 ? 6 : 8);
-    for (final s in shopTypes.take(maxShops)) {
+    for (final s in shopTypes.take(8)) {
       clauses.add('nwr["shop"="$s"](around:$radiusM,$lat,$lng);');
     }
 
-    if (radiusM <= 80000) {
-      final amenityTypes = filterResult.amenityFilter?.split('|') ?? ['marketplace'];
-      for (final a in amenityTypes.take(3)) {
-        clauses.add('nwr["amenity"="$a"](around:$radiusM,$lat,$lng);');
-      }
+    final amenityTypes = filterResult.amenityFilter?.split('|') ?? ['marketplace'];
+    for (final a in amenityTypes.take(3)) {
+      clauses.add('nwr["amenity"="$a"](around:$radiusM,$lat,$lng);');
     }
 
-    if (item != null && item.trim().isNotEmpty && radiusM <= 50000) {
+    if (item != null && item.trim().isNotEmpty) {
       final lower = item.toLowerCase().trim();
       clauses.add('nwr["shop"]["name"~"$lower",i](around:$radiusM,$lat,$lng);');
     }
   }
 
-  final timeoutSec = radiusM > 80000 ? 25 : (clauses.length > 10 ? 20 : 15);
+  final timeoutSec = clauses.length > 10 ? 20 : 15;
 
   final query = '''
 [out:json][timeout:$timeoutSec];
