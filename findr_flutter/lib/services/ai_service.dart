@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'package:flutter/foundation.dart';
 import 'package:google_generative_ai/google_generative_ai.dart';
 import '../config.dart';
 
@@ -90,7 +89,7 @@ User query: "$userQuery"''';
           json['refinedQuery']?.toString() ?? userQuery,
     );
   } catch (e) {
-    debugPrint('AI query enhancement failed: $e');
+    print('[Wayvio] AI query enhancement failed: $e');
     return null;
   }
 }
@@ -163,7 +162,7 @@ IMPORTANT: Return ONLY valid JSON, no markdown. Use this exact format:
           [],
     );
   } catch (e) {
-    debugPrint('AI summary generation failed: $e');
+    print('[Wayvio] AI summary generation failed: $e');
     return null;
   }
 }

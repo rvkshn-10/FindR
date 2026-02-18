@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import '../config.dart';
 
@@ -59,7 +58,7 @@ Future<List<RoadDistanceResult>?> _fetchChunk(
     }
     return results;
   } catch (e) {
-    debugPrint('OSRM chunk error: $e');
+    print('[Wayvio] OSRM chunk error: $e');
     return null;
   }
 }

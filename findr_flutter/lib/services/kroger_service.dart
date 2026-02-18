@@ -6,7 +6,7 @@
 library;
 
 import 'dart:convert';
-import 'package:flutter/foundation.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:http/http.dart' as http;
 import '../config.dart';
 import 'distance_util.dart';
@@ -137,7 +137,7 @@ Future<List<KrogerLocation>?> fetchKrogerLocations({
     );
 
     if (res == null) {
-      debugPrint('Kroger Locations: no successful response');
+      print('[Wayvio] Kroger Locations: no successful response');
       return null;
     }
 
@@ -175,7 +175,7 @@ Future<List<KrogerLocation>?> fetchKrogerLocations({
     }).toList()
       ..sort((a, b) => a.distanceKm.compareTo(b.distanceKm));
   } catch (e) {
-    debugPrint('Kroger Locations error: $e');
+    print('[Wayvio] Kroger Locations error: $e');
     return null;
   }
 }
@@ -270,7 +270,7 @@ Future<KrogerPriceData?> fetchKrogerProducts({
     );
 
     if (res == null) {
-      debugPrint('Kroger Products: no successful response');
+      print('[Wayvio] Kroger Products: no successful response');
       return null;
     }
 
@@ -357,7 +357,7 @@ Future<KrogerPriceData?> fetchKrogerProducts({
       highPrice: high,
     );
   } catch (e) {
-    debugPrint('Kroger Products error: $e');
+    print('[Wayvio] Kroger Products error: $e');
     return null;
   }
 }

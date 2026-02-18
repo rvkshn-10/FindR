@@ -9,7 +9,6 @@ library;
 
 import 'dart:convert';
 import 'dart:math';
-import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 const _kSearches = 'findr_searches';
@@ -28,7 +27,7 @@ Future<List<Map<String, dynamic>>> _readList(String key) async {
     final decoded = jsonDecode(raw) as List;
     return decoded.cast<Map<String, dynamic>>();
   } catch (e) {
-    debugPrint('LocalStorage: _readList($key) failed: $e');
+    print('[Wayvio] LocalStorage: _readList($key) failed: $e');
     return [];
   }
 }
@@ -38,7 +37,7 @@ Future<void> _writeList(String key, List<Map<String, dynamic>> list) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(key, jsonEncode(list));
   } catch (e) {
-    debugPrint('LocalStorage: _writeList($key) failed: $e');
+    print('[Wayvio] LocalStorage: _writeList($key) failed: $e');
   }
 }
 
@@ -79,16 +78,16 @@ Future<void> saveSearch({
     // Keep at most 100 entries.
     if (list.length > 100) list.removeRange(100, list.length);
     await _writeList(_kSearches, list);
-    debugPrint('LocalStorage: saved search "$item"');
+    print('LocalStorage: saved search "$item"');
   } catch (e) {
-    debugPrint('LocalStorage: saveSearch failed: $e');
+    print('[Wayvio] LocalStorage: saveSearch failed: $e');
   }
 }
 
 /// Get recent searches (newest first), limited to [limit].
 Future<List<Map<String, dynamic>>> getRecentSearches({int limit = 20}) async {
   final list = await _readList(_kSearches);
-  return list.take(limit).toList();
+  return list.take(limit.clamp(0, list.length)).toList();
 }
 
 /// Stream of recent searches (emits once — local storage has no live updates).
@@ -103,7 +102,7 @@ Future<void> deleteSearch(String docId) async {
     list.removeWhere((e) => e['id'] == docId);
     await _writeList(_kSearches, list);
   } catch (e) {
-    debugPrint('LocalStorage: deleteSearch failed: $e');
+    print('[Wayvio] LocalStorage: deleteSearch failed: $e');
   }
 }
 
@@ -111,9 +110,9 @@ Future<void> deleteSearch(String docId) async {
 Future<void> clearSearchHistory() async {
   try {
     await _writeList(_kSearches, []);
-    debugPrint('LocalStorage: cleared search history');
+    print('LocalStorage: cleared search history');
   } catch (e) {
-    debugPrint('LocalStorage: clearSearchHistory failed: $e');
+    print('[Wayvio] LocalStorage: clearSearchHistory failed: $e');
   }
 }
 
@@ -164,9 +163,9 @@ Future<void> addFavorite({
       'timestamp': DateTime.now().millisecondsSinceEpoch,
     });
     await _writeList(_kFavorites, list);
-    debugPrint('LocalStorage: added favorite "$storeName"');
+    print('LocalStorage: added favorite "$storeName"');
   } catch (e) {
-    debugPrint('LocalStorage: addFavorite failed: $e');
+    print('[Wayvio] LocalStorage: addFavorite failed: $e');
   }
 }
 
@@ -177,9 +176,9 @@ Future<void> removeFavorite(String storeId) async {
     final safeId = storeId.replaceAll('/', '_');
     list.removeWhere((e) => (e['storeId'] as String?)?.replaceAll('/', '_') == safeId);
     await _writeList(_kFavorites, list);
-    debugPrint('LocalStorage: removed favorite "$storeId"');
+    print('LocalStorage: removed favorite "$storeId"');
   } catch (e) {
-    debugPrint('LocalStorage: removeFavorite failed: $e');
+    print('[Wayvio] LocalStorage: removeFavorite failed: $e');
   }
 }
 
@@ -190,7 +189,7 @@ Future<bool> isFavorite(String storeId) async {
     final safeId = storeId.replaceAll('/', '_');
     return list.any((e) => (e['storeId'] as String?)?.replaceAll('/', '_') == safeId);
   } catch (e) {
-    debugPrint('LocalStorage: isFavorite failed: $e');
+    print('[Wayvio] LocalStorage: isFavorite failed: $e');
     return false;
   }
 }
@@ -227,12 +226,12 @@ Future<void> saveRecommendation({
     if (list.length > 50) list.removeRange(50, list.length);
     await _writeList(_kRecommendations, list);
   } catch (e) {
-    debugPrint('LocalStorage: saveRecommendation failed: $e');
+    print('[Wayvio] LocalStorage: saveRecommendation failed: $e');
   }
 }
 
 /// Get recent recommendations.
 Future<List<Map<String, dynamic>>> getRecommendations({int limit = 10}) async {
   final list = await _readList(_kRecommendations);
-  return list.take(limit).toList();
+  return list.take(limit.clamp(0, list.length)).toList();
 }

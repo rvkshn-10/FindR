@@ -17,12 +17,16 @@ class SettingsProvider with ChangeNotifier {
 
   /// Call once at startup to load persisted values.
   Future<void> load() async {
-    final prefs = await SharedPreferences.getInstance();
-    final unitStr = prefs.getString(_kDistanceUnitKey);
-    if (unitStr == 'km') _distanceUnit = DistanceUnit.km;
-    final curr = prefs.getString(_kCurrencyKey);
-    if (curr != null && curr.isNotEmpty) _currency = curr;
-    notifyListeners();
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final unitStr = prefs.getString(_kDistanceUnitKey);
+      if (unitStr == 'km') _distanceUnit = DistanceUnit.km;
+      final curr = prefs.getString(_kCurrencyKey);
+      if (curr != null && curr.isNotEmpty) _currency = curr;
+      notifyListeners();
+    } catch (e) {
+      print('[Wayvio] SettingsProvider.load failed: $e');
+    }
   }
 
   void setDistanceUnit(DistanceUnit unit) {
@@ -40,9 +44,13 @@ class SettingsProvider with ChangeNotifier {
   }
 
   Future<void> _persist() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(
-        _kDistanceUnitKey, _distanceUnit == DistanceUnit.km ? 'km' : 'mi');
-    await prefs.setString(_kCurrencyKey, _currency);
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(
+          _kDistanceUnitKey, _distanceUnit == DistanceUnit.km ? 'km' : 'mi');
+      await prefs.setString(_kCurrencyKey, _currency);
+    } catch (e) {
+      print('[Wayvio] SettingsProvider._persist failed: $e');
+    }
   }
 }

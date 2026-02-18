@@ -164,6 +164,7 @@ class _ResultsScreenState extends State<ResultsScreen> {
   PriceData? _priceData;
   bool _pricesLoading = false;
   SortMode _sortMode = SortMode.distance;
+  int _loadGeneration = 0;
 
   @override
   void initState() {
@@ -179,6 +180,7 @@ class _ResultsScreenState extends State<ResultsScreen> {
   }
 
   Future<void> _load() async {
+    final gen = ++_loadGeneration;
     setState(() {
       _loading = true;
       _error = null;
@@ -196,7 +198,7 @@ class _ResultsScreenState extends State<ResultsScreen> {
         filters: widget.filters,
       );
       print('[Wayvio] searchFast returned ${fastResult.stores.length} stores');
-      if (!mounted) return;
+      if (!mounted || gen != _loadGeneration) return;
       setState(() {
         _result = fastResult;
         _loading = false;
@@ -267,7 +269,7 @@ class _ResultsScreenState extends State<ResultsScreen> {
           Future.wait(krogerPriceFutures),
         ]);
 
-        if (!mounted) return;
+        if (!mounted || gen != _loadGeneration) return;
 
         final enriched = results[0] as SearchResult;
         final aiSummary = results[1] as AiResultSummary?;
@@ -494,7 +496,15 @@ class _ResultsScreenState extends State<ResultsScreen> {
       );
     }
 
-    final result = _result!;
+    final result = _result;
+    if (result == null) {
+      return Scaffold(
+        backgroundColor: Colors.transparent,
+        body: Center(
+          child: Text('Loading…', style: _outfit(color: SupplyMapColors.textSecondary)),
+        ),
+      );
+    }
     final stores = _sortedStores(result.stores);
     final searchRadiusMeters = widget.maxDistanceMiles * 1609.34;
 

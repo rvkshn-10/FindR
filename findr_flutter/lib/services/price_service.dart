@@ -4,7 +4,6 @@
 /// stores so users see actual price data instead of placeholders.
 library;
 
-import 'package:flutter/foundation.dart';
 import '../config.dart';
 import '../models/search_models.dart';
 import 'serpapi_http.dart';
@@ -68,7 +67,7 @@ class PriceData {
 /// This is best-effort — the search continues even if prices aren't available.
 Future<PriceData?> fetchProductPrices(String query, {double? lat, double? lng}) async {
   if (kSerpApiKey.isEmpty) {
-    debugPrint('SerpApi: no API key configured, skipping price lookup.');
+    print('[Wayvio] SerpApi: no API key, skipping price lookup');
     return null;
   }
 
@@ -92,13 +91,13 @@ Future<PriceData?> fetchProductPrices(String query, {double? lat, double? lng}) 
 
     final results = data['shopping_results'] as List<dynamic>?;
     if (results == null || results.isEmpty) {
-      debugPrint('SerpApi: no shopping results for "$query"');
+      print('[Wayvio] SerpApi: no shopping results for "$query"');
       return null;
     }
 
     return _parsePrices(results);
   } catch (e) {
-    debugPrint('SerpApi price fetch failed: $e');
+    print('[Wayvio] SerpApi price fetch failed: $e');
     return null;
   }
 }

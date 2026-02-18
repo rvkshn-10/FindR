@@ -142,7 +142,7 @@ class _ProfileScreenState extends State<ProfileScreen>
         }
       }
     } catch (e) {
-      debugPrint('AI recommendation generation failed: $e');
+      print('[Wayvio] AI recommendation generation failed: $e');
     }
 
     if (mounted) setState(() => _generatingRecs = false);
@@ -375,7 +375,8 @@ class _ProfileScreenState extends State<ProfileScreen>
               final ts = search['timestamp'];
               if (ts != null) {
                 try {
-                  final date = (ts as dynamic).toDate() as DateTime;
+                  final ms = ts is int ? ts : (ts as num).toInt();
+                  final date = DateTime.fromMillisecondsSinceEpoch(ms);
                   final diff = DateTime.now().difference(date);
                   if (diff.inMinutes < 1) {
                     timeLabel = 'Just now';

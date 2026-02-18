@@ -321,7 +321,7 @@ class _TopoPainter extends CustomPainter {
         SupplyMapColors.borderStrong,
         SupplyMapColors.accentGreen,
         greenAmount,
-      )!;
+      ) ?? SupplyMapColors.borderStrong;
 
       paint
         ..strokeWidth = 1.6 + breathe * 1.0 + proximity * 1.8

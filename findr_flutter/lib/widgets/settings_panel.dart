@@ -104,13 +104,13 @@ class SettingsPanel extends StatelessWidget {
                     value: DistanceUnit.mi,
                     groupValue: settings.distanceUnit,
                     label: 'Miles (mi)',
-                    onChanged: (v) => settings.setDistanceUnit(v!),
+                    onChanged: (v) { if (v != null) settings.setDistanceUnit(v); },
                   ),
                   _SettingsRadio<DistanceUnit>(
                     value: DistanceUnit.km,
                     groupValue: settings.distanceUnit,
                     label: 'Kilometers (km)',
-                    onChanged: (v) => settings.setDistanceUnit(v!),
+                    onChanged: (v) { if (v != null) settings.setDistanceUnit(v); },
                   ),
                   const SizedBox(height: 24),
                   const Divider(
