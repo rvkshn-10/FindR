@@ -6,7 +6,6 @@
 /// electronics shops — not bakeries or hair salons.
 library;
 
-import 'package:flutter/foundation.dart';
 import '../config.dart';
 import 'distance_util.dart';
 import 'nearby_stores_service.dart';
@@ -36,19 +35,20 @@ Future<List<OverpassStore>?> fetchStoresFromGoogleMaps({
       'hl': 'en',
     };
 
-    debugPrint('SerpApi Maps: searching "$query" near ($lat,$lng)');
+    print('[Wayvio] SerpApi Maps: searching "$query" near ($lat,$lng)');
     final data = await fetchSerpApi(params);
     if (data == null) return null;
 
     final localResults = data['local_results'] as List<dynamic>?;
     if (localResults == null || localResults.isEmpty) {
-      debugPrint('SerpApi Maps: no local_results for "$query"');
+      print('[Wayvio] SerpApi Maps: no local_results for "$query"');
       return null;
     }
 
+    print('[Wayvio] SerpApi Maps: ${localResults.length} local results');
     return _parseLocalResults(localResults, lat, lng, maxDistanceKm);
   } catch (e) {
-    debugPrint('SerpApi Maps search failed: $e');
+    print('[Wayvio] SerpApi Maps search failed: $e');
     return null;
   }
 }

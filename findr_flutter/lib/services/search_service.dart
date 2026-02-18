@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'distance_util.dart';
 import 'store_filters.dart';
 import 'nearby_stores_service.dart';
@@ -63,13 +62,11 @@ Future<SearchResult> searchFast({
 
   List<OverpassStore> allStores = [];
 
-  // --- Fire SerpApi, Kroger, AND Overpass all in parallel ---
-  // This way if SerpApi/Kroger fail (CORS), Overpass results still come through
-  // without the user waiting for sequential timeouts.
+  // --- Fire all available APIs in parallel ---
   final serpFuture = fetchStoresFromGoogleMaps(
     item: item, lat: lat, lng: lng, maxDistanceKm: maxDistanceKm,
   ).catchError((e) {
-    debugPrint('Google Maps search failed: $e');
+    print('[Wayvio] Google Maps search failed: $e');
     return null;
   });
 
@@ -77,7 +74,7 @@ Future<SearchResult> searchFast({
       ? fetchKrogerLocations(
           lat: lat, lng: lng, radiusMiles: (maxDistanceKm * 0.621371).ceil(),
         ).catchError((e) {
-          debugPrint('Kroger Locations failed: $e');
+          print('[Wayvio] Kroger Locations failed: $e');
           return null;
         })
       : Future<List<KrogerLocation>?>.value(null);
@@ -88,32 +85,27 @@ Future<SearchResult> searchFast({
     print('[Wayvio] Overpass success: ${stores.length} stores');
     return stores;
   }).catchError((e, st) {
-    print('[Wayvio] Overpass FAILED: $e');
-    print('[Wayvio] Overpass stack: $st');
+    print('[Wayvio] Overpass FAILED: $e\n$st');
     return <OverpassStore>[];
   });
 
-  print('[Wayvio] searchFast: waiting for SerpApi + Kroger + Overpass...');
+  print('[Wayvio] searchFast: waiting for APIs (Overpass + SerpApi + Kroger)...');
   final results = await Future.wait([serpFuture, krogerFuture, overpassFuture]);
-  print('[Wayvio] searchFast: Future.wait completed');
+  print('[Wayvio] searchFast: all APIs returned');
   final gmStores = results[0] as List<OverpassStore>?;
   final krogerLocs = results[1] as List<KrogerLocation>?;
   final overpassStores = results[2] as List<OverpassStore>;
 
-  print('[Wayvio] SerpApi: ${gmStores?.length ?? "null"} stores');
-  print('[Wayvio] Kroger: ${krogerLocs?.length ?? "null"} locations');
-  print('[Wayvio] Overpass: ${overpassStores.length} stores');
+  print('[Wayvio] SerpApi: ${gmStores?.length ?? "skipped"} | '
+      'Kroger: ${krogerLocs?.length ?? "skipped"} | '
+      'Overpass: ${overpassStores.length}');
 
-  // Prefer SerpApi (best quality), then merge Kroger + Overpass.
   if (gmStores != null && gmStores.isNotEmpty) {
-    debugPrint('Using Google Maps results: ${gmStores.length} stores');
     allStores = gmStores;
   }
 
-  // Merge Kroger stores (avoid duplicates by name similarity).
   if (krogerLocs != null && krogerLocs.isNotEmpty) {
     final krogerStores = krogerLocationsToStores(krogerLocs);
-    debugPrint('Kroger: found ${krogerStores.length} stores');
     final existingNames = allStores.map((s) => s.name.toLowerCase()).toSet();
     for (final ks in krogerStores) {
       if (!existingNames.any((n) => n.contains(ks.brand?.toLowerCase() ?? '') &&
@@ -123,14 +115,11 @@ Future<SearchResult> searchFast({
     }
   }
 
-  // Merge Overpass stores (avoid duplicates by proximity).
   if (overpassStores.isNotEmpty) {
-    debugPrint('Overpass: found ${overpassStores.length} stores');
     for (final os in overpassStores) {
-      // Skip if a SerpApi/Kroger store already exists within 100m with similar name.
       final isDuplicate = allStores.any((existing) {
         final dist = haversineKm(existing.lat, existing.lng, os.lat, os.lng);
-        if (dist > 0.1) return false; // > 100m apart
+        if (dist > 0.1) return false;
         final eName = existing.name.toLowerCase();
         final oName = os.name.toLowerCase();
         return eName.contains(oName) || oName.contains(eName);

@@ -12,60 +12,21 @@ import '../config.dart';
 import 'distance_util.dart';
 import 'nearby_stores_service.dart';
 
-/// Try an HTTP request through multiple CORS proxies on web, direct on native.
-Future<http.Response?> _corsGet(
-  String directUrlStr, {
+/// Direct HTTP GET to Kroger API (native only; web is disabled via krogerEnabled).
+Future<http.Response?> _krogerGet(
+  String endpoint,
+  Map<String, String> queryParams, {
   required Map<String, String> headers,
   required Duration timeout,
 }) async {
-  final directUrl = Uri.parse(directUrlStr);
-  if (!kIsWeb) {
-    final res = await http.get(directUrl, headers: headers).timeout(timeout);
+  final url = Uri.parse('$kKrogerBaseUrl/$endpoint')
+      .replace(queryParameters: queryParams);
+  try {
+    final res = await http.get(url, headers: headers).timeout(timeout);
     return res.statusCode == 200 ? res : null;
+  } catch (_) {
+    return null;
   }
-
-  for (final template in kCorsProxies) {
-    try {
-      final proxyUrl = Uri.parse(
-        template.replaceAll('{URL}', Uri.encodeComponent(directUrlStr)),
-      );
-      final res = await http.get(proxyUrl, headers: headers).timeout(timeout);
-      if (res.statusCode == 200 && !res.body.trimLeft().startsWith('<')) {
-        return res;
-      }
-    } catch (_) {
-      continue;
-    }
-  }
-  return null;
-}
-
-Future<http.Response?> _corsPost(
-  String directUrlStr, {
-  required Map<String, String> headers,
-  required String body,
-  required Duration timeout,
-}) async {
-  final directUrl = Uri.parse(directUrlStr);
-  if (!kIsWeb) {
-    final res = await http.post(directUrl, headers: headers, body: body).timeout(timeout);
-    return res.statusCode == 200 ? res : null;
-  }
-
-  for (final template in kCorsProxies) {
-    try {
-      final proxyUrl = Uri.parse(
-        template.replaceAll('{URL}', Uri.encodeComponent(directUrlStr)),
-      );
-      final res = await http.post(proxyUrl, headers: headers, body: body).timeout(timeout);
-      if (res.statusCode == 200 && !res.body.trimLeft().startsWith('<')) {
-        return res;
-      }
-    } catch (_) {
-      continue;
-    }
-  }
-  return null;
 }
 
 // ---------------------------------------------------------------------------
@@ -75,15 +36,15 @@ Future<http.Response?> _corsPost(
 String? _accessToken;
 DateTime? _tokenExpiry;
 
-/// Whether the Kroger integration is configured (both client ID and secret).
+/// Whether the Kroger integration is available.
+/// Disabled on web (CORS) until Cloud Function proxy is deployed.
 bool get krogerEnabled =>
-    kKrogerClientId.isNotEmpty && kKrogerClientSecret.isNotEmpty;
+    !kIsWeb && kKrogerClientId.isNotEmpty && kKrogerClientSecret.isNotEmpty;
 
-/// Get a valid access token, refreshing if needed.
+/// Get a valid access token, refreshing if needed (native only).
 Future<String?> _getAccessToken() async {
   if (!krogerEnabled) return null;
 
-  // Return cached token if still valid (with 60s buffer).
   if (_accessToken != null &&
       _tokenExpiry != null &&
       DateTime.now().isBefore(_tokenExpiry!.subtract(const Duration(seconds: 60)))) {
@@ -94,18 +55,17 @@ Future<String?> _getAccessToken() async {
     final credentials =
         base64Encode(utf8.encode('$kKrogerClientId:$kKrogerClientSecret'));
 
-    final res = await _corsPost(
-      '$kKrogerBaseUrl/connect/oauth2/token',
+    final res = await http.post(
+      Uri.parse('$kKrogerBaseUrl/connect/oauth2/token'),
       headers: {
         'Authorization': 'Basic $credentials',
         'Content-Type': 'application/x-www-form-urlencoded',
       },
       body: 'grant_type=client_credentials&scope=product.compact',
-      timeout: kKrogerTimeout,
-    );
+    ).timeout(kKrogerTimeout);
 
-    if (res == null) {
-      debugPrint('Kroger OAuth failed: no successful response');
+    if (res.statusCode != 200) {
+      print('[Wayvio] Kroger OAuth failed: ${res.statusCode}');
       return null;
     }
 
@@ -114,10 +74,10 @@ Future<String?> _getAccessToken() async {
     final expiresIn = (data['expires_in'] as num?)?.toInt() ?? 1800;
     _tokenExpiry = DateTime.now().add(Duration(seconds: expiresIn));
 
-    debugPrint('Kroger OAuth: got token, expires in ${expiresIn}s');
+    print('[Wayvio] Kroger OAuth: got token, expires in ${expiresIn}s');
     return _accessToken;
   } catch (e) {
-    debugPrint('Kroger OAuth error: $e');
+    print('[Wayvio] Kroger OAuth error: $e');
     return null;
   }
 }
@@ -166,11 +126,9 @@ Future<List<KrogerLocation>?> fetchKrogerLocations({
       'filter.limit': '10',
     };
 
-    final directUrl = Uri.parse('$kKrogerBaseUrl/locations')
-        .replace(queryParameters: params);
-
-    final res = await _corsGet(
-      directUrl.toString(),
+    final res = await _krogerGet(
+      'locations',
+      params,
       headers: {
         'Authorization': 'Bearer $token',
         'Accept': 'application/json',
@@ -301,11 +259,9 @@ Future<KrogerPriceData?> fetchKrogerProducts({
       'filter.limit': '10',
     };
 
-    final directUrl = Uri.parse('$kKrogerBaseUrl/products')
-        .replace(queryParameters: params);
-
-    final res = await _corsGet(
-      directUrl.toString(),
+    final res = await _krogerGet(
+      'products',
+      params,
       headers: {
         'Authorization': 'Bearer $token',
         'Accept': 'application/json',

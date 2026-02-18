@@ -29,7 +29,7 @@ const String kHttpUserAgent = 'Wayvio/1.0 (Flutter; contact via project repo)';
 // ---------------------------------------------------------------------------
 
 const Duration kGeocodeTimeout = Duration(seconds: 10);
-const Duration kOverpassTimeout = Duration(seconds: 12);
+const Duration kOverpassTimeout = Duration(seconds: 20);
 const Duration kOsrmTimeout = Duration(seconds: 10);
 
 // ---------------------------------------------------------------------------
@@ -104,28 +104,12 @@ Uri buildSerpApiUri(Map<String, String> params) {
   return Uri.https('serpapi.com', '/search.json', fullParams);
 }
 
-/// CORS proxies to try in order on web.  Each wraps the SerpApi URL
-/// differently, so we template them with {URL} as a placeholder.
-const List<String> kCorsProxies = [
-  'https://corsproxy.io/?{URL}',
-  'https://api.allorigins.win/raw?url={URL}',
-  'https://api.codetabs.com/v1/proxy?quest={URL}',
-];
-
-/// On web, try multiple CORS proxies to reach SerpApi.
-/// On native, calls serpapi.com directly.
-/// Returns the proxy-wrapped URI to use, or the direct URI on native.
+/// On web, SerpApi is unavailable (CORS). Returns empty list so callers
+/// skip SerpApi gracefully. On native, calls serpapi.com directly.
+///
+/// To re-enable on web, deploy the Cloud Function proxy (requires Blaze plan)
+/// and return [Uri(path: '/api/serpapi', queryParameters: cleanParams)].
 List<Uri> buildSerpApiUris(Map<String, String> params) {
-  final directUrl = buildSerpApiUri(params);
-
-  if (!kIsWeb) return [directUrl];
-
-  // Once Firebase is on Blaze plan, switch to the Cloud Function proxy:
-  //   final cleanParams = Map<String, String>.from(params)..remove('api_key');
-  //   return [Uri(path: '/api/serpapi', queryParameters: cleanParams)];
-
-  final encoded = Uri.encodeComponent(directUrl.toString());
-  return kCorsProxies
-      .map((template) => Uri.parse(template.replaceAll('{URL}', encoded)))
-      .toList();
+  if (kIsWeb) return [];  // no server-side proxy available yet
+  return [buildSerpApiUri(params)];
 }

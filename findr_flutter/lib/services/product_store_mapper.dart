@@ -903,10 +903,12 @@ ItemFilterResult filtersForItem(String item) {
   final isDining = categories.any((c) => _diningCategories.contains(c));
   final isService = categories.any((c) => _serviceCategories.contains(c));
 
-  // For retail products, add big-box stores.
-  // For dining/services, skip department stores.
+  // For retail products, add big-box stores (capped to avoid Overpass timeout).
   if (!isDining && !isService) {
-    shopTypes.addAll(_bigBoxRetail);
+    for (final s in _bigBoxRetail) {
+      if (shopTypes.length >= 8) break;
+      shopTypes.add(s);
+    }
   }
 
   if (categories.any((c) => _groceryCategories.contains(c))) {

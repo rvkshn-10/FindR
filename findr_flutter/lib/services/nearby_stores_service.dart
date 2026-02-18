@@ -146,68 +146,55 @@ Future<List<OverpassStore>> fetchNearbyStores(
   int radiusM = kDefaultOverpassRadiusM,
   String? item,
 }) async {
-  // Build targeted shop & amenity regex filters based on the search term.
   final filterResult = (item != null && item.trim().isNotEmpty)
       ? filtersForItem(item)
       : const ItemFilterResult(matched: false);
 
-  // Build Overpass union clauses based on what the mapper returned.
   final clauses = <String>[];
 
   if ((filterResult.isDining || filterResult.isService) && item != null) {
-    // --- DINING / SERVICE SEARCH ---
-    // Do NOT use broad "amenity~restaurant|fast_food" — that returns every
-    // restaurant/service in the area (thousands) and causes Overpass to timeout.
-    // Instead use targeted searches: name match, brand match, and type match.
     final lower = item.toLowerCase().trim();
 
     if (filterResult.amenityFilter != null) {
-      final amenities = filterResult.amenityFilter!;
-      // 1. Match by name.
-      clauses.add('nwr["amenity"~"$amenities"]["name"~"$lower",i](around:$radiusM,$lat,$lng);');
-      // 2. Match by brand tag.
-      clauses.add('nwr["amenity"~"$amenities"]["brand"~"$lower",i](around:$radiusM,$lat,$lng);');
-      if (filterResult.isDining) {
-        // 3. Match by cuisine tag for dining.
-        clauses.add('nwr["amenity"~"$amenities"]["cuisine"~"$lower",i](around:$radiusM,$lat,$lng);');
-      }
-      // 4. Also get all nearby places of the exact amenity type (limited scope).
-      //    For services like "dentist" or "bank", the amenity type IS specific enough.
-      if (filterResult.isService) {
-        clauses.add('nwr["amenity"~"$amenities"](around:$radiusM,$lat,$lng);');
+      for (final a in filterResult.amenityFilter!.split('|')) {
+        clauses.add('nwr["amenity"="$a"]["name"~"$lower",i](around:$radiusM,$lat,$lng);');
+        clauses.add('nwr["amenity"="$a"]["brand"~"$lower",i](around:$radiusM,$lat,$lng);');
+        if (filterResult.isDining) {
+          clauses.add('nwr["amenity"="$a"]["cuisine"~"$lower",i](around:$radiusM,$lat,$lng);');
+        }
+        if (filterResult.isService) {
+          clauses.add('nwr["amenity"="$a"](around:$radiusM,$lat,$lng);');
+        }
       }
     }
-    // 5. Match shop types if relevant (e.g. "cookie" → shop=bakery, "salon" → shop=beauty).
     if (filterResult.shopFilter != null) {
-      clauses.add('nwr["shop"~"${filterResult.shopFilter}"](around:$radiusM,$lat,$lng);');
+      for (final s in filterResult.shopFilter!.split('|')) {
+        clauses.add('nwr["shop"="$s"](around:$radiusM,$lat,$lng);');
+      }
     }
   } else {
     // --- PRODUCT / RETAIL SEARCH ---
-    if (filterResult.shopFilter != null) {
-      clauses.add('nwr["shop"~"${filterResult.shopFilter}"](around:$radiusM,$lat,$lng);');
-    } else {
-      const fallbackShop =
-          'department_store|variety_store|general|wholesale|mall|discount|electronics|hardware|doityourself';
-      clauses.add('nwr["shop"~"$fallbackShop"](around:$radiusM,$lat,$lng);');
+    // Use individual equality clauses instead of regex (much faster on Overpass).
+    // Cap at 8 shop types to avoid query timeouts on the Overpass server.
+    final shopTypes = filterResult.shopFilter?.split('|') ??
+        ['electronics', 'hardware', 'doityourself', 'department_store',
+         'variety_store', 'general', 'wholesale', 'discount'];
+    for (final s in shopTypes.take(8)) {
+      clauses.add('nwr["shop"="$s"](around:$radiusM,$lat,$lng);');
     }
 
-    if (filterResult.amenityFilter != null) {
-      clauses.add('nwr["amenity"~"${filterResult.amenityFilter}"](around:$radiusM,$lat,$lng);');
-    } else {
-      clauses.add('nwr["amenity"~"marketplace"](around:$radiusM,$lat,$lng);');
+    final amenityTypes = filterResult.amenityFilter?.split('|') ?? ['marketplace'];
+    for (final a in amenityTypes.take(3)) {
+      clauses.add('nwr["amenity"="$a"](around:$radiusM,$lat,$lng);');
     }
 
-    // Also search by store name for retail products (catches lumber yards,
-    // specialty suppliers, etc. whose OSM tags don't match but names do).
     if (item != null && item.trim().isNotEmpty) {
       final lower = item.toLowerCase().trim();
       clauses.add('nwr["shop"]["name"~"$lower",i](around:$radiusM,$lat,$lng);');
-      clauses.add('nwr["trade"]["name"~"$lower",i](around:$radiusM,$lat,$lng);');
     }
   }
 
-  // Use a longer timeout when many shop types are queried (e.g. construction).
-  final timeoutSec = clauses.length > 4 ? 15 : 10;
+  final timeoutSec = clauses.length > 15 ? 20 : 15;
 
   final query = '''
 [out:json][timeout:$timeoutSec];
