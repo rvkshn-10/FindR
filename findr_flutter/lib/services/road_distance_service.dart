@@ -6,7 +6,7 @@ class RoadDistanceResult {
   final double distanceKm;
   final int? durationMinutes;
 
-  RoadDistanceResult({required this.distanceKm, this.durationMinutes});
+  const RoadDistanceResult({required this.distanceKm, this.durationMinutes});
 }
 
 /// Fetch a single chunk of road distances from OSRM.
@@ -41,14 +41,14 @@ Future<List<RoadDistanceResult>?> _fetchChunk(
 
     final durations = data['durations'] as List<dynamic>?;
     final distances = data['distances'] as List<dynamic>?;
-    if (durations == null || distances == null) return null;
+    if (durations == null) return null;
     final durRow = durations[0] as List<dynamic>?;
-    final distRow = distances[0] as List<dynamic>?;
-    if (durRow == null || distRow == null || durRow.length != chunk.length) return null;
+    final distRow = distances != null ? distances[0] as List<dynamic>? : null;
+    if (durRow == null || durRow.length != chunk.length) return null;
 
     final results = <RoadDistanceResult>[];
     for (var j = 0; j < chunk.length; j++) {
-      final distM = distRow[j];
+      final distM = distRow?[j];
       final durS = durRow[j];
       final distanceKm = (distM != null && distM is num)
           ? ((distM / 1000) * 100).round() / 100

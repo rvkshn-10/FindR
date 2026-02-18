@@ -7,7 +7,7 @@ class GeocodeResult {
   final double lng;
   final String displayName;
 
-  GeocodeResult({
+  const GeocodeResult({
     required this.lat,
     required this.lng,
     required this.displayName,
