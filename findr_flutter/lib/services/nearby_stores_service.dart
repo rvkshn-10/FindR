@@ -174,27 +174,30 @@ Future<List<OverpassStore>> fetchNearbyStores(
     }
   } else {
     // --- PRODUCT / RETAIL SEARCH ---
-    // Use individual equality clauses instead of regex (much faster on Overpass).
-    // Cap at 8 shop types to avoid query timeouts on the Overpass server.
+    // Use individual equality clauses (much faster than regex on Overpass).
+    // Reduce the number of clauses for large radii to avoid server timeouts.
     final shopTypes = filterResult.shopFilter?.split('|') ??
         ['electronics', 'hardware', 'doityourself', 'department_store',
          'variety_store', 'general', 'wholesale', 'discount'];
-    for (final s in shopTypes.take(8)) {
+    final maxShops = radiusM > 80000 ? 4 : (radiusM > 40000 ? 6 : 8);
+    for (final s in shopTypes.take(maxShops)) {
       clauses.add('nwr["shop"="$s"](around:$radiusM,$lat,$lng);');
     }
 
-    final amenityTypes = filterResult.amenityFilter?.split('|') ?? ['marketplace'];
-    for (final a in amenityTypes.take(3)) {
-      clauses.add('nwr["amenity"="$a"](around:$radiusM,$lat,$lng);');
+    if (radiusM <= 80000) {
+      final amenityTypes = filterResult.amenityFilter?.split('|') ?? ['marketplace'];
+      for (final a in amenityTypes.take(3)) {
+        clauses.add('nwr["amenity"="$a"](around:$radiusM,$lat,$lng);');
+      }
     }
 
-    if (item != null && item.trim().isNotEmpty) {
+    if (item != null && item.trim().isNotEmpty && radiusM <= 50000) {
       final lower = item.toLowerCase().trim();
       clauses.add('nwr["shop"]["name"~"$lower",i](around:$radiusM,$lat,$lng);');
     }
   }
 
-  final timeoutSec = clauses.length > 15 ? 20 : 15;
+  final timeoutSec = radiusM > 80000 ? 25 : (clauses.length > 10 ? 20 : 15);
 
   final query = '''
 [out:json][timeout:$timeoutSec];

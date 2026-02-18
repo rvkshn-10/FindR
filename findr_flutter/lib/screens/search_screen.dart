@@ -59,7 +59,7 @@ class _SearchScreenState extends State<SearchScreen> {
   final _itemController = TextEditingController();
   final _locationController = TextEditingController();
   bool _useMyLocation = true;
-  double _maxDistanceMiles = 5;
+  double _maxDistanceMiles = 50;
   bool _loading = false;
   bool _geocoding = false;
   bool _settingsOpen = false;
@@ -80,7 +80,7 @@ class _SearchScreenState extends State<SearchScreen> {
     final prefs = await SharedPreferences.getInstance();
     final saved = prefs.getDouble(_kRadiusKey);
     if (saved != null && mounted) {
-      setState(() => _maxDistanceMiles = saved.clamp(1, 25));
+      setState(() => _maxDistanceMiles = saved.clamp(1, 500));
     }
   }
 
@@ -670,8 +670,8 @@ class _SearchScreenState extends State<SearchScreen> {
               child: Slider(
                 value: _maxDistanceMiles,
                 min: 1,
-                max: 25,
-                divisions: 24,
+                max: 500,
+                divisions: 499,
                 onChanged: _loading
                     ? null
                     : (v) {
