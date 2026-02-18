@@ -5,6 +5,7 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../models/search_models.dart';
+import '../services/content_safety_service.dart';
 import '../services/search_service.dart';
 import '../services/distance_util.dart';
 import '../services/ai_service.dart';
@@ -302,6 +303,18 @@ class _ResultsScreenState extends State<ResultsScreen> {
 
   void _reSearch(String newItem) {
     if (newItem.trim().isEmpty) return;
+    final safety = checkQuerySafety(newItem);
+    if (safety.blocked) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(safety.reason ?? 'This search is not allowed.'),
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      }
+      return;
+    }
     setState(() {
       _currentItem = newItem.trim();
       _selectedStoreId = null;

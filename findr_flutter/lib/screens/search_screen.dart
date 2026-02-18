@@ -3,6 +3,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/search_models.dart';
+import '../services/content_safety_service.dart';
 import '../services/geocode_service.dart';
 import '../services/firestore_service.dart' as db;
 import '../services/store_filters.dart';
@@ -125,6 +126,19 @@ class _SearchScreenState extends State<SearchScreen> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Enter what you need.')),
+          );
+        }
+        return;
+      }
+      final safety = checkQuerySafety(item);
+      if (safety.blocked) {
+        setState(() => _loading = false);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(safety.reason ?? 'This search is not allowed.'),
+              duration: const Duration(seconds: 4),
+            ),
           );
         }
         return;
