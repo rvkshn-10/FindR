@@ -42,20 +42,21 @@ _CardStyle _styleForStore(int index, Store store, List<Store> allStores) {
   return _CardStyle.standard;
 }
 
-Color _cardBg(_CardStyle s) {
+Color _cardBg(_CardStyle s, AppColors ac) {
   switch (s) {
     case _CardStyle.closest:
-      return SupplyMapColors.red;
+      return ac.red;
     case _CardStyle.fastest:
-      return SupplyMapColors.purple;
+      return ac.purple;
     case _CardStyle.nearby:
-      return SupplyMapColors.accentLightGreen;
+      return ac.accentLightGreen;
     case _CardStyle.standard:
-      return SupplyMapColors.glass;
+      return ac.glass;
   }
 }
 
-bool _cardDarkText(_CardStyle s) {
+bool _cardDarkText(_CardStyle s, bool isDark) {
+  if (isDark) return false;
   return s == _CardStyle.nearby || s == _CardStyle.standard;
 }
 
@@ -1794,9 +1795,9 @@ class _ResultCardState extends State<_ResultCard> {
   @override
   Widget build(BuildContext context) {
     final ac = AppColors.of(context);
-    final bg = _cardBg(widget.style);
-    final dark = _cardDarkText(widget.style);
-    final fg = dark ? SupplyMapColors.textBlack : Colors.white;
+    final bg = _cardBg(widget.style, ac);
+    final dark = _cardDarkText(widget.style, ac.isDark);
+    final fg = dark ? ac.textPrimary : Colors.white;
     final isGlass = widget.style == _CardStyle.standard;
 
     final noShadowStyle = (Theme.of(context).textTheme.bodyLarge ??
@@ -1879,7 +1880,7 @@ class _ResultCardState extends State<_ResultCard> {
                         fontSize: 11,
                         fontWeight: FontWeight.w700,
                         letterSpacing: 0.5,
-                        color: dark ? SupplyMapColors.textBlack : Colors.white,
+                        color: dark ? ac.textPrimary : Colors.white,
                       ),
                     ),
                   ),

@@ -720,6 +720,7 @@ class _SearchScreenState extends State<SearchScreen> {
   }
 
   Widget _buildOnboarding() {
+    final ac = AppColors.of(context);
     return Positioned.fill(
       child: GestureDetector(
         onTap: _dismissOnboarding,
@@ -731,7 +732,7 @@ class _SearchScreenState extends State<SearchScreen> {
               margin: const EdgeInsets.all(24),
               padding: const EdgeInsets.all(28),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: ac.cardBg,
                 borderRadius: BorderRadius.circular(20),
                 boxShadow: const [
                   BoxShadow(
@@ -748,11 +749,11 @@ class _SearchScreenState extends State<SearchScreen> {
                     width: 60,
                     height: 60,
                     decoration: BoxDecoration(
-                      color: SupplyMapColors.accentGreen.withValues(alpha: 0.1),
+                      color: ac.accentGreen.withValues(alpha: 0.1),
                       shape: BoxShape.circle,
                     ),
-                    child: const Icon(Icons.waving_hand_rounded,
-                        size: 30, color: SupplyMapColors.accentGreen),
+                    child: Icon(Icons.waving_hand_rounded,
+                        size: 30, color: ac.accentGreen),
                   ),
                   const SizedBox(height: 16),
                   Text(
@@ -760,7 +761,7 @@ class _SearchScreenState extends State<SearchScreen> {
                     style: _outfit(
                       fontSize: 22,
                       fontWeight: FontWeight.w700,
-                      color: SupplyMapColors.textBlack,
+                      color: ac.textPrimary,
                     ),
                   ),
                   const SizedBox(height: 12),
@@ -769,21 +770,21 @@ class _SearchScreenState extends State<SearchScreen> {
                     textAlign: TextAlign.center,
                     style: _outfit(
                       fontSize: 14,
-                      color: SupplyMapColors.textSecondary,
+                      color: ac.textSecondary,
                       height: 1.5,
                     ),
                   ),
                   const SizedBox(height: 20),
-                  _onboardingStep(Icons.search, 'Search',
+                  _onboardingStep(ac, Icons.search, 'Search',
                       'Type what you\'re looking for'),
                   const SizedBox(height: 12),
-                  _onboardingStep(Icons.location_on, 'Locate',
+                  _onboardingStep(ac, Icons.location_on, 'Locate',
                       'We find stores near you'),
                   const SizedBox(height: 12),
-                  _onboardingStep(Icons.map_outlined, 'Navigate',
+                  _onboardingStep(ac, Icons.map_outlined, 'Navigate',
                       'Get directions to the closest match'),
                   const SizedBox(height: 12),
-                  _onboardingStep(Icons.favorite_border, 'Save',
+                  _onboardingStep(ac, Icons.favorite_border, 'Save',
                       'Favorite stores for quick access'),
                   const SizedBox(height: 24),
                   SizedBox(
@@ -793,7 +794,7 @@ class _SearchScreenState extends State<SearchScreen> {
                       child: Container(
                         padding: const EdgeInsets.symmetric(vertical: 14),
                         decoration: BoxDecoration(
-                          color: SupplyMapColors.accentGreen,
+                          color: ac.accentGreen,
                           borderRadius: BorderRadius.circular(kRadiusPill),
                         ),
                         alignment: Alignment.center,
@@ -817,17 +818,17 @@ class _SearchScreenState extends State<SearchScreen> {
     );
   }
 
-  Widget _onboardingStep(IconData icon, String title, String subtitle) {
+  Widget _onboardingStep(AppColors ac, IconData icon, String title, String subtitle) {
     return Row(
       children: [
         Container(
           width: 36,
           height: 36,
           decoration: BoxDecoration(
-            color: SupplyMapColors.accentGreen.withValues(alpha: 0.08),
+            color: ac.accentGreen.withValues(alpha: 0.08),
             borderRadius: BorderRadius.circular(10),
           ),
-          child: Icon(icon, size: 18, color: SupplyMapColors.accentGreen),
+          child: Icon(icon, size: 18, color: ac.accentGreen),
         ),
         const SizedBox(width: 14),
         Expanded(
@@ -838,12 +839,12 @@ class _SearchScreenState extends State<SearchScreen> {
                   style: _outfit(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
-                    color: SupplyMapColors.textBlack,
+                    color: ac.textPrimary,
                   )),
               Text(subtitle,
                   style: _outfit(
                     fontSize: 12,
-                    color: SupplyMapColors.textTertiary,
+                    color: ac.textTertiary,
                   )),
             ],
           ),
@@ -945,7 +946,7 @@ class _SearchScreenState extends State<SearchScreen> {
                   checkColor: Colors.white,
                   fillColor: WidgetStateProperty.resolveWith((s) =>
                       s.contains(WidgetState.selected)
-                          ? SupplyMapColors.accentGreen
+                          ? ac.accentGreen
                           : Colors.transparent),
                   shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(4)),
@@ -983,8 +984,8 @@ class _SearchScreenState extends State<SearchScreen> {
                   focusedBorder: InputBorder.none,
                   contentPadding: const EdgeInsets.symmetric(
                       horizontal: 16, vertical: 12),
-                  prefixIcon: const Icon(Icons.place_outlined,
-                      color: SupplyMapColors.textTertiary, size: 18),
+                  prefixIcon: Icon(Icons.place_outlined,
+                      color: ac.textTertiary, size: 18),
                   filled: false,
                 ),
                 textInputAction: TextInputAction.search,
@@ -998,12 +999,12 @@ class _SearchScreenState extends State<SearchScreen> {
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const SizedBox(
+                    SizedBox(
                       width: 10,
                       height: 10,
                       child: CircularProgressIndicator(
                         strokeWidth: 1.5,
-                        color: SupplyMapColors.accentGreen,
+                        color: ac.accentGreen,
                       ),
                     ),
                     const SizedBox(width: 6),
@@ -1011,7 +1012,7 @@ class _SearchScreenState extends State<SearchScreen> {
                       'Locating…',
                       style: _outfit(
                         fontSize: 11,
-                        color: SupplyMapColors.textTertiary,
+                        color: ac.textTertiary,
                       ),
                     ),
                   ],
@@ -1042,10 +1043,10 @@ class _SearchScreenState extends State<SearchScreen> {
           Expanded(
             child: SliderTheme(
               data: SliderThemeData(
-                activeTrackColor: SupplyMapColors.accentGreen,
-                inactiveTrackColor: SupplyMapColors.borderSubtle,
-                thumbColor: SupplyMapColors.accentGreen,
-                overlayColor: SupplyMapColors.accentGreen.withValues(alpha: 0.12),
+                activeTrackColor: ac.accentGreen,
+                inactiveTrackColor: ac.borderSubtle,
+                thumbColor: ac.accentGreen,
+                overlayColor: ac.accentGreen.withValues(alpha: 0.12),
                 trackHeight: 3,
                 thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 7),
               ),
@@ -1070,6 +1071,7 @@ class _SearchScreenState extends State<SearchScreen> {
 
   // ── Filters section ─────────────────────────────────────────────────────
   Widget _buildFiltersSection() {
+    final ac = AppColors.of(context);
     final hasActive = _qualityTier != null || _membershipsOnly || _selectedStores.isNotEmpty;
     return Container(
       constraints: const BoxConstraints(maxWidth: 700),
@@ -1084,9 +1086,7 @@ class _SearchScreenState extends State<SearchScreen> {
                 Icon(
                   hasActive ? Icons.filter_list : Icons.tune,
                   size: 16,
-                  color: hasActive
-                      ? SupplyMapColors.accentGreen
-                      : SupplyMapColors.textTertiary,
+                  color: hasActive ? ac.accentGreen : ac.textTertiary,
                 ),
                 const SizedBox(width: 6),
                 Text(
@@ -1094,9 +1094,7 @@ class _SearchScreenState extends State<SearchScreen> {
                   style: _outfit(
                     fontSize: 13,
                     fontWeight: FontWeight.w500,
-                    color: hasActive
-                        ? SupplyMapColors.accentGreen
-                        : SupplyMapColors.textSecondary,
+                    color: hasActive ? ac.accentGreen : ac.textSecondary,
                   ),
                 ),
                 const SizedBox(width: 4),
@@ -1105,7 +1103,7 @@ class _SearchScreenState extends State<SearchScreen> {
                       ? Icons.keyboard_arrow_up
                       : Icons.keyboard_arrow_down,
                   size: 16,
-                  color: SupplyMapColors.textTertiary,
+                  color: ac.textTertiary,
                 ),
               ],
             ),
@@ -1117,12 +1115,11 @@ class _SearchScreenState extends State<SearchScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Quality tier
                   Text('Store type',
                       style: _outfit(
                           fontSize: 12,
                           fontWeight: FontWeight.w600,
-                          color: SupplyMapColors.textSecondary)),
+                          color: ac.textSecondary)),
                   const SizedBox(height: 8),
                   Wrap(
                     spacing: 8,
@@ -1137,7 +1134,6 @@ class _SearchScreenState extends State<SearchScreen> {
                         .toList(),
                   ),
                   const SizedBox(height: 14),
-                  // Membership only
                   GestureDetector(
                     onTap: () => setState(
                         () => _membershipsOnly = !_membershipsOnly),
@@ -1151,13 +1147,12 @@ class _SearchScreenState extends State<SearchScreen> {
                             value: _membershipsOnly,
                             onChanged: (v) => setState(
                                 () => _membershipsOnly = v ?? false),
-                            side: const BorderSide(
-                                color: SupplyMapColors.borderStrong),
+                            side: BorderSide(color: ac.borderStrong),
                             checkColor: Colors.white,
                             fillColor:
                                 WidgetStateProperty.resolveWith((s) =>
                                     s.contains(WidgetState.selected)
-                                        ? SupplyMapColors.accentGreen
+                                        ? ac.accentGreen
                                         : Colors.transparent),
                             shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(4)),
@@ -1168,7 +1163,7 @@ class _SearchScreenState extends State<SearchScreen> {
                             style: _outfit(
                               fontSize: 13,
                               fontWeight: FontWeight.w500,
-                              color: SupplyMapColors.textSecondary,
+                              color: ac.textSecondary,
                             )),
                       ],
                     ),
@@ -1179,7 +1174,7 @@ class _SearchScreenState extends State<SearchScreen> {
                       style: _outfit(
                           fontSize: 12,
                           fontWeight: FontWeight.w600,
-                          color: SupplyMapColors.textSecondary)),
+                          color: ac.textSecondary)),
                   const SizedBox(height: 8),
                   Wrap(
                     spacing: 6,
@@ -1263,15 +1258,14 @@ class _SearchButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final ac = AppColors.of(context);
     return Material(
-      color: loading
-          ? SupplyMapColors.borderStrong
-          : SupplyMapColors.accentGreen,
+      color: loading ? ac.borderStrong : ac.accentGreen,
       shape: const CircleBorder(),
       child: InkWell(
         onTap: onPressed,
         customBorder: const CircleBorder(),
-        hoverColor: const Color(0xFF2D7048),
+        hoverColor: ac.isDark ? const Color(0xFF3DA668) : const Color(0xFF2D7048),
         child: const SizedBox(
           width: 48,
           height: 48,
