@@ -198,10 +198,12 @@ class _SearchScreenState extends State<SearchScreen> {
           }
           return;
         }
+        print('[Wayvio] Geocoding address: "$loc"');
         setState(() => _geocoding = true);
         final result = await geocode(loc);
         if (mounted) setState(() => _geocoding = false);
         if (result == null) {
+          print('[Wayvio] Geocode returned null for "$loc"');
           if (mounted) setState(() => _loading = false);
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
@@ -212,6 +214,7 @@ class _SearchScreenState extends State<SearchScreen> {
         }
         lat = result.lat;
         lng = result.lng;
+        print('[Wayvio] Geocoded "$loc" -> $lat, $lng');
       }
       final filters = SearchFilters(
         qualityTier: _qualityTier,
@@ -232,6 +235,7 @@ class _SearchScreenState extends State<SearchScreen> {
         locationLabel: locationLabel,
       );
 
+      print('[Wayvio] Navigating to results: item="$item", lat=$lat, lng=$lng, radius=$_maxDistanceMiles mi');
       final params = SearchResultParams(
         item: item,
         lat: lat,
