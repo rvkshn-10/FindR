@@ -2319,40 +2319,84 @@ class _ResultCardState extends State<_ResultCard> {
                   ),
                 ),
               ],
-              // Directions button
+              // Directions buttons
               const SizedBox(height: 12),
-              GestureDetector(
-                onTap: () => _launchDirections(widget.store.lat, widget.store.lng),
-                child: Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.symmetric(vertical: 10),
-                  decoration: BoxDecoration(
-                    color: dark
-                        ? ac.accentGreen.withValues(alpha: 0.12)
-                        : Colors.white.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(
-                      color: dark
-                          ? ac.accentGreen.withValues(alpha: 0.3)
-                          : Colors.white.withValues(alpha: 0.25),
-                    ),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.directions, size: 16, color: fg),
-                      const SizedBox(width: 6),
-                      Text(
-                        'Get Directions',
-                        style: _outfit(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          color: fg,
+              Row(
+                children: [
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: () => _safeLaunch(
+                        'https://maps.apple.com/?daddr=${widget.store.lat},${widget.store.lng}&dirflg=d',
+                      ),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 10),
+                        decoration: BoxDecoration(
+                          color: dark
+                              ? ac.accentGreen.withValues(alpha: 0.12)
+                              : Colors.white.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color: dark
+                                ? ac.accentGreen.withValues(alpha: 0.3)
+                                : Colors.white.withValues(alpha: 0.25),
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.apple, size: 16, color: fg),
+                            const SizedBox(width: 4),
+                            Text(
+                              'Apple Maps',
+                              style: _outfit(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: fg,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                    ],
+                    ),
                   ),
-                ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: () => _safeLaunch(
+                        'https://www.google.com/maps/dir/?api=1&destination=${widget.store.lat},${widget.store.lng}',
+                      ),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 10),
+                        decoration: BoxDecoration(
+                          color: dark
+                              ? ac.accentGreen.withValues(alpha: 0.12)
+                              : Colors.white.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color: dark
+                                ? ac.accentGreen.withValues(alpha: 0.3)
+                                : Colors.white.withValues(alpha: 0.25),
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.map, size: 16, color: fg),
+                            const SizedBox(width: 4),
+                            Text(
+                              'Google Maps',
+                              style: _outfit(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: fg,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
                   ], // inner Column children
                 ), // inner Column
@@ -2541,35 +2585,74 @@ class _SelectedStorePopup extends StatelessWidget {
             ),
           ],
           const SizedBox(height: 8),
-          GestureDetector(
-            onTap: onDirections,
-            child: Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(
-                  horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                color: ac.accentGreen,
-                borderRadius:
-                    BorderRadius.circular(kRadiusPill),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(Icons.navigation,
-                      size: 12, color: Colors.white),
-                  const SizedBox(width: 6),
-                  Text(
-                    'Directions',
-                    style: _outfit(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.white,
+          Row(
+            children: [
+              Expanded(
+                child: GestureDetector(
+                  onTap: () => _safeLaunch(
+                    'https://maps.apple.com/?daddr=${store.lat},${store.lng}&dirflg=d',
+                  ),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 8, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: ac.accentGreen,
+                      borderRadius: BorderRadius.circular(kRadiusPill),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.apple,
+                            size: 12, color: Colors.white),
+                        const SizedBox(width: 4),
+                        Text(
+                          'Apple',
+                          style: _outfit(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                ],
+                ),
               ),
-            ),
+              const SizedBox(width: 6),
+              Expanded(
+                child: GestureDetector(
+                  onTap: () => _safeLaunch(
+                    'https://www.google.com/maps/dir/?api=1&destination=${store.lat},${store.lng}',
+                  ),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 8, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: ac.accentGreen,
+                      borderRadius: BorderRadius.circular(kRadiusPill),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.map,
+                            size: 12, color: Colors.white),
+                        const SizedBox(width: 4),
+                        Text(
+                          'Google',
+                          style: _outfit(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
         ],
       ),
