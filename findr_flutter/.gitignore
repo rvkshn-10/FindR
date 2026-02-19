@@ -8,3 +8,7 @@ build/
 
 # IDE
 .idea/
+
+# Signing keys (never commit)
+android/upload-keystore.jks
+android/key.properties
