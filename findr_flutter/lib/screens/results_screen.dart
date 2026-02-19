@@ -178,9 +178,23 @@ Future<void> _safeLaunch(String url) async {
   try {
     final uri = Uri.parse(url);
     await launchUrl(uri, mode: LaunchMode.externalApplication);
-  } catch (_) {
-    // Silently ignore unsupported schemes or parse errors.
-  }
+  } catch (_) {}
+}
+
+Future<void> _launchDirections(double lat, double lng) async {
+  final appleMapsUri = Uri.parse('https://maps.apple.com/?daddr=$lat,$lng&dirflg=d');
+  final googleMapsUri = Uri.parse(
+    'https://www.google.com/maps/dir/?api=1&destination=$lat,$lng',
+  );
+  try {
+    if (await canLaunchUrl(appleMapsUri)) {
+      await launchUrl(appleMapsUri, mode: LaunchMode.externalApplication);
+      return;
+    }
+  } catch (_) {}
+  try {
+    await launchUrl(googleMapsUri, mode: LaunchMode.externalApplication);
+  } catch (_) {}
 }
 
 /// Format review count with K suffix for large numbers.
@@ -456,9 +470,7 @@ class _ResultsScreenState extends State<ResultsScreen> {
   }
 
   void _openDirections(Store store) {
-    _safeLaunch(
-      'https://www.google.com/maps/dir/?api=1&destination=${store.lat},${store.lng}',
-    );
+    _launchDirections(store.lat, store.lng);
   }
 
   void _onSelectStore(Store store) {
@@ -2310,9 +2322,7 @@ class _ResultCardState extends State<_ResultCard> {
               // Directions button
               const SizedBox(height: 12),
               GestureDetector(
-                onTap: () => _safeLaunch(
-                  'https://www.google.com/maps/dir/?api=1&destination=${widget.store.lat},${widget.store.lng}',
-                ),
+                onTap: () => _launchDirections(widget.store.lat, widget.store.lng),
                 child: Container(
                   width: double.infinity,
                   padding: const EdgeInsets.symmetric(vertical: 10),
