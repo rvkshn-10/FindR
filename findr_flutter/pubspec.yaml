@@ -1,7 +1,7 @@
 name: findr_flutter
 description: Wayvio - find items nearby (stores, products, best option). Dart/Flutter version.
 publish_to: 'none'
-version: 1.5.8+2
+version: 1.5.8+3
 
 environment:
   sdk: '>=3.0.0 <4.0.0'
