@@ -1287,7 +1287,7 @@ class _ResultsScreenState extends State<ResultsScreen> {
           height: isSelected ? 40 : 32,
           child: _AnimatedMarkerChild(
             markerKey: s.id,
-            delayMs: (i + 1) * 50,
+            delayMs: 50 * (i + 1),
             child: GestureDetector(
               onTap: () => _onSelectStore(s),
               child: Container(
@@ -1965,6 +1965,7 @@ class _ResultCardState extends State<_ResultCard> {
   }
 
   Future<void> _toggleFavorite() async {
+    HapticFeedback.lightImpact();
     if (_favLoading) return;
     setState(() => _favLoading = true);
 
@@ -2014,7 +2015,10 @@ class _ResultCardState extends State<_ResultCard> {
       onExit: (_) => setState(() => _hovered = false),
       cursor: SystemMouseCursors.click,
       child: GestureDetector(
-        onTap: widget.onTap,
+        onTap: () {
+          HapticFeedback.lightImpact();
+          widget.onTap();
+        },
         child: DefaultTextStyle(
           style: noShadowStyle,
           child: AnimatedContainer(
@@ -2575,9 +2579,12 @@ class _ResultCardState extends State<_ResultCard> {
                 children: [
                   Expanded(
                     child: GestureDetector(
-                      onTap: () => _safeLaunch(
-                        'https://maps.apple.com/?daddr=${widget.store.lat},${widget.store.lng}&dirflg=d',
-                      ),
+                      onTap: () {
+                        HapticFeedback.lightImpact();
+                        _safeLaunch(
+                          'https://maps.apple.com/?daddr=${widget.store.lat},${widget.store.lng}&dirflg=d',
+                        );
+                      },
                       child: Container(
                         padding: const EdgeInsets.symmetric(vertical: 10),
                         decoration: BoxDecoration(
@@ -2612,9 +2619,12 @@ class _ResultCardState extends State<_ResultCard> {
                   const SizedBox(width: 8),
                   Expanded(
                     child: GestureDetector(
-                      onTap: () => _safeLaunch(
-                        'https://www.google.com/maps/dir/?api=1&destination=${widget.store.lat},${widget.store.lng}',
-                      ),
+                      onTap: () {
+                        HapticFeedback.lightImpact();
+                        _safeLaunch(
+                          'https://www.google.com/maps/dir/?api=1&destination=${widget.store.lat},${widget.store.lng}',
+                        );
+                      },
                       child: Container(
                         padding: const EdgeInsets.symmetric(vertical: 10),
                         decoration: BoxDecoration(
@@ -3245,7 +3255,10 @@ class _SortChip extends StatelessWidget {
   Widget build(BuildContext context) {
     final ac = AppColors.of(context);
     return GestureDetector(
-      onTap: onTap,
+      onTap: () {
+        HapticFeedback.lightImpact();
+        onTap();
+      },
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 180),
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
@@ -3283,6 +3296,51 @@ class _SortChip extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Animated marker child for map drop-in effect
+// ---------------------------------------------------------------------------
+
+class _AnimatedMarkerChild extends StatelessWidget {
+  const _AnimatedMarkerChild({
+    required this.markerKey,
+    required this.delayMs,
+    required this.child,
+  });
+
+  final Object markerKey;
+  final int delayMs;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final totalMs = 300 + delayMs;
+    final delayFraction = delayMs / totalMs;
+    return TweenAnimationBuilder<double>(
+      key: ValueKey(markerKey),
+      tween: _DelayedScaleTween(delayFraction: delayFraction),
+      duration: Duration(milliseconds: totalMs),
+      curve: Curves.easeOutBack,
+      builder: (context, value, child) => Transform.scale(
+        scale: value,
+        alignment: Alignment.center,
+        child: child,
+      ),
+      child: child,
+    );
+  }
+}
+
+class _DelayedScaleTween extends Tween<double> {
+  _DelayedScaleTween({required this.delayFraction}) : super(begin: 0.0, end: 1.0);
+  final double delayFraction;
+
+  @override
+  double lerp(double t) {
+    if (t <= delayFraction) return 0.0;
+    return super.lerp((t - delayFraction) / (1.0 - delayFraction));
   }
 }
 
