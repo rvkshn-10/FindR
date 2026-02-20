@@ -345,11 +345,13 @@ class _ResultsScreenState extends State<ResultsScreen> {
   bool _pricesLoading = false;
   SortMode _sortMode = SortMode.distance;
   int _loadGeneration = 0;
+  late TextEditingController _mobileSearchController;
 
   @override
   void initState() {
     super.initState();
     _currentItem = widget.item;
+    _mobileSearchController = TextEditingController(text: widget.item);
     _loadSavedSortPreference();
     _load();
   }
@@ -372,6 +374,7 @@ class _ResultsScreenState extends State<ResultsScreen> {
   @override
   void dispose() {
     _mapController.dispose();
+    _mobileSearchController.dispose();
     super.dispose();
   }
 
@@ -543,8 +546,10 @@ class _ResultsScreenState extends State<ResultsScreen> {
       }
       return;
     }
+    final trimmed = newItem.trim();
+    _mobileSearchController.text = trimmed;
     setState(() {
-      _currentItem = newItem.trim();
+      _currentItem = trimmed;
       _selectedStoreId = null;
       _aiSummary = null;
       _aiLoading = false;
@@ -1023,6 +1028,67 @@ class _ResultsScreenState extends State<ResultsScreen> {
                     fontSize: 13, color: ac.textTertiary),
               ),
             ],
+          ),
+        ),
+        // Inline search bar (mobile)
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+          child: Container(
+            height: 38,
+            decoration: BoxDecoration(
+              color: ac.inputBg,
+              borderRadius: BorderRadius.circular(kRadiusMd),
+              border: Border.all(color: ac.borderSubtle),
+            ),
+            child: Row(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.only(left: 10),
+                  child: Icon(Icons.search,
+                      size: 15, color: ac.accentGreen),
+                ),
+                Expanded(
+                  child: TextField(
+                    controller: _mobileSearchController,
+                    style: _outfit(
+                        fontSize: 13, color: ac.textPrimary),
+                    decoration: InputDecoration(
+                      hintText: 'Search for something else…',
+                      hintStyle: _outfit(
+                          fontSize: 13, color: ac.textTertiary),
+                      border: InputBorder.none,
+                      enabledBorder: InputBorder.none,
+                      focusedBorder: InputBorder.none,
+                      contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 9),
+                      isDense: true,
+                      filled: false,
+                    ),
+                    textInputAction: TextInputAction.search,
+                    onSubmitted: (text) {
+                      final q = text.trim();
+                      if (q.isNotEmpty) _reSearch(q);
+                    },
+                  ),
+                ),
+                GestureDetector(
+                  onTap: () {
+                    final q = _mobileSearchController.text.trim();
+                    if (q.isNotEmpty) _reSearch(q);
+                  },
+                  child: Container(
+                    margin: const EdgeInsets.only(right: 4),
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: ac.accentGreen,
+                      borderRadius: BorderRadius.circular(7),
+                    ),
+                    child: const Icon(Icons.arrow_forward,
+                        color: Colors.white, size: 13),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
         if (_enriching)
@@ -1615,33 +1681,33 @@ class _SidebarState extends State<_Sidebar> {
               const SizedBox(height: 20),
               // Search bar
               Container(
-                height: 44,
+                height: 42,
                 decoration: BoxDecoration(
-                  color: ac.bodyBg,
+                  color: ac.inputBg,
                   borderRadius: BorderRadius.circular(kRadiusMd),
                   border: Border.all(color: ac.borderSubtle),
                 ),
                 child: Row(
                   children: [
                     Padding(
-                      padding: const EdgeInsets.only(left: 12),
+                      padding: const EdgeInsets.only(left: 10),
                       child: Icon(Icons.search,
-                          size: 16, color: ac.textTertiary),
+                          size: 16, color: ac.accentGreen),
                     ),
                     Expanded(
                       child: TextField(
                         controller: _searchController,
                         style: _outfit(
-                            fontSize: 14, color: ac.textPrimary),
+                            fontSize: 13, color: ac.textPrimary),
                         decoration: InputDecoration(
                           hintText: 'Search for something else…',
                           hintStyle: _outfit(
-                              fontSize: 14, color: ac.textTertiary),
+                              fontSize: 13, color: ac.textTertiary),
                           border: InputBorder.none,
                           enabledBorder: InputBorder.none,
                           focusedBorder: InputBorder.none,
                           contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 12, vertical: 12),
+                              horizontal: 10, vertical: 10),
                           filled: false,
                         ),
                         textInputAction: TextInputAction.search,
@@ -1651,8 +1717,8 @@ class _SidebarState extends State<_Sidebar> {
                     GestureDetector(
                       onTap: _submitSearch,
                       child: Container(
-                        margin: const EdgeInsets.only(right: 6),
-                        padding: const EdgeInsets.all(8),
+                        margin: const EdgeInsets.only(right: 5),
+                        padding: const EdgeInsets.all(7),
                         decoration: BoxDecoration(
                           color: ac.accentGreen,
                           borderRadius: BorderRadius.circular(8),

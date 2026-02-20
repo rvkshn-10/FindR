@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../models/search_models.dart';
 import '../services/content_safety_service.dart';
 import '../services/geocode_service.dart';
@@ -41,6 +42,9 @@ const _kDefaultSuggestions = <String>[
 const _kRecentSearchesKey = 'recent_searches';
 const _kRadiusKey = 'search_radius_miles';
 const _kMaxRecent = 8;
+const _kSearchCountKey = 'wayvio_search_count';
+const _kRateDismissedKey = 'wayvio_rate_dismissed';
+const _kPlayStoreUrl = 'https://play.google.com/store/apps/details?id=com.wayvio.app';
 
 class SearchScreen extends StatefulWidget {
   final void Function(SearchResultParams)? onSearchResult;
@@ -488,6 +492,7 @@ class _SearchScreenState extends State<SearchScreen> {
           ),
         );
       }
+      _incrementSearchAndMaybePromptRate();
     } catch (e, st) {
       print('[Wayvio] _submit ERROR: $e');
       print('[Wayvio] _submit STACK: $st');
@@ -501,6 +506,129 @@ class _SearchScreenState extends State<SearchScreen> {
     } finally {
       if (mounted) setState(() { _loading = false; _geocoding = false; });
     }
+  }
+
+  Future<void> _incrementSearchAndMaybePromptRate() async {
+    final prefs = await SharedPreferences.getInstance();
+    final dismissed = prefs.getBool(_kRateDismissedKey) ?? false;
+    if (dismissed) return;
+    final count = (prefs.getInt(_kSearchCountKey) ?? 0) + 1;
+    await prefs.setInt(_kSearchCountKey, count);
+    if (count == 5 && mounted) {
+      _showRateDialog();
+    }
+  }
+
+  void _showRateDialog() {
+    final ac = AppColors.of(context);
+    showDialog(
+      context: context,
+      builder: (ctx) => Dialog(
+        backgroundColor: ac.cardBg,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(28),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 56,
+                height: 56,
+                decoration: BoxDecoration(
+                  color: ac.accentGreen.withValues(alpha: 0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(Icons.star_rounded,
+                    size: 28, color: ac.accentGreen),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Enjoying Wayvio?',
+                style: _outfit(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w700,
+                  color: ac.textPrimary,
+                ),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                "If you're finding what you need, we'd love a quick review!",
+                textAlign: TextAlign.center,
+                style: _outfit(
+                  fontSize: 14,
+                  color: ac.textPrimary,
+                  height: 1.5,
+                ),
+              ),
+              const SizedBox(height: 24),
+              Row(
+                children: [
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: () async {
+                        Navigator.of(ctx).pop();
+                        final prefs = await SharedPreferences.getInstance();
+                        await prefs.setBool(_kRateDismissedKey, true);
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 13),
+                        decoration: BoxDecoration(
+                          color: ac.inputBg,
+                          borderRadius: BorderRadius.circular(kRadiusPill),
+                          border: Border.all(color: ac.borderSubtle),
+                        ),
+                        alignment: Alignment.center,
+                        child: Text(
+                          'Maybe later',
+                          style: _outfit(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: ac.textPrimary,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: () async {
+                        Navigator.of(ctx).pop();
+                        final prefs = await SharedPreferences.getInstance();
+                        await prefs.setBool(_kRateDismissedKey, true);
+                        final uri = Uri.parse(_kPlayStoreUrl);
+                        if (await canLaunchUrl(uri)) {
+                          await launchUrl(uri,
+                              mode: LaunchMode.externalApplication);
+                        }
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 13),
+                        decoration: BoxDecoration(
+                          color: ac.accentGreen,
+                          borderRadius: BorderRadius.circular(kRadiusPill),
+                        ),
+                        alignment: Alignment.center,
+                        child: Text(
+                          'Rate us',
+                          style: _outfit(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   void _searchFor(String term) {
