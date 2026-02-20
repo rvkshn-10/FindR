@@ -53,7 +53,7 @@ const double kMapSelectZoom = 17.5;
 // AI (Gemini)
 // ---------------------------------------------------------------------------
 
-const String kGeminiApiKey = 'AIzaSyDftV5e2WS8TKg7F8jOuvAxgv53_Jamsd8';
+const String kGeminiApiKey = 'AIzaSyBtmZKzv2ZSBuXv4PHcVHbKHxxBfGUrZtw';
 const Duration kAiTimeout = Duration(seconds: 10);
 
 // ---------------------------------------------------------------------------
