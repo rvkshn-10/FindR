@@ -1868,11 +1868,11 @@ class _SidebarState extends State<_Sidebar> {
                 child: widget.stores.isEmpty
                     ? RefreshIndicator(
                         onRefresh: widget.onRefresh,
-                        child: SingleChildScrollView(
-                          physics: const AlwaysScrollableScrollPhysics(),
+                        child: const SingleChildScrollView(
+                          physics: AlwaysScrollableScrollPhysics(),
                           child: SizedBox(
                             height: 300,
-                            child: const _EmptyState(),
+                            child: _EmptyState(),
                           ),
                         ),
                       )
