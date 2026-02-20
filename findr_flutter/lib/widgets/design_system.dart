@@ -57,6 +57,7 @@ class AppColors {
   // Accent (brighter green in dark mode for visibility)
   Color get accentGreen => isDark ? const Color(0xFF4EBF75) : SupplyMapColors.accentGreen;
   Color get accentLightGreen => isDark ? const Color(0xFF1B3D28) : SupplyMapColors.accentLightGreen;
+  Color get accentWarm => isDark ? const Color(0xFFE8A88A) : SupplyMapColors.accentWarm;
 
   // Core accents
   Color get red => SupplyMapColors.red;

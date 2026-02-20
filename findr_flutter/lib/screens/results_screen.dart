@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
@@ -209,6 +210,30 @@ String _formatReviewCount(int count) {
 /// Sort mode for search results.
 enum SortMode { distance, priceLow, rating }
 
+const String _kSortPreferenceKey = 'wayvio_sort_preference';
+
+SortMode _sortModeFromString(String? value) {
+  switch (value) {
+    case 'priceLow':
+      return SortMode.priceLow;
+    case 'rating':
+      return SortMode.rating;
+    default:
+      return SortMode.distance;
+  }
+}
+
+String _sortModeToString(SortMode mode) {
+  switch (mode) {
+    case SortMode.priceLow:
+      return 'priceLow';
+    case SortMode.rating:
+      return 'rating';
+    case SortMode.distance:
+      return 'distance';
+  }
+}
+
 /// Returns a human-friendly label for the store's OSM type, or null if unknown.
 String? _storeTypeLabel(Store store) {
   final raw = store.shopType ?? store.amenityType;
@@ -219,6 +244,63 @@ String? _storeTypeLabel(Store store) {
       .split(' ')
       .map((w) => w.isEmpty ? w : '${w[0].toUpperCase()}${w.substring(1)}')
       .join(' ');
+}
+
+/// Serialize Store to Map for caching.
+Map<String, dynamic> _storeToMap(Store s) {
+  return {
+    'id': s.id,
+    'name': s.name,
+    'address': s.address,
+    'lat': s.lat,
+    'lng': s.lng,
+    'distanceKm': s.distanceKm,
+    'durationMinutes': s.durationMinutes,
+    'phone': s.phone,
+    'website': s.website,
+    'openingHours': s.openingHours,
+    'brand': s.brand,
+    'shopType': s.shopType,
+    'amenityType': s.amenityType,
+    'price': s.price,
+    'priceLabel': s.priceLabel,
+    'priceIsAvg': s.priceIsAvg,
+    'rating': s.rating,
+    'reviewCount': s.reviewCount,
+    'priceLevel': s.priceLevel,
+    'thumbnail': s.thumbnail,
+    'serviceOptions': s.serviceOptions,
+  };
+}
+
+/// Deserialize Map to Store for loading cached results.
+Store _mapToStore(Map<String, dynamic> m) {
+  return Store(
+    id: m['id'] as String? ?? '',
+    name: m['name'] as String? ?? '',
+    address: m['address'] as String? ?? '',
+    lat: (m['lat'] as num?)?.toDouble() ?? 0,
+    lng: (m['lng'] as num?)?.toDouble() ?? 0,
+    distanceKm: (m['distanceKm'] as num?)?.toDouble() ?? 0,
+    durationMinutes: m['durationMinutes'] as int?,
+    phone: m['phone'] as String?,
+    website: m['website'] as String?,
+    openingHours: m['openingHours'] as String?,
+    brand: m['brand'] as String?,
+    shopType: m['shopType'] as String?,
+    amenityType: m['amenityType'] as String?,
+    price: (m['price'] as num?)?.toDouble(),
+    priceLabel: m['priceLabel'] as String?,
+    priceIsAvg: m['priceIsAvg'] as bool? ?? false,
+    rating: (m['rating'] as num?)?.toDouble(),
+    reviewCount: m['reviewCount'] as int?,
+    priceLevel: m['priceLevel'] as String?,
+    thumbnail: m['thumbnail'] as String?,
+    serviceOptions: (m['serviceOptions'] as List<dynamic>?)
+            ?.map((e) => e.toString())
+            .toList() ??
+        [],
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -251,6 +333,7 @@ class _ResultsScreenState extends State<ResultsScreen> {
   SearchResult? _result;
   bool _loading = true;
   String? _error;
+  Map<String, dynamic>? _cachedResults;
   final MapController _mapController = MapController();
   String? _selectedStoreId;
   late String _currentItem;
@@ -262,17 +345,36 @@ class _ResultsScreenState extends State<ResultsScreen> {
   bool _pricesLoading = false;
   SortMode _sortMode = SortMode.distance;
   int _loadGeneration = 0;
+  late TextEditingController _mobileSearchController;
 
   @override
   void initState() {
     super.initState();
     _currentItem = widget.item;
+    _mobileSearchController = TextEditingController(text: widget.item);
+    _loadSavedSortPreference();
     _load();
+  }
+
+  Future<void> _loadSavedSortPreference() async {
+    final prefs = await SharedPreferences.getInstance();
+    final saved = prefs.getString(_kSortPreferenceKey);
+    if (saved != null && mounted) {
+      setState(() => _sortMode = _sortModeFromString(saved));
+    }
+  }
+
+  void _onSortChanged(SortMode mode) {
+    setState(() => _sortMode = mode);
+    SharedPreferences.getInstance().then((prefs) {
+      prefs.setString(_kSortPreferenceKey, _sortModeToString(mode));
+    });
   }
 
   @override
   void dispose() {
     _mapController.dispose();
+    _mobileSearchController.dispose();
     super.dispose();
   }
 
@@ -386,15 +488,48 @@ class _ResultsScreenState extends State<ResultsScreen> {
           _priceData = prices;
           _pricesLoading = false;
         });
+        db.cacheSearchResults(
+          query: _currentItem,
+          stores: storesWithPrices.map(_storeToMap).toList(),
+          lat: widget.lat,
+          lng: widget.lng,
+        );
       }
     } catch (e) {
+      if (!mounted) return;
+      final cached = await db.getCachedResults();
       if (!mounted) return;
       setState(() {
         _error = e.toString().replaceFirst('Exception: ', '');
         _loading = false;
         _enriching = false;
+        _cachedResults = cached;
       });
     }
+  }
+
+  void _loadCachedResults() {
+    final cached = _cachedResults;
+    if (cached == null) return;
+    final storesRaw = cached['stores'] as List<dynamic>?;
+    if (storesRaw == null || storesRaw.isEmpty) return;
+    final stores = storesRaw
+        .map((e) => _mapToStore(e as Map<String, dynamic>))
+        .toList();
+    final query = cached['query'] as String? ?? '';
+    setState(() {
+      _result = SearchResult(
+        stores: stores,
+        bestOptionId: stores.isNotEmpty ? stores.first.id : '',
+        summary: 'Showing cached results from your last search.',
+      );
+      _error = null;
+      _cachedResults = null;
+      _currentItem = query;
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _fitMapToClosestStores(stores);
+    });
   }
 
   void _reSearch(String newItem) {
@@ -411,8 +546,10 @@ class _ResultsScreenState extends State<ResultsScreen> {
       }
       return;
     }
+    final trimmed = newItem.trim();
+    _mobileSearchController.text = trimmed;
     setState(() {
-      _currentItem = newItem.trim();
+      _currentItem = trimmed;
       _selectedStoreId = null;
       _aiSummary = null;
       _aiLoading = false;
@@ -529,7 +666,7 @@ class _ResultsScreenState extends State<ResultsScreen> {
     final settings = context.watch<SettingsProvider>();
     final ac = AppColors.of(context);
 
-    // Loading — shimmer skeleton cards
+    // Loading — skeleton placeholder cards
     if (_loading) {
       return Scaffold(
         backgroundColor: Colors.transparent,
@@ -539,20 +676,17 @@ class _ResultsScreenState extends State<ResultsScreen> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                CircularProgressIndicator(
-                    color: ac.accentGreen),
-                const SizedBox(height: 20),
                 Text(
                   'Finding nearby stores…',
                   style: _outfit(
                       fontSize: 14, color: ac.textSecondary),
                 ),
-                const SizedBox(height: 28),
+                const SizedBox(height: 20),
                 ...List.generate(
-                    3,
+                    4,
                     (i) => Padding(
                           padding: const EdgeInsets.only(bottom: 12),
-                          child: _ShimmerCard(delay: i * 200),
+                          child: _SkeletonCard(delay: i * 150),
                         )),
               ],
             ),
@@ -563,6 +697,8 @@ class _ResultsScreenState extends State<ResultsScreen> {
 
     // Error
     if (_error != null) {
+      final cached = _cachedResults;
+      final cachedQuery = cached?['query'] as String?;
       return Scaffold(
         backgroundColor: Colors.transparent,
         body: Center(
@@ -577,6 +713,36 @@ class _ResultsScreenState extends State<ResultsScreen> {
                       color: ac.red, fontSize: 14),
                   textAlign: TextAlign.center,
                 ),
+                if (cached != null && cachedQuery != null && cachedQuery.isNotEmpty) ...[
+                  const SizedBox(height: 20),
+                  GestureDetector(
+                    onTap: _loadCachedResults,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 20, vertical: 14),
+                      decoration: BoxDecoration(
+                        color: ac.accentGreen.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(kRadiusPill),
+                        border: Border.all(color: ac.accentGreen.withValues(alpha: 0.5)),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.offline_pin, size: 20, color: ac.accentGreen),
+                          const SizedBox(width: 10),
+                          Text(
+                            'Show last results for "$cachedQuery"',
+                            style: _outfit(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: ac.accentGreen,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 16),
                 Row(
                   mainAxisSize: MainAxisSize.min,
@@ -665,13 +831,14 @@ class _ResultsScreenState extends State<ResultsScreen> {
                 onSelectStore: _onSelectStore,
                 onDirections: _openDirections,
                 onReSearch: _reSearch,
+                onRefresh: _load,
                 enriching: _enriching,
                 aiSummary: _aiSummary,
                 aiLoading: _aiLoading,
                 priceData: _priceData,
                 pricesLoading: _pricesLoading,
                 sortMode: _sortMode,
-                onSortChanged: (mode) => setState(() => _sortMode = mode),
+                onSortChanged: _onSortChanged,
                 onNewSearch: () {
                   if (widget.onNewSearch != null) {
                     widget.onNewSearch!();
@@ -734,69 +901,74 @@ class _ResultsScreenState extends State<ResultsScreen> {
                   ],
                 ),
                 clipBehavior: Clip.antiAlias,
-                child: stores.isEmpty
-                    ? CustomScrollView(
-                        controller: scrollController,
-                        slivers: [
-                          SliverToBoxAdapter(
-                            child: _buildSheetHeader(stores),
-                          ),
-                          const SliverFillRemaining(
-                            hasScrollBody: false,
-                            child: _EmptyState(),
-                          ),
-                        ],
-                      )
-                    : CustomScrollView(
-                        controller: scrollController,
-                        slivers: [
-                          SliverToBoxAdapter(
-                            child: _buildSheetHeader(stores),
-                          ),
-                          // AI Insight in the bottom sheet
-                          if (_aiLoading || _aiSummary != null)
+                child: RefreshIndicator(
+                  onRefresh: _load,
+                  child: stores.isEmpty
+                      ? CustomScrollView(
+                          controller: scrollController,
+                          physics: const AlwaysScrollableScrollPhysics(),
+                          slivers: [
                             SliverToBoxAdapter(
-                              child: Padding(
-                                padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-                                child: (_aiLoading || _aiSummary == null)
-                                    ? const _AiInsightCard.loading()
-                                    : _AiInsightCard(summary: _aiSummary!),
-                              ),
+                              child: _buildSheetHeader(stores),
                             ),
-                          SliverPadding(
-                            padding: EdgeInsets.fromLTRB(
-                                16,
-                                0,
-                                16,
-                                24 + MediaQuery.of(context).padding.bottom),
-                            sliver: SliverList(
-                              delegate: SliverChildBuilderDelegate(
-                                (context, i) {
-                                  final s = stores[i];
-                                  final style = _styleForStore(i, s, stores);
-                                  return Padding(
-                                    padding: EdgeInsets.only(
-                                        bottom: i < stores.length - 1 ? 12 : 0),
-                                    child: _StaggeredFadeIn(
-                                      index: i,
-                                      child: _SafeResultCard(
-                                        key: ValueKey(s.id),
-                                        store: s,
-                                        style: style,
-                                        settings: settings,
-                                        isSelected: s.id == _selectedStoreId,
-                                        onTap: () => _onSelectStore(s),
-                                        searchItem: _currentItem,
+                            const SliverFillRemaining(
+                              hasScrollBody: false,
+                              child: _EmptyState(),
+                            ),
+                          ],
+                        )
+                      : CustomScrollView(
+                          controller: scrollController,
+                          physics: const AlwaysScrollableScrollPhysics(),
+                          slivers: [
+                            SliverToBoxAdapter(
+                              child: _buildSheetHeader(stores),
+                            ),
+                            // AI Insight in the bottom sheet
+                            if (_aiLoading || _aiSummary != null)
+                              SliverToBoxAdapter(
+                                child: Padding(
+                                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                                  child: (_aiLoading || _aiSummary == null)
+                                      ? const _AiInsightCard.loading()
+                                      : _AiInsightCard(summary: _aiSummary!),
+                                ),
+                              ),
+                            SliverPadding(
+                              padding: EdgeInsets.fromLTRB(
+                                  16,
+                                  0,
+                                  16,
+                                  24 + MediaQuery.of(context).padding.bottom),
+                              sliver: SliverList(
+                                delegate: SliverChildBuilderDelegate(
+                                  (context, i) {
+                                    final s = stores[i];
+                                    final style = _styleForStore(i, s, stores);
+                                    return Padding(
+                                      padding: EdgeInsets.only(
+                                          bottom: i < stores.length - 1 ? 12 : 0),
+                                      child: _StaggeredFadeIn(
+                                        index: i,
+                                        child: _SafeResultCard(
+                                          key: ValueKey(s.id),
+                                          store: s,
+                                          style: style,
+                                          settings: settings,
+                                          isSelected: s.id == _selectedStoreId,
+                                          onTap: () => _onSelectStore(s),
+                                          searchItem: _currentItem,
+                                        ),
                                       ),
-                                    ),
-                                  );
-                                },
-                                childCount: stores.length,
+                                    );
+                                  },
+                                  childCount: stores.length,
+                                ),
                               ),
                             ),
-                          ),
-                        ],
-                      ),
+                          ],
+                        ),
+                ),
               );
             },
           ),
@@ -856,6 +1028,67 @@ class _ResultsScreenState extends State<ResultsScreen> {
                     fontSize: 13, color: ac.textTertiary),
               ),
             ],
+          ),
+        ),
+        // Inline search bar (mobile)
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+          child: Container(
+            height: 38,
+            decoration: BoxDecoration(
+              color: ac.inputBg,
+              borderRadius: BorderRadius.circular(kRadiusMd),
+              border: Border.all(color: ac.borderSubtle),
+            ),
+            child: Row(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.only(left: 10),
+                  child: Icon(Icons.search,
+                      size: 15, color: ac.accentGreen),
+                ),
+                Expanded(
+                  child: TextField(
+                    controller: _mobileSearchController,
+                    style: _outfit(
+                        fontSize: 13, color: ac.textPrimary),
+                    decoration: InputDecoration(
+                      hintText: 'Search for something else…',
+                      hintStyle: _outfit(
+                          fontSize: 13, color: ac.textTertiary),
+                      border: InputBorder.none,
+                      enabledBorder: InputBorder.none,
+                      focusedBorder: InputBorder.none,
+                      contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 9),
+                      isDense: true,
+                      filled: false,
+                    ),
+                    textInputAction: TextInputAction.search,
+                    onSubmitted: (text) {
+                      final q = text.trim();
+                      if (q.isNotEmpty) _reSearch(q);
+                    },
+                  ),
+                ),
+                GestureDetector(
+                  onTap: () {
+                    final q = _mobileSearchController.text.trim();
+                    if (q.isNotEmpty) _reSearch(q);
+                  },
+                  child: Container(
+                    margin: const EdgeInsets.only(right: 4),
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: ac.accentGreen,
+                      borderRadius: BorderRadius.circular(7),
+                    ),
+                    child: const Icon(Icons.arrow_forward,
+                        color: Colors.white, size: 13),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
         if (_enriching)
@@ -954,21 +1187,21 @@ class _ResultsScreenState extends State<ResultsScreen> {
                 label: 'Distance',
                 icon: Icons.near_me_outlined,
                 selected: _sortMode == SortMode.distance,
-                onTap: () => setState(() => _sortMode = SortMode.distance),
+                onTap: () => _onSortChanged(SortMode.distance),
               ),
               const SizedBox(width: 4),
               _SortChip(
                 label: 'Price',
                 icon: Icons.attach_money,
                 selected: _sortMode == SortMode.priceLow,
-                onTap: () => setState(() => _sortMode = SortMode.priceLow),
+                onTap: () => _onSortChanged(SortMode.priceLow),
               ),
               const SizedBox(width: 4),
               _SortChip(
                 label: 'Rating',
                 icon: Icons.star_outline_rounded,
                 selected: _sortMode == SortMode.rating,
-                onTap: () => setState(() => _sortMode = SortMode.rating),
+                onTap: () => _onSortChanged(SortMode.rating),
               ),
             ],
           ),
@@ -1074,17 +1307,21 @@ class _ResultsScreenState extends State<ResultsScreen> {
         point: LatLng(widget.lat, widget.lng),
         width: 28,
         height: 28,
-        child: Container(
-          decoration: BoxDecoration(
-            color: ac.blue,
-            shape: BoxShape.circle,
-            border: Border.all(color: Colors.white, width: 2.5),
-            boxShadow: [
-              BoxShadow(
-                color: ac.blue.withValues(alpha: 0.4),
-                blurRadius: 8,
-              ),
-            ],
+        child: _AnimatedMarkerChild(
+          markerKey: 'user-location',
+          delayMs: 0,
+          child: Container(
+            decoration: BoxDecoration(
+              color: ac.blue,
+              shape: BoxShape.circle,
+              border: Border.all(color: Colors.white, width: 2.5),
+              boxShadow: [
+                BoxShadow(
+                  color: ac.blue.withValues(alpha: 0.4),
+                  blurRadius: 8,
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -1106,7 +1343,7 @@ class _ResultsScreenState extends State<ResultsScreen> {
         case _CardStyle.nearby:
           pinColor = ac.accentGreen;
         case _CardStyle.standard:
-          pinColor = SupplyMapColors.accentWarm;
+          pinColor = ac.accentWarm;
       }
 
       markers.add(
@@ -1114,9 +1351,12 @@ class _ResultsScreenState extends State<ResultsScreen> {
           point: LatLng(s.lat, s.lng),
           width: isSelected ? 40 : 32,
           height: isSelected ? 40 : 32,
-          child: GestureDetector(
-            onTap: () => _onSelectStore(s),
-            child: Container(
+          child: _AnimatedMarkerChild(
+            markerKey: s.id,
+            delayMs: 50 * (i + 1),
+            child: GestureDetector(
+              onTap: () => _onSelectStore(s),
+              child: Container(
               decoration: BoxDecoration(
                 color: pinColor,
                 shape: BoxShape.circle,
@@ -1144,6 +1384,7 @@ class _ResultsScreenState extends State<ResultsScreen> {
             ),
           ),
         ),
+      ),
       );
     }
 
@@ -1203,7 +1444,6 @@ class _ResultsScreenState extends State<ResultsScreen> {
                       store: selectedStore,
                       settings: settings,
                       onClose: () => setState(() => _selectedStoreId = null),
-                      onDirections: () => _openDirections(selectedStore),
                     ),
                   ),
                 // Map controls
@@ -1258,6 +1498,7 @@ class _Sidebar extends StatefulWidget {
     required this.onSelectStore,
     required this.onDirections,
     required this.onReSearch,
+    required this.onRefresh,
     required this.onNewSearch,
     this.enriching = false,
     this.aiSummary,
@@ -1276,6 +1517,7 @@ class _Sidebar extends StatefulWidget {
   final void Function(Store) onSelectStore;
   final void Function(Store) onDirections;
   final void Function(String) onReSearch;
+  final Future<void> Function() onRefresh;
   final VoidCallback onNewSearch;
   final bool enriching;
   final AiResultSummary? aiSummary;
@@ -1439,33 +1681,33 @@ class _SidebarState extends State<_Sidebar> {
               const SizedBox(height: 20),
               // Search bar
               Container(
-                height: 44,
+                height: 42,
                 decoration: BoxDecoration(
-                  color: ac.bodyBg,
+                  color: ac.inputBg,
                   borderRadius: BorderRadius.circular(kRadiusMd),
                   border: Border.all(color: ac.borderSubtle),
                 ),
                 child: Row(
                   children: [
                     Padding(
-                      padding: const EdgeInsets.only(left: 12),
+                      padding: const EdgeInsets.only(left: 10),
                       child: Icon(Icons.search,
-                          size: 16, color: ac.textTertiary),
+                          size: 16, color: ac.accentGreen),
                     ),
                     Expanded(
                       child: TextField(
                         controller: _searchController,
                         style: _outfit(
-                            fontSize: 14, color: ac.textPrimary),
+                            fontSize: 13, color: ac.textPrimary),
                         decoration: InputDecoration(
                           hintText: 'Search for something else…',
                           hintStyle: _outfit(
-                              fontSize: 14, color: ac.textTertiary),
+                              fontSize: 13, color: ac.textTertiary),
                           border: InputBorder.none,
                           enabledBorder: InputBorder.none,
                           focusedBorder: InputBorder.none,
                           contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 12, vertical: 12),
+                              horizontal: 10, vertical: 10),
                           filled: false,
                         ),
                         textInputAction: TextInputAction.search,
@@ -1475,8 +1717,8 @@ class _SidebarState extends State<_Sidebar> {
                     GestureDetector(
                       onTap: _submitSearch,
                       child: Container(
-                        margin: const EdgeInsets.only(right: 6),
-                        padding: const EdgeInsets.all(8),
+                        margin: const EdgeInsets.only(right: 5),
+                        padding: const EdgeInsets.all(7),
                         decoration: BoxDecoration(
                           color: ac.accentGreen,
                           borderRadius: BorderRadius.circular(8),
@@ -1624,30 +1866,42 @@ class _SidebarState extends State<_Sidebar> {
               // Results list
               Expanded(
                 child: widget.stores.isEmpty
-                    ? const _EmptyState()
-                    : ListView.separated(
-                        itemCount: widget.stores.length,
-                        separatorBuilder: (_, __) =>
-                            const SizedBox(height: 14),
-                        padding: const EdgeInsets.only(right: 8),
-                        itemBuilder: (context, i) {
-                          final s = widget.stores[i];
-                          final style =
-                              _styleForStore(i, s, widget.stores);
-                          return _StaggeredFadeIn(
-                            index: i,
-                            child: _SafeResultCard(
-                              key: ValueKey(s.id),
-                              store: s,
-                              style: style,
-                              settings: widget.settings,
-                              isSelected:
-                                  s.id == widget.selectedStoreId,
-                              onTap: () => widget.onSelectStore(s),
-                              searchItem: widget.query,
-                            ),
-                          );
-                        },
+                    ? RefreshIndicator(
+                        onRefresh: widget.onRefresh,
+                        child: const SingleChildScrollView(
+                          physics: AlwaysScrollableScrollPhysics(),
+                          child: SizedBox(
+                            height: 300,
+                            child: _EmptyState(),
+                          ),
+                        ),
+                      )
+                    : RefreshIndicator(
+                        onRefresh: widget.onRefresh,
+                        child: ListView.separated(
+                          itemCount: widget.stores.length,
+                          separatorBuilder: (_, __) =>
+                              const SizedBox(height: 14),
+                          padding: const EdgeInsets.only(right: 8),
+                          itemBuilder: (context, i) {
+                            final s = widget.stores[i];
+                            final style =
+                                _styleForStore(i, s, widget.stores);
+                            return _StaggeredFadeIn(
+                              index: i,
+                              child: _SafeResultCard(
+                                key: ValueKey(s.id),
+                                store: s,
+                                style: style,
+                                settings: widget.settings,
+                                isSelected:
+                                    s.id == widget.selectedStoreId,
+                                onTap: () => widget.onSelectStore(s),
+                                searchItem: widget.query,
+                              ),
+                            );
+                          },
+                        ),
                       ),
               ),
             ],
@@ -1777,6 +2031,7 @@ class _ResultCardState extends State<_ResultCard> {
   }
 
   Future<void> _toggleFavorite() async {
+    HapticFeedback.lightImpact();
     if (_favLoading) return;
     setState(() => _favLoading = true);
 
@@ -1826,7 +2081,10 @@ class _ResultCardState extends State<_ResultCard> {
       onExit: (_) => setState(() => _hovered = false),
       cursor: SystemMouseCursors.click,
       child: GestureDetector(
-        onTap: widget.onTap,
+        onTap: () {
+          HapticFeedback.lightImpact();
+          widget.onTap();
+        },
         child: DefaultTextStyle(
           style: noShadowStyle,
           child: AnimatedContainer(
@@ -1943,16 +2201,63 @@ class _ResultCardState extends State<_ResultCard> {
                 ],
               ),
               const SizedBox(height: 12),
-              // Title
-              Text(
-                widget.store.name,
-                style: _outfit(
-                  fontSize: isGlass ? 16 : 22,
-                  fontWeight: FontWeight.w700,
-                  height: 1.1,
-                  letterSpacing: -0.5,
-                  color: fg.withValues(alpha: isGlass ? 0.9 : 1.0),
-                ),
+              // Title + prominent price badge
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: Text(
+                      widget.store.name,
+                      style: _outfit(
+                        fontSize: isGlass ? 16 : 22,
+                        fontWeight: FontWeight.w700,
+                        height: 1.1,
+                        letterSpacing: -0.5,
+                        color: fg.withValues(alpha: isGlass ? 0.9 : 1.0),
+                      ),
+                    ),
+                  ),
+                  if (widget.store.priceLabel != null &&
+                      widget.store.priceLabel!.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(left: 8),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: dark
+                              ? ac.accentGreen.withValues(alpha: 0.12)
+                              : Colors.white,
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              widget.store.priceLabel!,
+                              style: _outfit(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w700,
+                                color: ac.accentGreen,
+                              ),
+                            ),
+                            if (widget.store.priceLevel != null &&
+                                widget.store.priceLevel!.isNotEmpty) ...[
+                              const SizedBox(width: 4),
+                              Text(
+                                widget.store.priceLevel!,
+                                style: _outfit(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                  color: ac.accentGreen.withValues(alpha: 0.85),
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                    ),
+                ],
               ),
               // Rating row
               if (widget.store.rating != null) ...[
@@ -2042,26 +2347,41 @@ class _ResultCardState extends State<_ResultCard> {
                         ),
                       ),
                     ),
-                  // Price badge (from Google Shopping)
+                  // Price badge (from Google Shopping) — matches prominent badge styling
                   if (widget.store.priceLabel != null)
                     Container(
                       padding: const EdgeInsets.symmetric(
                           horizontal: 8, vertical: 3),
                       decoration: BoxDecoration(
                         color: dark
-                            ? ac.accentGreen.withValues(alpha: 0.15)
-                            : Colors.white.withValues(alpha: 0.2),
+                            ? ac.accentGreen.withValues(alpha: 0.12)
+                            : Colors.white,
                         borderRadius: BorderRadius.circular(6),
                       ),
-                      child: Text(
-                        widget.store.priceLabel!,
-                        style: _outfit(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w700,
-                          color: dark
-                              ? ac.accentGreen
-                              : Colors.white,
-                        ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            widget.store.priceLabel!,
+                            style: _outfit(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                              color: ac.accentGreen,
+                            ),
+                          ),
+                          if (widget.store.priceLevel != null &&
+                              widget.store.priceLevel!.isNotEmpty) ...[
+                            const SizedBox(width: 4),
+                            Text(
+                              widget.store.priceLevel!,
+                              style: _outfit(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                color: ac.accentGreen.withValues(alpha: 0.85),
+                              ),
+                            ),
+                          ],
+                        ],
                       ),
                     ),
                   // Store type badge
@@ -2325,9 +2645,12 @@ class _ResultCardState extends State<_ResultCard> {
                 children: [
                   Expanded(
                     child: GestureDetector(
-                      onTap: () => _safeLaunch(
-                        'https://maps.apple.com/?daddr=${widget.store.lat},${widget.store.lng}&dirflg=d',
-                      ),
+                      onTap: () {
+                        HapticFeedback.lightImpact();
+                        _safeLaunch(
+                          'https://maps.apple.com/?daddr=${widget.store.lat},${widget.store.lng}&dirflg=d',
+                        );
+                      },
                       child: Container(
                         padding: const EdgeInsets.symmetric(vertical: 10),
                         decoration: BoxDecoration(
@@ -2362,9 +2685,12 @@ class _ResultCardState extends State<_ResultCard> {
                   const SizedBox(width: 8),
                   Expanded(
                     child: GestureDetector(
-                      onTap: () => _safeLaunch(
-                        'https://www.google.com/maps/dir/?api=1&destination=${widget.store.lat},${widget.store.lng}',
-                      ),
+                      onTap: () {
+                        HapticFeedback.lightImpact();
+                        _safeLaunch(
+                          'https://www.google.com/maps/dir/?api=1&destination=${widget.store.lat},${widget.store.lng}',
+                        );
+                      },
                       child: Container(
                         padding: const EdgeInsets.symmetric(vertical: 10),
                         decoration: BoxDecoration(
@@ -2494,13 +2820,11 @@ class _SelectedStorePopup extends StatelessWidget {
     required this.store,
     required this.settings,
     required this.onClose,
-    required this.onDirections,
   });
 
   final Store store;
   final SettingsProvider settings;
   final VoidCallback onClose;
-  final VoidCallback onDirections;
 
   @override
   Widget build(BuildContext context) {
@@ -2803,18 +3127,18 @@ class _AiInsightCard extends StatelessWidget {
 }
 
 // ---------------------------------------------------------------------------
-// Shimmer skeleton card (loading placeholder)
+// Skeleton placeholder card (loading state)
 // ---------------------------------------------------------------------------
 
-class _ShimmerCard extends StatefulWidget {
-  const _ShimmerCard({this.delay = 0});
+class _SkeletonCard extends StatefulWidget {
+  const _SkeletonCard({this.delay = 0});
   final int delay;
 
   @override
-  State<_ShimmerCard> createState() => _ShimmerCardState();
+  State<_SkeletonCard> createState() => _SkeletonCardState();
 }
 
-class _ShimmerCardState extends State<_ShimmerCard>
+class _SkeletonCardState extends State<_SkeletonCard>
     with SingleTickerProviderStateMixin {
   late final AnimationController _ctrl;
 
@@ -2822,13 +3146,17 @@ class _ShimmerCardState extends State<_ShimmerCard>
   void initState() {
     super.initState();
     _ctrl = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 1200));
+      vsync: this,
+      duration: const Duration(milliseconds: 1000),
+      lowerBound: 0.3,
+      upperBound: 0.7,
+    );
     if (widget.delay > 0) {
       Future.delayed(Duration(milliseconds: widget.delay), () {
-        if (mounted) _ctrl.repeat();
+        if (mounted) _ctrl.repeat(reverse: true);
       });
     } else {
-      _ctrl.repeat();
+      _ctrl.repeat(reverse: true);
     }
   }
 
@@ -2840,51 +3168,101 @@ class _ShimmerCardState extends State<_ShimmerCard>
 
   @override
   Widget build(BuildContext context) {
+    final ac = AppColors.of(context);
     return AnimatedBuilder(
       animation: _ctrl,
       builder: (context, child) {
-        final shimmer = _ctrl.value;
+        final opacity = _ctrl.value;
         return Container(
-          constraints: const BoxConstraints(maxWidth: 500),
-          height: 100,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(kRadiusLg),
-            gradient: LinearGradient(
-              begin: Alignment(-1.0 + 2.0 * shimmer, 0),
-              end: Alignment(-0.5 + 2.0 * shimmer, 0),
-              colors: const [
-                Color(0xFFEEEEEE),
-                Color(0xFFF5F5F5),
-                Color(0xFFEEEEEE),
-              ],
-            ),
-          ),
+          constraints: const BoxConstraints(maxWidth: 500, minHeight: 140),
           padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: ac.glass,
+            borderRadius: BorderRadius.circular(kRadiusLg),
+            border: Border.all(color: ac.borderSubtle),
+          ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Container(
-                  width: 70,
-                  height: 14,
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Opacity(
+                    opacity: opacity,
+                    child: Container(
+                      width: 70,
+                      height: 14,
+                      decoration: BoxDecoration(
+                        color: ac.borderSubtle,
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                    ),
+                  ),
+                  Opacity(
+                    opacity: opacity,
+                    child: Container(
+                      width: 50,
+                      height: 14,
+                      decoration: BoxDecoration(
+                        color: ac.borderSubtle,
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              Opacity(
+                opacity: opacity,
+                child: Container(
+                  width: 180,
+                  height: 20,
                   decoration: BoxDecoration(
-                    color: const Color(0xFFDDDDDD),
+                    color: ac.borderSubtle,
                     borderRadius: BorderRadius.circular(4),
-                  )),
-              Container(
-                  width: 160,
-                  height: 18,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFDDDDDD),
-                    borderRadius: BorderRadius.circular(4),
-                  )),
-              Container(
-                  width: 120,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 10),
+              Opacity(
+                opacity: opacity,
+                child: Container(
+                  width: 240,
                   height: 12,
                   decoration: BoxDecoration(
-                    color: const Color(0xFFDDDDDD),
+                    color: ac.borderSubtle,
                     borderRadius: BorderRadius.circular(4),
-                  )),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Opacity(
+                    opacity: opacity,
+                    child: Container(
+                      width: 70,
+                      height: 12,
+                      decoration: BoxDecoration(
+                        color: ac.borderSubtle,
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Opacity(
+                    opacity: opacity,
+                    child: Container(
+                      width: 55,
+                      height: 12,
+                      decoration: BoxDecoration(
+                        color: ac.borderSubtle,
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ],
           ),
         );
@@ -2943,7 +3321,10 @@ class _SortChip extends StatelessWidget {
   Widget build(BuildContext context) {
     final ac = AppColors.of(context);
     return GestureDetector(
-      onTap: onTap,
+      onTap: () {
+        HapticFeedback.lightImpact();
+        onTap();
+      },
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 180),
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
@@ -2981,6 +3362,51 @@ class _SortChip extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Animated marker child for map drop-in effect
+// ---------------------------------------------------------------------------
+
+class _AnimatedMarkerChild extends StatelessWidget {
+  const _AnimatedMarkerChild({
+    required this.markerKey,
+    required this.delayMs,
+    required this.child,
+  });
+
+  final Object markerKey;
+  final int delayMs;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final totalMs = 300 + delayMs;
+    final delayFraction = delayMs / totalMs;
+    return TweenAnimationBuilder<double>(
+      key: ValueKey(markerKey),
+      tween: _DelayedScaleTween(delayFraction: delayFraction),
+      duration: Duration(milliseconds: totalMs),
+      curve: Curves.easeOutBack,
+      builder: (context, value, child) => Transform.scale(
+        scale: value,
+        alignment: Alignment.center,
+        child: child,
+      ),
+      child: child,
+    );
+  }
+}
+
+class _DelayedScaleTween extends Tween<double> {
+  _DelayedScaleTween({required this.delayFraction}) : super(begin: 0.0, end: 1.0);
+  final double delayFraction;
+
+  @override
+  double lerp(double t) {
+    if (t <= delayFraction) return 0.0;
+    return super.lerp((t - delayFraction) / (1.0 - delayFraction));
   }
 }
 
