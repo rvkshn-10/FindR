@@ -620,7 +620,7 @@ class _ResultsScreenState extends State<ResultsScreen> {
     final settings = context.watch<SettingsProvider>();
     final ac = AppColors.of(context);
 
-    // Loading — shimmer skeleton cards
+    // Loading — skeleton placeholder cards
     if (_loading) {
       return Scaffold(
         backgroundColor: Colors.transparent,
@@ -630,20 +630,17 @@ class _ResultsScreenState extends State<ResultsScreen> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                CircularProgressIndicator(
-                    color: ac.accentGreen),
-                const SizedBox(height: 20),
                 Text(
                   'Finding nearby stores…',
                   style: _outfit(
                       fontSize: 14, color: ac.textSecondary),
                 ),
-                const SizedBox(height: 28),
+                const SizedBox(height: 20),
                 ...List.generate(
-                    3,
+                    4,
                     (i) => Padding(
                           padding: const EdgeInsets.only(bottom: 12),
-                          child: _ShimmerCard(delay: i * 200),
+                          child: _SkeletonCard(delay: i * 150),
                         )),
               ],
             ),
@@ -2985,18 +2982,18 @@ class _AiInsightCard extends StatelessWidget {
 }
 
 // ---------------------------------------------------------------------------
-// Shimmer skeleton card (loading placeholder)
+// Skeleton placeholder card (loading state)
 // ---------------------------------------------------------------------------
 
-class _ShimmerCard extends StatefulWidget {
-  const _ShimmerCard({this.delay = 0});
+class _SkeletonCard extends StatefulWidget {
+  const _SkeletonCard({this.delay = 0});
   final int delay;
 
   @override
-  State<_ShimmerCard> createState() => _ShimmerCardState();
+  State<_SkeletonCard> createState() => _SkeletonCardState();
 }
 
-class _ShimmerCardState extends State<_ShimmerCard>
+class _SkeletonCardState extends State<_SkeletonCard>
     with SingleTickerProviderStateMixin {
   late final AnimationController _ctrl;
 
@@ -3004,13 +3001,17 @@ class _ShimmerCardState extends State<_ShimmerCard>
   void initState() {
     super.initState();
     _ctrl = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 1200));
+      vsync: this,
+      duration: const Duration(milliseconds: 1000),
+      lowerBound: 0.3,
+      upperBound: 0.7,
+    );
     if (widget.delay > 0) {
       Future.delayed(Duration(milliseconds: widget.delay), () {
-        if (mounted) _ctrl.repeat();
+        if (mounted) _ctrl.repeat(reverse: true);
       });
     } else {
-      _ctrl.repeat();
+      _ctrl.repeat(reverse: true);
     }
   }
 
@@ -3022,51 +3023,101 @@ class _ShimmerCardState extends State<_ShimmerCard>
 
   @override
   Widget build(BuildContext context) {
+    final ac = AppColors.of(context);
     return AnimatedBuilder(
       animation: _ctrl,
       builder: (context, child) {
-        final shimmer = _ctrl.value;
+        final opacity = _ctrl.value;
         return Container(
-          constraints: const BoxConstraints(maxWidth: 500),
-          height: 100,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(kRadiusLg),
-            gradient: LinearGradient(
-              begin: Alignment(-1.0 + 2.0 * shimmer, 0),
-              end: Alignment(-0.5 + 2.0 * shimmer, 0),
-              colors: const [
-                Color(0xFFEEEEEE),
-                Color(0xFFF5F5F5),
-                Color(0xFFEEEEEE),
-              ],
-            ),
-          ),
+          constraints: const BoxConstraints(maxWidth: 500, minHeight: 140),
           padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: ac.glass,
+            borderRadius: BorderRadius.circular(kRadiusLg),
+            border: Border.all(color: ac.borderSubtle),
+          ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Container(
-                  width: 70,
-                  height: 14,
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Opacity(
+                    opacity: opacity,
+                    child: Container(
+                      width: 70,
+                      height: 14,
+                      decoration: BoxDecoration(
+                        color: ac.borderSubtle,
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                    ),
+                  ),
+                  Opacity(
+                    opacity: opacity,
+                    child: Container(
+                      width: 50,
+                      height: 14,
+                      decoration: BoxDecoration(
+                        color: ac.borderSubtle,
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              Opacity(
+                opacity: opacity,
+                child: Container(
+                  width: 180,
+                  height: 20,
                   decoration: BoxDecoration(
-                    color: const Color(0xFFDDDDDD),
+                    color: ac.borderSubtle,
                     borderRadius: BorderRadius.circular(4),
-                  )),
-              Container(
-                  width: 160,
-                  height: 18,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFDDDDDD),
-                    borderRadius: BorderRadius.circular(4),
-                  )),
-              Container(
-                  width: 120,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 10),
+              Opacity(
+                opacity: opacity,
+                child: Container(
+                  width: 240,
                   height: 12,
                   decoration: BoxDecoration(
-                    color: const Color(0xFFDDDDDD),
+                    color: ac.borderSubtle,
                     borderRadius: BorderRadius.circular(4),
-                  )),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Opacity(
+                    opacity: opacity,
+                    child: Container(
+                      width: 70,
+                      height: 12,
+                      decoration: BoxDecoration(
+                        color: ac.borderSubtle,
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Opacity(
+                    opacity: opacity,
+                    child: Container(
+                      width: 55,
+                      height: 12,
+                      decoration: BoxDecoration(
+                        color: ac.borderSubtle,
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ],
           ),
         );

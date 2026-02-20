@@ -363,11 +363,17 @@ class _SearchScreenState extends State<SearchScreen> {
           if (req == LocationPermission.denied ||
               req == LocationPermission.deniedForever) {
             if (!mounted) return;
-            setState(() => _loading = false);
+            setState(() {
+              _loading = false;
+              _useMyLocation = false;
+            });
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                  content: Text(
-                      'Location denied. Enter a city or address below.')),
+              SnackBar(
+                content: Text(_locationController.text.trim().isEmpty
+                    ? 'Please enable location access or enter a city/address to search.'
+                    : 'Location denied. Enter a city or address below.'),
+                duration: const Duration(seconds: 4),
+              ),
             );
             return;
           }
@@ -394,9 +400,11 @@ class _SearchScreenState extends State<SearchScreen> {
                 _useMyLocation = false;
               });
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Location timed out. Please type your city or address below.'),
-                  duration: Duration(seconds: 4),
+                SnackBar(
+                  content: Text(_locationController.text.trim().isEmpty
+                      ? 'Please enable location access or enter a city/address to search.'
+                      : 'Location timed out. Please type your city or address below.'),
+                  duration: const Duration(seconds: 4),
                 ),
               );
             }
