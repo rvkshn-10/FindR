@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
@@ -209,6 +210,30 @@ String _formatReviewCount(int count) {
 /// Sort mode for search results.
 enum SortMode { distance, priceLow, rating }
 
+const String _kSortPreferenceKey = 'wayvio_sort_preference';
+
+SortMode _sortModeFromString(String? value) {
+  switch (value) {
+    case 'priceLow':
+      return SortMode.priceLow;
+    case 'rating':
+      return SortMode.rating;
+    default:
+      return SortMode.distance;
+  }
+}
+
+String _sortModeToString(SortMode mode) {
+  switch (mode) {
+    case SortMode.priceLow:
+      return 'priceLow';
+    case SortMode.rating:
+      return 'rating';
+    case SortMode.distance:
+      return 'distance';
+  }
+}
+
 /// Returns a human-friendly label for the store's OSM type, or null if unknown.
 String? _storeTypeLabel(Store store) {
   final raw = store.shopType ?? store.amenityType;
@@ -325,7 +350,23 @@ class _ResultsScreenState extends State<ResultsScreen> {
   void initState() {
     super.initState();
     _currentItem = widget.item;
+    _loadSavedSortPreference();
     _load();
+  }
+
+  Future<void> _loadSavedSortPreference() async {
+    final prefs = await SharedPreferences.getInstance();
+    final saved = prefs.getString(_kSortPreferenceKey);
+    if (saved != null && mounted) {
+      setState(() => _sortMode = _sortModeFromString(saved));
+    }
+  }
+
+  void _onSortChanged(SortMode mode) {
+    setState(() => _sortMode = mode);
+    SharedPreferences.getInstance().then((prefs) {
+      prefs.setString(_kSortPreferenceKey, _sortModeToString(mode));
+    });
   }
 
   @override
@@ -785,13 +826,14 @@ class _ResultsScreenState extends State<ResultsScreen> {
                 onSelectStore: _onSelectStore,
                 onDirections: _openDirections,
                 onReSearch: _reSearch,
+                onRefresh: _load,
                 enriching: _enriching,
                 aiSummary: _aiSummary,
                 aiLoading: _aiLoading,
                 priceData: _priceData,
                 pricesLoading: _pricesLoading,
                 sortMode: _sortMode,
-                onSortChanged: (mode) => setState(() => _sortMode = mode),
+                onSortChanged: _onSortChanged,
                 onNewSearch: () {
                   if (widget.onNewSearch != null) {
                     widget.onNewSearch!();
@@ -854,69 +896,74 @@ class _ResultsScreenState extends State<ResultsScreen> {
                   ],
                 ),
                 clipBehavior: Clip.antiAlias,
-                child: stores.isEmpty
-                    ? CustomScrollView(
-                        controller: scrollController,
-                        slivers: [
-                          SliverToBoxAdapter(
-                            child: _buildSheetHeader(stores),
-                          ),
-                          const SliverFillRemaining(
-                            hasScrollBody: false,
-                            child: _EmptyState(),
-                          ),
-                        ],
-                      )
-                    : CustomScrollView(
-                        controller: scrollController,
-                        slivers: [
-                          SliverToBoxAdapter(
-                            child: _buildSheetHeader(stores),
-                          ),
-                          // AI Insight in the bottom sheet
-                          if (_aiLoading || _aiSummary != null)
+                child: RefreshIndicator(
+                  onRefresh: _load,
+                  child: stores.isEmpty
+                      ? CustomScrollView(
+                          controller: scrollController,
+                          physics: const AlwaysScrollableScrollPhysics(),
+                          slivers: [
                             SliverToBoxAdapter(
-                              child: Padding(
-                                padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-                                child: (_aiLoading || _aiSummary == null)
-                                    ? const _AiInsightCard.loading()
-                                    : _AiInsightCard(summary: _aiSummary!),
-                              ),
+                              child: _buildSheetHeader(stores),
                             ),
-                          SliverPadding(
-                            padding: EdgeInsets.fromLTRB(
-                                16,
-                                0,
-                                16,
-                                24 + MediaQuery.of(context).padding.bottom),
-                            sliver: SliverList(
-                              delegate: SliverChildBuilderDelegate(
-                                (context, i) {
-                                  final s = stores[i];
-                                  final style = _styleForStore(i, s, stores);
-                                  return Padding(
-                                    padding: EdgeInsets.only(
-                                        bottom: i < stores.length - 1 ? 12 : 0),
-                                    child: _StaggeredFadeIn(
-                                      index: i,
-                                      child: _SafeResultCard(
-                                        key: ValueKey(s.id),
-                                        store: s,
-                                        style: style,
-                                        settings: settings,
-                                        isSelected: s.id == _selectedStoreId,
-                                        onTap: () => _onSelectStore(s),
-                                        searchItem: _currentItem,
+                            const SliverFillRemaining(
+                              hasScrollBody: false,
+                              child: _EmptyState(),
+                            ),
+                          ],
+                        )
+                      : CustomScrollView(
+                          controller: scrollController,
+                          physics: const AlwaysScrollableScrollPhysics(),
+                          slivers: [
+                            SliverToBoxAdapter(
+                              child: _buildSheetHeader(stores),
+                            ),
+                            // AI Insight in the bottom sheet
+                            if (_aiLoading || _aiSummary != null)
+                              SliverToBoxAdapter(
+                                child: Padding(
+                                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                                  child: (_aiLoading || _aiSummary == null)
+                                      ? const _AiInsightCard.loading()
+                                      : _AiInsightCard(summary: _aiSummary!),
+                                ),
+                              ),
+                            SliverPadding(
+                              padding: EdgeInsets.fromLTRB(
+                                  16,
+                                  0,
+                                  16,
+                                  24 + MediaQuery.of(context).padding.bottom),
+                              sliver: SliverList(
+                                delegate: SliverChildBuilderDelegate(
+                                  (context, i) {
+                                    final s = stores[i];
+                                    final style = _styleForStore(i, s, stores);
+                                    return Padding(
+                                      padding: EdgeInsets.only(
+                                          bottom: i < stores.length - 1 ? 12 : 0),
+                                      child: _StaggeredFadeIn(
+                                        index: i,
+                                        child: _SafeResultCard(
+                                          key: ValueKey(s.id),
+                                          store: s,
+                                          style: style,
+                                          settings: settings,
+                                          isSelected: s.id == _selectedStoreId,
+                                          onTap: () => _onSelectStore(s),
+                                          searchItem: _currentItem,
+                                        ),
                                       ),
-                                    ),
-                                  );
-                                },
-                                childCount: stores.length,
+                                    );
+                                  },
+                                  childCount: stores.length,
+                                ),
                               ),
                             ),
-                          ),
-                        ],
-                      ),
+                          ],
+                        ),
+                ),
               );
             },
           ),
@@ -1074,21 +1121,21 @@ class _ResultsScreenState extends State<ResultsScreen> {
                 label: 'Distance',
                 icon: Icons.near_me_outlined,
                 selected: _sortMode == SortMode.distance,
-                onTap: () => setState(() => _sortMode = SortMode.distance),
+                onTap: () => _onSortChanged(SortMode.distance),
               ),
               const SizedBox(width: 4),
               _SortChip(
                 label: 'Price',
                 icon: Icons.attach_money,
                 selected: _sortMode == SortMode.priceLow,
-                onTap: () => setState(() => _sortMode = SortMode.priceLow),
+                onTap: () => _onSortChanged(SortMode.priceLow),
               ),
               const SizedBox(width: 4),
               _SortChip(
                 label: 'Rating',
                 icon: Icons.star_outline_rounded,
                 selected: _sortMode == SortMode.rating,
-                onTap: () => setState(() => _sortMode = SortMode.rating),
+                onTap: () => _onSortChanged(SortMode.rating),
               ),
             ],
           ),
@@ -1194,17 +1241,21 @@ class _ResultsScreenState extends State<ResultsScreen> {
         point: LatLng(widget.lat, widget.lng),
         width: 28,
         height: 28,
-        child: Container(
-          decoration: BoxDecoration(
-            color: ac.blue,
-            shape: BoxShape.circle,
-            border: Border.all(color: Colors.white, width: 2.5),
-            boxShadow: [
-              BoxShadow(
-                color: ac.blue.withValues(alpha: 0.4),
-                blurRadius: 8,
-              ),
-            ],
+        child: _AnimatedMarkerChild(
+          markerKey: 'user-location',
+          delayMs: 0,
+          child: Container(
+            decoration: BoxDecoration(
+              color: ac.blue,
+              shape: BoxShape.circle,
+              border: Border.all(color: Colors.white, width: 2.5),
+              boxShadow: [
+                BoxShadow(
+                  color: ac.blue.withValues(alpha: 0.4),
+                  blurRadius: 8,
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -1234,9 +1285,12 @@ class _ResultsScreenState extends State<ResultsScreen> {
           point: LatLng(s.lat, s.lng),
           width: isSelected ? 40 : 32,
           height: isSelected ? 40 : 32,
-          child: GestureDetector(
-            onTap: () => _onSelectStore(s),
-            child: Container(
+          child: _AnimatedMarkerChild(
+            markerKey: s.id,
+            delayMs: (i + 1) * 50,
+            child: GestureDetector(
+              onTap: () => _onSelectStore(s),
+              child: Container(
               decoration: BoxDecoration(
                 color: pinColor,
                 shape: BoxShape.circle,
@@ -1264,6 +1318,7 @@ class _ResultsScreenState extends State<ResultsScreen> {
             ),
           ),
         ),
+      ),
       );
     }
 
@@ -1377,6 +1432,7 @@ class _Sidebar extends StatefulWidget {
     required this.onSelectStore,
     required this.onDirections,
     required this.onReSearch,
+    required this.onRefresh,
     required this.onNewSearch,
     this.enriching = false,
     this.aiSummary,
@@ -1395,6 +1451,7 @@ class _Sidebar extends StatefulWidget {
   final void Function(Store) onSelectStore;
   final void Function(Store) onDirections;
   final void Function(String) onReSearch;
+  final Future<void> Function() onRefresh;
   final VoidCallback onNewSearch;
   final bool enriching;
   final AiResultSummary? aiSummary;
@@ -1743,30 +1800,42 @@ class _SidebarState extends State<_Sidebar> {
               // Results list
               Expanded(
                 child: widget.stores.isEmpty
-                    ? const _EmptyState()
-                    : ListView.separated(
-                        itemCount: widget.stores.length,
-                        separatorBuilder: (_, __) =>
-                            const SizedBox(height: 14),
-                        padding: const EdgeInsets.only(right: 8),
-                        itemBuilder: (context, i) {
-                          final s = widget.stores[i];
-                          final style =
-                              _styleForStore(i, s, widget.stores);
-                          return _StaggeredFadeIn(
-                            index: i,
-                            child: _SafeResultCard(
-                              key: ValueKey(s.id),
-                              store: s,
-                              style: style,
-                              settings: widget.settings,
-                              isSelected:
-                                  s.id == widget.selectedStoreId,
-                              onTap: () => widget.onSelectStore(s),
-                              searchItem: widget.query,
-                            ),
-                          );
-                        },
+                    ? RefreshIndicator(
+                        onRefresh: widget.onRefresh,
+                        child: SingleChildScrollView(
+                          physics: const AlwaysScrollableScrollPhysics(),
+                          child: SizedBox(
+                            height: 300,
+                            child: const _EmptyState(),
+                          ),
+                        ),
+                      )
+                    : RefreshIndicator(
+                        onRefresh: widget.onRefresh,
+                        child: ListView.separated(
+                          itemCount: widget.stores.length,
+                          separatorBuilder: (_, __) =>
+                              const SizedBox(height: 14),
+                          padding: const EdgeInsets.only(right: 8),
+                          itemBuilder: (context, i) {
+                            final s = widget.stores[i];
+                            final style =
+                                _styleForStore(i, s, widget.stores);
+                            return _StaggeredFadeIn(
+                              index: i,
+                              child: _SafeResultCard(
+                                key: ValueKey(s.id),
+                                store: s,
+                                style: style,
+                                settings: widget.settings,
+                                isSelected:
+                                    s.id == widget.selectedStoreId,
+                                onTap: () => widget.onSelectStore(s),
+                                searchItem: widget.query,
+                              ),
+                            );
+                          },
+                        ),
                       ),
               ),
             ],
