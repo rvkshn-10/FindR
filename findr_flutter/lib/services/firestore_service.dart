@@ -9,6 +9,7 @@ library;
 
 import 'dart:convert';
 import 'dart:math';
+import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 const _kSearches = 'findr_searches';
@@ -27,7 +28,7 @@ Future<List<Map<String, dynamic>>> _readList(String key) async {
     final decoded = jsonDecode(raw) as List;
     return decoded.cast<Map<String, dynamic>>();
   } catch (e) {
-    print('[Wayvio] LocalStorage: _readList($key) failed: $e');
+    debugPrint('[Wayvio] LocalStorage: _readList($key) failed: $e');
     return [];
   }
 }
@@ -37,7 +38,7 @@ Future<void> _writeList(String key, List<Map<String, dynamic>> list) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(key, jsonEncode(list));
   } catch (e) {
-    print('[Wayvio] LocalStorage: _writeList($key) failed: $e');
+    debugPrint('[Wayvio] LocalStorage: _writeList($key) failed: $e');
   }
 }
 
@@ -78,9 +79,9 @@ Future<void> saveSearch({
     // Keep at most 100 entries.
     if (list.length > 100) list.removeRange(100, list.length);
     await _writeList(_kSearches, list);
-    print('LocalStorage: saved search "$item"');
+    debugPrint('LocalStorage: saved search "$item"');
   } catch (e) {
-    print('[Wayvio] LocalStorage: saveSearch failed: $e');
+    debugPrint('[Wayvio] LocalStorage: saveSearch failed: $e');
   }
 }
 
@@ -102,7 +103,7 @@ Future<void> deleteSearch(String docId) async {
     list.removeWhere((e) => e['id'] == docId);
     await _writeList(_kSearches, list);
   } catch (e) {
-    print('[Wayvio] LocalStorage: deleteSearch failed: $e');
+    debugPrint('[Wayvio] LocalStorage: deleteSearch failed: $e');
   }
 }
 
@@ -110,9 +111,9 @@ Future<void> deleteSearch(String docId) async {
 Future<void> clearSearchHistory() async {
   try {
     await _writeList(_kSearches, []);
-    print('LocalStorage: cleared search history');
+    debugPrint('LocalStorage: cleared search history');
   } catch (e) {
-    print('[Wayvio] LocalStorage: clearSearchHistory failed: $e');
+    debugPrint('[Wayvio] LocalStorage: clearSearchHistory failed: $e');
   }
 }
 
@@ -163,9 +164,9 @@ Future<void> addFavorite({
       'timestamp': DateTime.now().millisecondsSinceEpoch,
     });
     await _writeList(_kFavorites, list);
-    print('LocalStorage: added favorite "$storeName"');
+    debugPrint('LocalStorage: added favorite "$storeName"');
   } catch (e) {
-    print('[Wayvio] LocalStorage: addFavorite failed: $e');
+    debugPrint('[Wayvio] LocalStorage: addFavorite failed: $e');
   }
 }
 
@@ -176,9 +177,9 @@ Future<void> removeFavorite(String storeId) async {
     final safeId = storeId.replaceAll('/', '_');
     list.removeWhere((e) => (e['storeId'] as String?)?.replaceAll('/', '_') == safeId);
     await _writeList(_kFavorites, list);
-    print('LocalStorage: removed favorite "$storeId"');
+    debugPrint('LocalStorage: removed favorite "$storeId"');
   } catch (e) {
-    print('[Wayvio] LocalStorage: removeFavorite failed: $e');
+    debugPrint('[Wayvio] LocalStorage: removeFavorite failed: $e');
   }
 }
 
@@ -189,7 +190,7 @@ Future<bool> isFavorite(String storeId) async {
     final safeId = storeId.replaceAll('/', '_');
     return list.any((e) => (e['storeId'] as String?)?.replaceAll('/', '_') == safeId);
   } catch (e) {
-    print('[Wayvio] LocalStorage: isFavorite failed: $e');
+    debugPrint('[Wayvio] LocalStorage: isFavorite failed: $e');
     return false;
   }
 }
@@ -226,7 +227,7 @@ Future<void> saveRecommendation({
     if (list.length > 50) list.removeRange(50, list.length);
     await _writeList(_kRecommendations, list);
   } catch (e) {
-    print('[Wayvio] LocalStorage: saveRecommendation failed: $e');
+    debugPrint('[Wayvio] LocalStorage: saveRecommendation failed: $e');
   }
 }
 
@@ -234,6 +235,46 @@ Future<void> saveRecommendation({
 Future<List<Map<String, dynamic>>> getRecommendations({int limit = 10}) async {
   final list = await _readList(_kRecommendations);
   return list.take(limit.clamp(0, list.length)).toList();
+}
+
+// ---------------------------------------------------------------------------
+// Cached search results (offline fallback)
+// ---------------------------------------------------------------------------
+
+const _kCachedResults = 'findr_cached_results';
+
+/// Cache the last successful search results for offline fallback.
+Future<void> cacheSearchResults({
+  required String query,
+  required List<Map<String, dynamic>> stores,
+  required double lat,
+  required double lng,
+}) async {
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_kCachedResults, jsonEncode({
+      'query': query,
+      'stores': stores,
+      'lat': lat,
+      'lng': lng,
+      'timestamp': DateTime.now().millisecondsSinceEpoch,
+    }));
+  } catch (e) {
+    debugPrint('[Wayvio] cacheSearchResults failed: $e');
+  }
+}
+
+/// Get cached search results, if any.
+Future<Map<String, dynamic>?> getCachedResults() async {
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(_kCachedResults);
+    if (raw == null) return null;
+    return jsonDecode(raw) as Map<String, dynamic>;
+  } catch (e) {
+    debugPrint('[Wayvio] getCachedResults failed: $e');
+    return null;
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -251,7 +292,7 @@ Future<String?> getStoreNote(String storeId) async {
     final notes = jsonDecode(raw) as Map<String, dynamic>;
     return notes[storeId] as String?;
   } catch (e) {
-    print('[Wayvio] LocalStorage: getStoreNote failed: $e');
+    debugPrint('[Wayvio] LocalStorage: getStoreNote failed: $e');
     return null;
   }
 }
@@ -271,6 +312,6 @@ Future<void> saveStoreNote(String storeId, String note) async {
     }
     await prefs.setString(_kNotes, jsonEncode(notes));
   } catch (e) {
-    print('[Wayvio] LocalStorage: saveStoreNote failed: $e');
+    debugPrint('[Wayvio] LocalStorage: saveStoreNote failed: $e');
   }
 }

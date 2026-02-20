@@ -221,6 +221,63 @@ String? _storeTypeLabel(Store store) {
       .join(' ');
 }
 
+/// Serialize Store to Map for caching.
+Map<String, dynamic> _storeToMap(Store s) {
+  return {
+    'id': s.id,
+    'name': s.name,
+    'address': s.address,
+    'lat': s.lat,
+    'lng': s.lng,
+    'distanceKm': s.distanceKm,
+    'durationMinutes': s.durationMinutes,
+    'phone': s.phone,
+    'website': s.website,
+    'openingHours': s.openingHours,
+    'brand': s.brand,
+    'shopType': s.shopType,
+    'amenityType': s.amenityType,
+    'price': s.price,
+    'priceLabel': s.priceLabel,
+    'priceIsAvg': s.priceIsAvg,
+    'rating': s.rating,
+    'reviewCount': s.reviewCount,
+    'priceLevel': s.priceLevel,
+    'thumbnail': s.thumbnail,
+    'serviceOptions': s.serviceOptions,
+  };
+}
+
+/// Deserialize Map to Store for loading cached results.
+Store _mapToStore(Map<String, dynamic> m) {
+  return Store(
+    id: m['id'] as String? ?? '',
+    name: m['name'] as String? ?? '',
+    address: m['address'] as String? ?? '',
+    lat: (m['lat'] as num?)?.toDouble() ?? 0,
+    lng: (m['lng'] as num?)?.toDouble() ?? 0,
+    distanceKm: (m['distanceKm'] as num?)?.toDouble() ?? 0,
+    durationMinutes: m['durationMinutes'] as int?,
+    phone: m['phone'] as String?,
+    website: m['website'] as String?,
+    openingHours: m['openingHours'] as String?,
+    brand: m['brand'] as String?,
+    shopType: m['shopType'] as String?,
+    amenityType: m['amenityType'] as String?,
+    price: (m['price'] as num?)?.toDouble(),
+    priceLabel: m['priceLabel'] as String?,
+    priceIsAvg: m['priceIsAvg'] as bool? ?? false,
+    rating: (m['rating'] as num?)?.toDouble(),
+    reviewCount: m['reviewCount'] as int?,
+    priceLevel: m['priceLevel'] as String?,
+    thumbnail: m['thumbnail'] as String?,
+    serviceOptions: (m['serviceOptions'] as List<dynamic>?)
+            ?.map((e) => e.toString())
+            .toList() ??
+        [],
+  );
+}
+
 // ---------------------------------------------------------------------------
 // Results screen
 // ---------------------------------------------------------------------------
@@ -251,6 +308,7 @@ class _ResultsScreenState extends State<ResultsScreen> {
   SearchResult? _result;
   bool _loading = true;
   String? _error;
+  Map<String, dynamic>? _cachedResults;
   final MapController _mapController = MapController();
   String? _selectedStoreId;
   late String _currentItem;
@@ -386,15 +444,48 @@ class _ResultsScreenState extends State<ResultsScreen> {
           _priceData = prices;
           _pricesLoading = false;
         });
+        db.cacheSearchResults(
+          query: _currentItem,
+          stores: storesWithPrices.map(_storeToMap).toList(),
+          lat: widget.lat,
+          lng: widget.lng,
+        );
       }
     } catch (e) {
+      if (!mounted) return;
+      final cached = await db.getCachedResults();
       if (!mounted) return;
       setState(() {
         _error = e.toString().replaceFirst('Exception: ', '');
         _loading = false;
         _enriching = false;
+        _cachedResults = cached;
       });
     }
+  }
+
+  void _loadCachedResults() {
+    final cached = _cachedResults;
+    if (cached == null) return;
+    final storesRaw = cached['stores'] as List<dynamic>?;
+    if (storesRaw == null || storesRaw.isEmpty) return;
+    final stores = storesRaw
+        .map((e) => _mapToStore(e as Map<String, dynamic>))
+        .toList();
+    final query = cached['query'] as String? ?? '';
+    setState(() {
+      _result = SearchResult(
+        stores: stores,
+        bestOptionId: stores.isNotEmpty ? stores.first.id : '',
+        summary: 'Showing cached results from your last search.',
+      );
+      _error = null;
+      _cachedResults = null;
+      _currentItem = query;
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _fitMapToClosestStores(stores);
+    });
   }
 
   void _reSearch(String newItem) {
@@ -563,6 +654,8 @@ class _ResultsScreenState extends State<ResultsScreen> {
 
     // Error
     if (_error != null) {
+      final cached = _cachedResults;
+      final cachedQuery = cached?['query'] as String?;
       return Scaffold(
         backgroundColor: Colors.transparent,
         body: Center(
@@ -577,6 +670,36 @@ class _ResultsScreenState extends State<ResultsScreen> {
                       color: ac.red, fontSize: 14),
                   textAlign: TextAlign.center,
                 ),
+                if (cached != null && cachedQuery != null && cachedQuery.isNotEmpty) ...[
+                  const SizedBox(height: 20),
+                  GestureDetector(
+                    onTap: _loadCachedResults,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 20, vertical: 14),
+                      decoration: BoxDecoration(
+                        color: ac.accentGreen.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(kRadiusPill),
+                        border: Border.all(color: ac.accentGreen.withValues(alpha: 0.5)),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.offline_pin, size: 20, color: ac.accentGreen),
+                          const SizedBox(width: 10),
+                          Text(
+                            'Show last results for "$cachedQuery"',
+                            style: _outfit(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: ac.accentGreen,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 16),
                 Row(
                   mainAxisSize: MainAxisSize.min,
