@@ -1106,7 +1106,7 @@ class _ResultsScreenState extends State<ResultsScreen> {
         case _CardStyle.nearby:
           pinColor = ac.accentGreen;
         case _CardStyle.standard:
-          pinColor = SupplyMapColors.accentWarm;
+          pinColor = ac.accentWarm;
       }
 
       markers.add(
@@ -1203,7 +1203,6 @@ class _ResultsScreenState extends State<ResultsScreen> {
                       store: selectedStore,
                       settings: settings,
                       onClose: () => setState(() => _selectedStoreId = null),
-                      onDirections: () => _openDirections(selectedStore),
                     ),
                   ),
                 // Map controls
@@ -2494,13 +2493,11 @@ class _SelectedStorePopup extends StatelessWidget {
     required this.store,
     required this.settings,
     required this.onClose,
-    required this.onDirections,
   });
 
   final Store store;
   final SettingsProvider settings;
   final VoidCallback onClose;
-  final VoidCallback onDirections;
 
   @override
   Widget build(BuildContext context) {
