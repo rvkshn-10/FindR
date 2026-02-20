@@ -1942,16 +1942,63 @@ class _ResultCardState extends State<_ResultCard> {
                 ],
               ),
               const SizedBox(height: 12),
-              // Title
-              Text(
-                widget.store.name,
-                style: _outfit(
-                  fontSize: isGlass ? 16 : 22,
-                  fontWeight: FontWeight.w700,
-                  height: 1.1,
-                  letterSpacing: -0.5,
-                  color: fg.withValues(alpha: isGlass ? 0.9 : 1.0),
-                ),
+              // Title + prominent price badge
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: Text(
+                      widget.store.name,
+                      style: _outfit(
+                        fontSize: isGlass ? 16 : 22,
+                        fontWeight: FontWeight.w700,
+                        height: 1.1,
+                        letterSpacing: -0.5,
+                        color: fg.withValues(alpha: isGlass ? 0.9 : 1.0),
+                      ),
+                    ),
+                  ),
+                  if (widget.store.priceLabel != null &&
+                      widget.store.priceLabel!.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(left: 8),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: dark
+                              ? ac.accentGreen.withValues(alpha: 0.12)
+                              : Colors.white,
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              widget.store.priceLabel!,
+                              style: _outfit(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w700,
+                                color: ac.accentGreen,
+                              ),
+                            ),
+                            if (widget.store.priceLevel != null &&
+                                widget.store.priceLevel!.isNotEmpty) ...[
+                              const SizedBox(width: 4),
+                              Text(
+                                widget.store.priceLevel!,
+                                style: _outfit(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                  color: ac.accentGreen.withValues(alpha: 0.85),
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                    ),
+                ],
               ),
               // Rating row
               if (widget.store.rating != null) ...[
@@ -2041,26 +2088,41 @@ class _ResultCardState extends State<_ResultCard> {
                         ),
                       ),
                     ),
-                  // Price badge (from Google Shopping)
+                  // Price badge (from Google Shopping) — matches prominent badge styling
                   if (widget.store.priceLabel != null)
                     Container(
                       padding: const EdgeInsets.symmetric(
                           horizontal: 8, vertical: 3),
                       decoration: BoxDecoration(
                         color: dark
-                            ? ac.accentGreen.withValues(alpha: 0.15)
-                            : Colors.white.withValues(alpha: 0.2),
+                            ? ac.accentGreen.withValues(alpha: 0.12)
+                            : Colors.white,
                         borderRadius: BorderRadius.circular(6),
                       ),
-                      child: Text(
-                        widget.store.priceLabel!,
-                        style: _outfit(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w700,
-                          color: dark
-                              ? ac.accentGreen
-                              : Colors.white,
-                        ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            widget.store.priceLabel!,
+                            style: _outfit(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                              color: ac.accentGreen,
+                            ),
+                          ),
+                          if (widget.store.priceLevel != null &&
+                              widget.store.priceLevel!.isNotEmpty) ...[
+                            const SizedBox(width: 4),
+                            Text(
+                              widget.store.priceLevel!,
+                              style: _outfit(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                color: ac.accentGreen.withValues(alpha: 0.85),
+                              ),
+                            ),
+                          ],
+                        ],
                       ),
                     ),
                   // Store type badge
