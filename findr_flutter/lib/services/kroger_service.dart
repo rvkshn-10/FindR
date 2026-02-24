@@ -6,7 +6,7 @@
 library;
 
 import 'dart:convert';
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart' show debugPrint, kIsWeb;
 import 'package:http/http.dart' as http;
 import '../config.dart';
 import 'distance_util.dart';
@@ -65,7 +65,7 @@ Future<String?> _getAccessToken() async {
     ).timeout(kKrogerTimeout);
 
     if (res.statusCode != 200) {
-      print('[Wayvio] Kroger OAuth failed: ${res.statusCode}');
+      debugPrint('[Wayvio] Kroger OAuth failed: ${res.statusCode}');
       return null;
     }
 
@@ -74,10 +74,10 @@ Future<String?> _getAccessToken() async {
     final expiresIn = (data['expires_in'] as num?)?.toInt() ?? 1800;
     _tokenExpiry = DateTime.now().add(Duration(seconds: expiresIn));
 
-    print('[Wayvio] Kroger OAuth: got token, expires in ${expiresIn}s');
+    debugPrint('[Wayvio] Kroger OAuth: got token, expires in ${expiresIn}s');
     return _accessToken;
   } catch (e) {
-    print('[Wayvio] Kroger OAuth error: $e');
+    debugPrint('[Wayvio] Kroger OAuth error: $e');
     return null;
   }
 }
@@ -137,7 +137,7 @@ Future<List<KrogerLocation>?> fetchKrogerLocations({
     );
 
     if (res == null) {
-      print('[Wayvio] Kroger Locations: no successful response');
+      debugPrint('[Wayvio] Kroger Locations: no successful response');
       return null;
     }
 
@@ -175,7 +175,7 @@ Future<List<KrogerLocation>?> fetchKrogerLocations({
     }).toList()
       ..sort((a, b) => a.distanceKm.compareTo(b.distanceKm));
   } catch (e) {
-    print('[Wayvio] Kroger Locations error: $e');
+    debugPrint('[Wayvio] Kroger Locations error: $e');
     return null;
   }
 }
@@ -270,7 +270,7 @@ Future<KrogerPriceData?> fetchKrogerProducts({
     );
 
     if (res == null) {
-      print('[Wayvio] Kroger Products: no successful response');
+      debugPrint('[Wayvio] Kroger Products: no successful response');
       return null;
     }
 
@@ -357,7 +357,7 @@ Future<KrogerPriceData?> fetchKrogerProducts({
       highPrice: high,
     );
   } catch (e) {
-    print('[Wayvio] Kroger Products error: $e');
+    debugPrint('[Wayvio] Kroger Products error: $e');
     return null;
   }
 }

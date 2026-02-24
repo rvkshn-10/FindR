@@ -142,7 +142,7 @@ class _ProfileScreenState extends State<ProfileScreen>
         }
       }
     } catch (e) {
-      print('[Wayvio] AI recommendation generation failed: $e');
+      debugPrint('[Wayvio] AI recommendation generation failed: $e');
     }
 
     if (mounted) setState(() => _generatingRecs = false);

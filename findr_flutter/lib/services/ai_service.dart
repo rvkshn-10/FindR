@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:google_generative_ai/google_generative_ai.dart';
 import '../config.dart';
 
@@ -82,7 +83,7 @@ IMPORTANT: Return ONLY valid JSON, no markdown. Use this exact format:
           [],
     );
   } catch (e) {
-    print('[Wayvio] AI summary generation failed: $e');
+    debugPrint('[Wayvio] AI summary generation failed: $e');
     return null;
   }
 }

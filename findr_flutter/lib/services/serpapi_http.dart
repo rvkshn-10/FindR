@@ -5,7 +5,7 @@
 library;
 
 import 'dart:convert';
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart' show debugPrint, kIsWeb;
 import 'package:http/http.dart' as http;
 import '../config.dart';
 
@@ -18,7 +18,7 @@ Future<Map<String, dynamic>?> fetchSerpApi(Map<String, String> params) async {
   for (var i = 0; i < uris.length; i++) {
     final uri = uris[i];
     try {
-      print('[Wayvio] SerpApi: trying ${kIsWeb ? "cloud function" : "direct"}: '
+      debugPrint('[Wayvio] SerpApi: trying ${kIsWeb ? "cloud function" : "direct"}: '
           '${uri.toString().substring(0, uri.toString().length.clamp(0, 80))}...');
 
       final res = await http
@@ -26,32 +26,32 @@ Future<Map<String, dynamic>?> fetchSerpApi(Map<String, String> params) async {
           .timeout(kSerpApiTimeout);
 
       if (res.statusCode != 200) {
-        print('[Wayvio] SerpApi: HTTP ${res.statusCode}');
+        debugPrint('[Wayvio] SerpApi: HTTP ${res.statusCode}');
         continue;
       }
 
       final body = res.body;
 
       if (body.trimLeft().startsWith('<')) {
-        print('[Wayvio] SerpApi: got HTML instead of JSON');
+        debugPrint('[Wayvio] SerpApi: got HTML instead of JSON');
         continue;
       }
 
       final data = jsonDecode(body) as Map<String, dynamic>;
 
       if (data.containsKey('error')) {
-        print('[Wayvio] SerpApi error: ${data['error']}');
+        debugPrint('[Wayvio] SerpApi error: ${data['error']}');
         return null;
       }
 
-      print('[Wayvio] SerpApi: success');
+      debugPrint('[Wayvio] SerpApi: success');
       return data;
     } catch (e) {
-      print('[Wayvio] SerpApi attempt $i failed: $e');
+      debugPrint('[Wayvio] SerpApi attempt $i failed: $e');
       continue;
     }
   }
 
-  print('[Wayvio] SerpApi: all ${uris.length} attempts failed');
+  debugPrint('[Wayvio] SerpApi: all ${uris.length} attempts failed');
   return null;
 }
