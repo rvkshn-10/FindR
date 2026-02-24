@@ -338,7 +338,7 @@ class _SearchScreenState extends State<SearchScreen> {
   }
 
   Future<void> _submit() async {
-    print('[Wayvio] _submit called');
+    debugPrint('[Wayvio] _submit called');
     setState(() => _loading = true);
     try {
       final item = _itemController.text.trim();
@@ -366,10 +366,10 @@ class _SearchScreenState extends State<SearchScreen> {
       }
       double lat;
       double lng;
-      print('[Wayvio] _useMyLocation=$_useMyLocation');
+      debugPrint('[Wayvio] _useMyLocation=$_useMyLocation');
       if (_useMyLocation) {
         final perm = await Geolocator.checkPermission();
-        print('[Wayvio] location permission: $perm');
+        debugPrint('[Wayvio] location permission: $perm');
         if (perm == LocationPermission.denied) {
           final req = await Geolocator.requestPermission();
           if (req == LocationPermission.denied ||
@@ -398,14 +398,14 @@ class _SearchScreenState extends State<SearchScreen> {
             timeLimit: const Duration(seconds: 15),
           );
         } catch (_) {
-          print('[Wayvio] High accuracy failed, trying medium...');
+          debugPrint('[Wayvio] High accuracy failed, trying medium...');
           try {
             pos = await Geolocator.getCurrentPosition(
               desiredAccuracy: LocationAccuracy.medium,
               timeLimit: const Duration(seconds: 15),
             );
           } catch (_) {
-            print('[Wayvio] Medium accuracy also failed');
+            debugPrint('[Wayvio] Medium accuracy also failed');
             if (mounted) {
               setState(() {
                 _loading = false;
@@ -425,7 +425,7 @@ class _SearchScreenState extends State<SearchScreen> {
         }
         lat = pos.latitude;
         lng = pos.longitude;
-        print('[Wayvio] Got location: $lat, $lng');
+        debugPrint('[Wayvio] Got location: $lat, $lng');
       } else {
         var loc = _locationController.text.trim();
         if (loc.length > 200) loc = loc.substring(0, 200);
@@ -440,12 +440,12 @@ class _SearchScreenState extends State<SearchScreen> {
           }
           return;
         }
-        print('[Wayvio] Geocoding address: "$loc"');
+        debugPrint('[Wayvio] Geocoding address: "$loc"');
         setState(() => _geocoding = true);
         final result = await geocode(loc);
         if (mounted) setState(() => _geocoding = false);
         if (result == null) {
-          print('[Wayvio] Geocode returned null for "$loc"');
+          debugPrint('[Wayvio] Geocode returned null for "$loc"');
           if (mounted) setState(() => _loading = false);
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
@@ -456,7 +456,7 @@ class _SearchScreenState extends State<SearchScreen> {
         }
         lat = result.lat;
         lng = result.lng;
-        print('[Wayvio] Geocoded "$loc" -> $lat, $lng');
+        debugPrint('[Wayvio] Geocoded "$loc" -> $lat, $lng');
       }
       final filters = SearchFilters(
         qualityTier: _qualityTier,
@@ -489,7 +489,7 @@ class _SearchScreenState extends State<SearchScreen> {
         }
       }
 
-      print('[Wayvio] Navigating to results: item="$item", lat=$lat, lng=$lng, radius=$_maxDistanceMiles mi');
+      debugPrint('[Wayvio] Navigating to results: item="$item", lat=$lat, lng=$lng, radius=$_maxDistanceMiles mi');
       final params = SearchResultParams(
         item: item,
         lat: lat,
@@ -499,6 +499,7 @@ class _SearchScreenState extends State<SearchScreen> {
         destLat: destLat,
         destLng: destLng,
       );
+      if (!mounted) return;
       if (widget.onSearchResult != null) {
         widget.onSearchResult!(params);
       } else {
@@ -516,8 +517,8 @@ class _SearchScreenState extends State<SearchScreen> {
       }
       _incrementSearchAndMaybePromptRate();
     } catch (e, st) {
-      print('[Wayvio] _submit ERROR: $e');
-      print('[Wayvio] _submit STACK: $st');
+      debugPrint('[Wayvio] _submit ERROR: $e');
+      debugPrint('[Wayvio] _submit STACK: $st');
       if (!mounted) return;
       setState(() => _loading = false);
       ScaffoldMessenger.of(context).showSnackBar(

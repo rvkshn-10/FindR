@@ -118,6 +118,7 @@ class _StoreDetailSheetState extends State<_StoreDetailSheet> {
   Widget build(BuildContext context) {
     final ac = AppColors.of(context);
     final store = widget.store;
+    final bestForTags = _bestForTags();
     return DraggableScrollableSheet(
       initialChildSize: 0.75,
       minChildSize: 0.4,
@@ -172,10 +173,10 @@ class _StoreDetailSheetState extends State<_StoreDetailSheet> {
               const SizedBox(height: 12),
 
               // "Best for" tags
-              if (_bestForTags().isNotEmpty) ...[
+              if (bestForTags.isNotEmpty) ...[
                 Wrap(
                   spacing: 6, runSpacing: 6,
-                  children: _bestForTags().map((tag) {
+                  children: bestForTags.map((tag) {
                     return Container(
                       padding: const EdgeInsets.symmetric(
                           horizontal: 10, vertical: 4),

@@ -132,6 +132,7 @@ class _SupplyMapShellState extends State<SupplyMapShell> {
             child: SearchScreen(
               onSearchResult: _onSearchResult,
               onOpenProfile: _openProfile,
+              onOpenLists: _openLists,
             ),
           );
         }
