@@ -9,8 +9,8 @@ Future<List<ShoppingList>> loadShoppingLists() async {
 
 /// Persist all shopping lists.
 Future<void> persistShoppingLists(List<ShoppingList> lists) async {
-  final capped = lists.take(10).toList();
-  await db.saveShoppingLists(capped.map((l) => l.toJson()).toList());
+  await db.saveShoppingLists(
+      lists.take(10).map((l) => l.toJson()).toList());
 }
 
 /// Greedy set-cover algorithm to find 1-2 stores covering the most items.

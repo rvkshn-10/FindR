@@ -24,7 +24,7 @@ class OverpassStore {
   final String? thumbnail;   // URL to store photo
   final List<String> serviceOptions; // e.g. ["In-store shopping", "Delivery"]
 
-  OverpassStore({
+  const OverpassStore({
     required this.id,
     required this.name,
     required this.lat,

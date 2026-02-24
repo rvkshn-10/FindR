@@ -1,28 +1,15 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:google_generative_ai/google_generative_ai.dart';
 import '../config.dart';
 import '../services/firestore_service.dart' as db;
 import '../widgets/design_system.dart';
 
-TextStyle _outfit({
-  double fontSize = 14,
-  FontWeight fontWeight = FontWeight.w400,
-  Color? color,
-  double? letterSpacing,
-  double? height,
-}) {
-  return GoogleFonts.outfit(
-    fontSize: fontSize,
-    fontWeight: fontWeight,
-    color: color,
-    letterSpacing: letterSpacing,
-    height: height,
-  ).copyWith(shadows: const <Shadow>[]);
-}
+final RegExp _jsonFenceStart = RegExp(r'^```json\s*', multiLine: true);
+final RegExp _fenceEnd = RegExp(r'^```\s*', multiLine: true);
 
-GenerativeModel _getSummaryModelForRecs() => GenerativeModel(
+GenerativeModel? _recsModel;
+GenerativeModel get _getSummaryModelForRecs => _recsModel ??= GenerativeModel(
       model: 'gemini-2.0-flash',
       apiKey: kGeminiApiKey,
       generationConfig: GenerationConfig(
@@ -109,15 +96,15 @@ class _ProfileScreenState extends State<ProfileScreen>
         '"basedOn":"Based on your searches for X"}]';
 
     try {
-      final response = await _getSummaryModelForRecs()
+      final response = await _getSummaryModelForRecs
           .generateContent([Content.text(prompt)])
           .timeout(const Duration(seconds: 12));
 
       final text = response.text?.trim();
       if (text != null && text.isNotEmpty) {
         final cleaned = text
-            .replaceAll(RegExp(r'^```json\s*', multiLine: true), '')
-            .replaceAll(RegExp(r'^```\s*', multiLine: true), '')
+            .replaceAll(_jsonFenceStart, '')
+            .replaceAll(_fenceEnd, '')
             .trim();
 
         final decoded = jsonDecode(cleaned);
@@ -204,9 +191,9 @@ class _ProfileScreenState extends State<ProfileScreen>
                   ],
                 ),
                 dividerHeight: 0,
-                labelStyle: _outfit(fontSize: 13, fontWeight: FontWeight.w600),
+                labelStyle: outfit(fontSize: 13, fontWeight: FontWeight.w600),
                 unselectedLabelStyle:
-                    _outfit(fontSize: 13, fontWeight: FontWeight.w500),
+                    outfit(fontSize: 13, fontWeight: FontWeight.w500),
                 tabs: [
                   Tab(
                     child: Row(
@@ -284,7 +271,7 @@ class _ProfileScreenState extends State<ProfileScreen>
           child: Center(
             child: Text(
               'F',
-              style: _outfit(
+              style: outfit(
                 fontSize: 20,
                 fontWeight: FontWeight.w700,
                 color: ac.accentGreen,
@@ -299,7 +286,7 @@ class _ProfileScreenState extends State<ProfileScreen>
             children: [
               Text(
                 'My Profile',
-                style: _outfit(
+                style: outfit(
                   fontSize: 18,
                   fontWeight: FontWeight.w700,
                   color: ac.textPrimary,
@@ -307,7 +294,7 @@ class _ProfileScreenState extends State<ProfileScreen>
               ),
               Text(
                 'Search history, favorites & more',
-                style: _outfit(fontSize: 12, color: ac.textTertiary),
+                style: outfit(fontSize: 12, color: ac.textTertiary),
               ),
             ],
           ),
@@ -349,7 +336,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                 },
                 child: Text(
                   'Clear all',
-                  style: _outfit(
+                  style: outfit(
                       fontSize: 12,
                       fontWeight: FontWeight.w500,
                       color: ac.red),
@@ -510,7 +497,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                     _generatingRecs
                         ? 'Generating recommendations...'
                         : 'Generate AI Recommendations',
-                    style: _outfit(
+                    style: outfit(
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
                         color: Colors.white),
@@ -526,7 +513,7 @@ class _ProfileScreenState extends State<ProfileScreen>
             child: Text(
               'Search for some items first so the AI can learn your preferences!',
               textAlign: TextAlign.center,
-              style: _outfit(fontSize: 13, color: ac.textTertiary),
+              style: outfit(fontSize: 13, color: ac.textTertiary),
             ),
           ),
         Expanded(
@@ -581,7 +568,7 @@ class _CountBadge extends StatelessWidget {
       ),
       child: Text(
         '$count',
-        style: _outfit(
+        style: outfit(
             fontSize: 10,
             fontWeight: FontWeight.w600,
             color: ac.accentGreen),
@@ -634,14 +621,14 @@ class _HistoryCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(item,
-                      style: _outfit(
+                      style: outfit(
                           fontSize: 14,
                           fontWeight: FontWeight.w600,
                           color: ac.textPrimary)),
                   const SizedBox(height: 2),
                   Text(
                     '$resultCount results  ·  $location',
-                    style: _outfit(
+                    style: outfit(
                         fontSize: 11, color: ac.textTertiary),
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -650,7 +637,7 @@ class _HistoryCard extends StatelessWidget {
             ),
             if (timeLabel.isNotEmpty)
               Text(timeLabel,
-                  style: _outfit(
+                  style: outfit(
                       fontSize: 10, color: ac.textTertiary)),
             const SizedBox(width: 8),
             GestureDetector(
@@ -720,13 +707,13 @@ class _FavoriteCard extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(storeName,
-                            style: _outfit(
+                            style: outfit(
                                 fontSize: 15,
                                 fontWeight: FontWeight.w700,
                                 color: ac.textPrimary)),
                         const SizedBox(height: 2),
                         Text(address,
-                            style: _outfit(
+                            style: outfit(
                                 fontSize: 12,
                                 color: ac.textSecondary),
                             maxLines: 1,
@@ -739,7 +726,7 @@ class _FavoriteCard extends StatelessWidget {
                                   size: 14, color: Color(0xFFFFD54F)),
                               const SizedBox(width: 2),
                               Text(rating!.toStringAsFixed(1),
-                                  style: _outfit(
+                                  style: outfit(
                                       fontSize: 11,
                                       fontWeight: FontWeight.w600,
                                       color: ac.textSecondary)),
@@ -754,7 +741,7 @@ class _FavoriteCard extends StatelessWidget {
                                   borderRadius: BorderRadius.circular(4),
                                 ),
                                 child: Text(shopType!.replaceAll('_', ' '),
-                                    style: _outfit(
+                                    style: outfit(
                                         fontSize: 10,
                                         color: ac.textTertiary)),
                               ),
@@ -764,7 +751,7 @@ class _FavoriteCard extends StatelessWidget {
                                 color: ac.textTertiary),
                             const SizedBox(width: 2),
                             Text(searchItem,
-                                style: _outfit(
+                                style: outfit(
                                     fontSize: 10,
                                     color: ac.textTertiary)),
                           ],
@@ -840,7 +827,7 @@ class _RecommendationCard extends StatelessWidget {
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(title,
-                      style: _outfit(
+                      style: outfit(
                           fontSize: 14,
                           fontWeight: FontWeight.w700,
                           color: ac.textPrimary)),
@@ -852,7 +839,7 @@ class _RecommendationCard extends StatelessWidget {
             if (content.isNotEmpty) ...[
               const SizedBox(height: 8),
               Text(content,
-                  style: _outfit(
+                  style: outfit(
                       fontSize: 12,
                       color: ac.textSecondary,
                       height: 1.4)),
@@ -860,7 +847,7 @@ class _RecommendationCard extends StatelessWidget {
             if (basedOn.isNotEmpty) ...[
               const SizedBox(height: 6),
               Text(basedOn,
-                  style: _outfit(
+                  style: outfit(
                       fontSize: 11,
                       fontWeight: FontWeight.w500,
                       color: ac.accentGreen)),
@@ -894,7 +881,7 @@ class _EmptyTab extends StatelessWidget {
               color: ac.borderStrong.withValues(alpha: 0.5)),
           const SizedBox(height: 12),
           Text(title,
-              style: _outfit(
+              style: outfit(
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
                   color: ac.textSecondary)),
@@ -902,7 +889,7 @@ class _EmptyTab extends StatelessWidget {
           Text(subtitle,
               textAlign: TextAlign.center,
               style:
-                  _outfit(fontSize: 13, color: ac.textTertiary)),
+                  outfit(fontSize: 13, color: ac.textTertiary)),
         ],
       ),
     );

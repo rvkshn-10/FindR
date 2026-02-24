@@ -3,6 +3,9 @@ import 'package:flutter/foundation.dart';
 import 'package:google_generative_ai/google_generative_ai.dart';
 import '../config.dart';
 
+final RegExp _jsonFenceStart = RegExp(r'^```json\s*', multiLine: true);
+final RegExp _fenceEnd = RegExp(r'^```\s*', multiLine: true);
+
 /// Singleton-ish Gemini model instance (lazy).
 GenerativeModel? _summaryModel;
 
@@ -68,8 +71,8 @@ IMPORTANT: Return ONLY valid JSON, no markdown. Use this exact format:
     if (text == null || text.isEmpty) return null;
 
     final cleaned = text
-        .replaceAll(RegExp(r'^```json\s*', multiLine: true), '')
-        .replaceAll(RegExp(r'^```\s*', multiLine: true), '')
+        .replaceAll(_jsonFenceStart, '')
+        .replaceAll(_fenceEnd, '')
         .trim();
 
     final json = jsonDecode(cleaned) as Map<String, dynamic>;

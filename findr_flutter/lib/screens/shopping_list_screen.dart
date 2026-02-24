@@ -1,24 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import '../models/shopping_list_models.dart';
 import '../services/shopping_list_service.dart';
 import '../widgets/design_system.dart';
-
-TextStyle _outfit({
-  double fontSize = 14,
-  FontWeight fontWeight = FontWeight.w400,
-  Color? color,
-  double? letterSpacing,
-  double? height,
-}) {
-  return GoogleFonts.outfit(
-    fontSize: fontSize,
-    fontWeight: fontWeight,
-    color: color,
-    letterSpacing: letterSpacing,
-    height: height,
-  ).copyWith(shadows: const <Shadow>[]);
-}
 
 IconData _iconFor(IconDataRef ref) {
   switch (ref) {
@@ -239,7 +222,7 @@ class _ShoppingListScreenState extends State<ShoppingListScreen> {
                       _activeIndex >= 0 && _activeIndex < _lists.length
                           ? _lists[_activeIndex].name
                           : 'Shopping Lists',
-                      style: _outfit(
+                      style: outfit(
                         fontSize: 20, fontWeight: FontWeight.w700,
                         color: ac.textPrimary,
                       ),
@@ -285,7 +268,7 @@ class _ShoppingListScreenState extends State<ShoppingListScreen> {
         children: [
           // Templates
           Text('Quick Start Templates',
-              style: _outfit(fontSize: 14, fontWeight: FontWeight.w600,
+              style: outfit(fontSize: 14, fontWeight: FontWeight.w600,
                   color: ac.textSecondary)),
           const SizedBox(height: 10),
           SizedBox(
@@ -313,12 +296,12 @@ class _ShoppingListScreenState extends State<ShoppingListScreen> {
                             color: ac.accentGreen),
                         const Spacer(),
                         Text(t.name,
-                            style: _outfit(fontSize: 12,
+                            style: outfit(fontSize: 12,
                                 fontWeight: FontWeight.w600,
                                 color: ac.textPrimary),
                             maxLines: 2, overflow: TextOverflow.ellipsis),
                         Text('${t.items.length} items',
-                            style: _outfit(fontSize: 10,
+                            style: outfit(fontSize: 10,
                                 color: ac.textTertiary)),
                       ],
                     ),
@@ -332,7 +315,7 @@ class _ShoppingListScreenState extends State<ShoppingListScreen> {
 
           // My lists
           Text('My Lists',
-              style: _outfit(fontSize: 14, fontWeight: FontWeight.w600,
+              style: outfit(fontSize: 14, fontWeight: FontWeight.w600,
                   color: ac.textSecondary)),
           const SizedBox(height: 10),
 
@@ -346,11 +329,11 @@ class _ShoppingListScreenState extends State<ShoppingListScreen> {
                         size: 48, color: ac.textTertiary),
                     const SizedBox(height: 12),
                     Text('No lists yet',
-                        style: _outfit(fontSize: 15,
+                        style: outfit(fontSize: 15,
                             color: ac.textTertiary)),
                     const SizedBox(height: 4),
                     Text('Create one or pick a template above',
-                        style: _outfit(fontSize: 12,
+                        style: outfit(fontSize: 12,
                             color: ac.textTertiary)),
                   ],
                 ),
@@ -377,13 +360,13 @@ class _ShoppingListScreenState extends State<ShoppingListScreen> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(list.name,
-                                  style: _outfit(fontSize: 15,
+                                  style: outfit(fontSize: 15,
                                       fontWeight: FontWeight.w600,
                                       color: ac.textPrimary)),
                               const SizedBox(height: 2),
                               Text(
                                 '${list.checkedCount}/${list.items.length} items checked',
-                                style: _outfit(fontSize: 12,
+                                style: outfit(fontSize: 12,
                                     color: ac.textTertiary),
                               ),
                             ],
@@ -425,10 +408,10 @@ class _ShoppingListScreenState extends State<ShoppingListScreen> {
                 Expanded(
                   child: TextField(
                     controller: _addItemController,
-                    style: _outfit(fontSize: 14, color: ac.textPrimary),
+                    style: outfit(fontSize: 14, color: ac.textPrimary),
                     decoration: InputDecoration(
                       hintText: 'Add item...',
-                      hintStyle: _outfit(fontSize: 14, color: ac.textTertiary),
+                      hintStyle: outfit(fontSize: 14, color: ac.textTertiary),
                       border: InputBorder.none,
                       contentPadding: const EdgeInsets.symmetric(
                           horizontal: 14, vertical: 12),
@@ -461,7 +444,7 @@ class _ShoppingListScreenState extends State<ShoppingListScreen> {
           child: list.items.isEmpty
               ? Center(
                   child: Text('Add items to your list',
-                      style: _outfit(fontSize: 14, color: ac.textTertiary)),
+                      style: outfit(fontSize: 14, color: ac.textTertiary)),
                 )
               : ListView.builder(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -515,7 +498,7 @@ class _ShoppingListScreenState extends State<ShoppingListScreen> {
                             Expanded(
                               child: Text(
                                 item.name,
-                                style: _outfit(
+                                style: outfit(
                                   fontSize: 14,
                                   color: item.checked
                                       ? ac.textTertiary
@@ -545,7 +528,7 @@ class _ShoppingListScreenState extends State<ShoppingListScreen> {
                               padding: const EdgeInsets.symmetric(
                                   horizontal: 8),
                               child: Text('${item.quantity}',
-                                  style: _outfit(fontSize: 13,
+                                  style: outfit(fontSize: 13,
                                       fontWeight: FontWeight.w600,
                                       color: ac.textPrimary)),
                             ),
@@ -564,7 +547,7 @@ class _ShoppingListScreenState extends State<ShoppingListScreen> {
                             if (item.priceEstimate != null) ...[
                               const SizedBox(width: 10),
                               Text('\$${item.priceEstimate!.toStringAsFixed(2)}',
-                                  style: _outfit(fontSize: 12,
+                                  style: outfit(fontSize: 12,
                                       color: ac.accentGreen,
                                       fontWeight: FontWeight.w600)),
                             ],
@@ -596,7 +579,7 @@ class _ShoppingListScreenState extends State<ShoppingListScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text('Recommended Store Combo',
-                          style: _outfit(fontSize: 14,
+                          style: outfit(fontSize: 14,
                               fontWeight: FontWeight.w700,
                               color: ac.accentGreen)),
                       const SizedBox(height: 8),
@@ -606,12 +589,12 @@ class _ShoppingListScreenState extends State<ShoppingListScreen> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(c.storeName,
-                                    style: _outfit(fontSize: 13,
+                                    style: outfit(fontSize: 13,
                                         fontWeight: FontWeight.w600,
                                         color: ac.textPrimary)),
                                 Text(
                                   'Covers: ${c.coveredItems.join(", ")}',
-                                  style: _outfit(fontSize: 11,
+                                  style: outfit(fontSize: 11,
                                       color: ac.textSecondary, height: 1.3),
                                 ),
                               ],
@@ -650,7 +633,7 @@ class _ShoppingListScreenState extends State<ShoppingListScreen> {
                           _findingAll
                               ? 'Finding stores...'
                               : 'Find All Items Nearby',
-                          style: _outfit(fontSize: 15,
+                          style: outfit(fontSize: 15,
                               fontWeight: FontWeight.w600,
                               color: Colors.white),
                         ),
@@ -680,16 +663,16 @@ class _ShoppingListScreenState extends State<ShoppingListScreen> {
             mainAxisSize: MainAxisSize.min,
             children: [
               Text('New List',
-                  style: _outfit(fontSize: 18, fontWeight: FontWeight.w700,
+                  style: outfit(fontSize: 18, fontWeight: FontWeight.w700,
                       color: ac.textPrimary)),
               const SizedBox(height: 14),
               TextField(
                 controller: _listNameController,
                 autofocus: true,
-                style: _outfit(fontSize: 14, color: ac.textPrimary),
+                style: outfit(fontSize: 14, color: ac.textPrimary),
                 decoration: InputDecoration(
                   hintText: 'List name',
-                  hintStyle: _outfit(fontSize: 14, color: ac.textTertiary),
+                  hintStyle: outfit(fontSize: 14, color: ac.textTertiary),
                   filled: true,
                   fillColor: ac.inputBg,
                   border: OutlineInputBorder(
@@ -723,7 +706,7 @@ class _ShoppingListScreenState extends State<ShoppingListScreen> {
                         ),
                         alignment: Alignment.center,
                         child: Text('Cancel',
-                            style: _outfit(fontSize: 14,
+                            style: outfit(fontSize: 14,
                                 fontWeight: FontWeight.w600,
                                 color: ac.textPrimary)),
                       ),
@@ -747,7 +730,7 @@ class _ShoppingListScreenState extends State<ShoppingListScreen> {
                         ),
                         alignment: Alignment.center,
                         child: Text('Create',
-                            style: _outfit(fontSize: 14,
+                            style: outfit(fontSize: 14,
                                 fontWeight: FontWeight.w600,
                                 color: Colors.white)),
                       ),

@@ -1,25 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../providers/settings_provider.dart';
 import 'design_system.dart';
-
-// Shared font helper for Outfit
-TextStyle _outfit({
-  double fontSize = 14,
-  FontWeight fontWeight = FontWeight.w400,
-  Color? color,
-  double? letterSpacing,
-  double? height,
-}) {
-  return GoogleFonts.outfit(
-    fontSize: fontSize,
-    fontWeight: fontWeight,
-    color: color,
-    letterSpacing: letterSpacing,
-    height: height,
-  ).copyWith(shadows: const <Shadow>[]);
-}
 
 const _currencies = ['USD', 'EUR', 'GBP', 'CAD', 'MXN'];
 
@@ -62,7 +44,7 @@ class SettingsPanel extends StatelessWidget {
                   const SizedBox(width: 10),
                   Text(
                     'Settings',
-                    style: _outfit(
+                    style: outfit(
                       fontSize: 17,
                       fontWeight: FontWeight.w700,
                       color: ac.textPrimary,
@@ -92,7 +74,7 @@ class SettingsPanel extends StatelessWidget {
                       const SizedBox(width: 12),
                       Text(
                         'Distance unit',
-                        style: _outfit(
+                        style: outfit(
                           fontSize: 15,
                           fontWeight: FontWeight.w600,
                           color: ac.textPrimary,
@@ -124,7 +106,7 @@ class SettingsPanel extends StatelessWidget {
                       const SizedBox(width: 12),
                       Text(
                         'Theme',
-                        style: _outfit(
+                        style: outfit(
                           fontSize: 15,
                           fontWeight: FontWeight.w600,
                           color: ac.textPrimary,
@@ -162,7 +144,7 @@ class SettingsPanel extends StatelessWidget {
                       const SizedBox(width: 12),
                       Text(
                         'Currency',
-                        style: _outfit(
+                        style: outfit(
                           fontSize: 15,
                           fontWeight: FontWeight.w600,
                           color: ac.textPrimary,
@@ -185,7 +167,7 @@ class SettingsPanel extends StatelessWidget {
                             : 'USD',
                         dropdownColor: ac.sidebarBg,
                         isExpanded: true,
-                        style: _outfit(
+                        style: outfit(
                             color: ac.textPrimary, fontSize: 14),
                         items: _currencies
                             .map((c) => DropdownMenuItem(
@@ -253,7 +235,7 @@ class _SettingsRadio<T> extends StatelessWidget {
             const SizedBox(width: 12),
             Text(
               label,
-              style: _outfit(
+              style: outfit(
                 fontSize: 14,
                 color: ac.textPrimary,
               ),

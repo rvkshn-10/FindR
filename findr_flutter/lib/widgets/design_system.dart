@@ -2,6 +2,7 @@ import 'dart:async' show Timer;
 import 'dart:math' as math;
 import 'dart:ui' show PointerDeviceKind;
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 // ---------------------------------------------------------------------------
 // Design tokens from the HTML mockup
@@ -93,6 +94,23 @@ const double kRadiusLg = 16;
 const double kRadiusMd = 12;
 const double kRadiusSm = 8;
 const double kRadiusPill = 999;
+
+/// Shared Outfit font helper — strips text shadows to avoid blurRadius assertion.
+TextStyle outfit({
+  double fontSize = 14,
+  FontWeight fontWeight = FontWeight.w400,
+  Color? color,
+  double? letterSpacing,
+  double? height,
+}) {
+  return GoogleFonts.outfit(
+    fontSize: fontSize,
+    fontWeight: fontWeight,
+    color: color,
+    letterSpacing: letterSpacing,
+    height: height,
+  ).copyWith(shadows: const <Shadow>[]);
+}
 
 // ---------------------------------------------------------------------------
 // Gradient background (static warm blobs + topo lines + glow)

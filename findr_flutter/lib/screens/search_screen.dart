@@ -14,23 +14,6 @@ import '../version.dart';
 import 'app_shell.dart';
 import 'results_screen.dart';
 
-// Shared font helper for Outfit
-TextStyle _outfit({
-  double fontSize = 14,
-  FontWeight fontWeight = FontWeight.w400,
-  Color? color,
-  double? letterSpacing,
-  double? height,
-}) {
-  return GoogleFonts.outfit(
-    fontSize: fontSize,
-    fontWeight: fontWeight,
-    color: color,
-    letterSpacing: letterSpacing,
-    height: height,
-  ).copyWith(shadows: const <Shadow>[]);
-}
-
 // Default suggestions when the user has no search history yet.
 const _kDefaultSuggestions = <String>[
   'N95 Masks',
@@ -263,7 +246,7 @@ class _SearchScreenState extends State<SearchScreen> {
                           Expanded(
                             child: Text(
                               s,
-                              style: _outfit(
+                              style: outfit(
                                 fontSize: 14,
                                 color: ac.textPrimary,
                               ),
@@ -569,7 +552,7 @@ class _SearchScreenState extends State<SearchScreen> {
               const SizedBox(height: 16),
               Text(
                 'Enjoying Wayvio?',
-                style: _outfit(
+                style: outfit(
                   fontSize: 20,
                   fontWeight: FontWeight.w700,
                   color: ac.textPrimary,
@@ -579,7 +562,7 @@ class _SearchScreenState extends State<SearchScreen> {
               Text(
                 "If you're finding what you need, we'd love a quick review!",
                 textAlign: TextAlign.center,
-                style: _outfit(
+                style: outfit(
                   fontSize: 14,
                   color: ac.textPrimary,
                   height: 1.5,
@@ -605,7 +588,7 @@ class _SearchScreenState extends State<SearchScreen> {
                         alignment: Alignment.center,
                         child: Text(
                           'Maybe later',
-                          style: _outfit(
+                          style: outfit(
                             fontSize: 14,
                             fontWeight: FontWeight.w600,
                             color: ac.textPrimary,
@@ -636,7 +619,7 @@ class _SearchScreenState extends State<SearchScreen> {
                         alignment: Alignment.center,
                         child: Text(
                           'Rate us',
-                          style: _outfit(
+                          style: outfit(
                             fontSize: 14,
                             fontWeight: FontWeight.w600,
                             color: Colors.white,
@@ -684,7 +667,7 @@ class _SearchScreenState extends State<SearchScreen> {
                 ),
                 child: Text(
                   'v$appVersion',
-                  style: _outfit(
+                  style: outfit(
                     fontSize: 11,
                     fontWeight: FontWeight.w500,
                     color: ac.textSecondary,
@@ -808,7 +791,7 @@ class _SearchScreenState extends State<SearchScreen> {
                         ? 'Locate essentials instantly.\nSmart store matching by product type.'
                         : 'Locate essentials instantly. Smart store matching\nby product type and convenience ranking.',
                     textAlign: TextAlign.center,
-                    style: _outfit(
+                    style: outfit(
                       fontSize: isNarrow ? 15 : 18,
                       color: ac.textSecondary,
                       height: 1.5,
@@ -846,7 +829,7 @@ class _SearchScreenState extends State<SearchScreen> {
                 if (_recentSearches.isNotEmpty) ...[
                   Text(
                     'Recent searches',
-                    style: _outfit(
+                    style: outfit(
                       fontSize: 12,
                       fontWeight: FontWeight.w500,
                       color: ac.textTertiary,
@@ -946,7 +929,7 @@ class _SearchScreenState extends State<SearchScreen> {
                   const SizedBox(height: 16),
                   Text(
                     'Welcome to Wayvio!',
-                    style: _outfit(
+                    style: outfit(
                       fontSize: 22,
                       fontWeight: FontWeight.w700,
                       color: ac.textPrimary,
@@ -956,7 +939,7 @@ class _SearchScreenState extends State<SearchScreen> {
                   Text(
                     'Find nearby stores that sell what you need.\nHere\'s how it works:',
                     textAlign: TextAlign.center,
-                    style: _outfit(
+                    style: outfit(
                       fontSize: 14,
                       color: ac.textSecondary,
                       height: 1.5,
@@ -988,7 +971,7 @@ class _SearchScreenState extends State<SearchScreen> {
                         alignment: Alignment.center,
                         child: Text(
                           'Get Started',
-                          style: _outfit(
+                          style: outfit(
                             fontSize: 16,
                             fontWeight: FontWeight.w600,
                             color: Colors.white,
@@ -1024,13 +1007,13 @@ class _SearchScreenState extends State<SearchScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(title,
-                  style: _outfit(
+                  style: outfit(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
                     color: ac.textPrimary,
                   )),
               Text(subtitle,
-                  style: _outfit(
+                  style: outfit(
                     fontSize: 12,
                     color: ac.textTertiary,
                   )),
@@ -1129,7 +1112,7 @@ class _SearchScreenState extends State<SearchScreen> {
                       const SizedBox(width: 6),
                       Text(
                         name,
-                        style: _outfit(
+                        style: outfit(
                           fontSize: 12,
                           fontWeight: FontWeight.w600,
                           color: active ? Colors.white : ac.textPrimary,
@@ -1175,14 +1158,14 @@ class _SearchScreenState extends State<SearchScreen> {
           Expanded(
             child: TextField(
               controller: _itemController,
-              style: _outfit(
+              style: outfit(
                 fontSize: 17,
                 fontWeight: FontWeight.w500,
                 color: ac.textPrimary,
               ),
               decoration: InputDecoration(
                 hintText: "What are you looking for? e.g. 'AA Batteries'",
-                hintStyle: _outfit(
+                hintStyle: outfit(
                   fontSize: 17,
                   color: ac.textTertiary,
                 ),
@@ -1248,7 +1231,7 @@ class _SearchScreenState extends State<SearchScreen> {
               const SizedBox(width: 8),
               Text(
                 'Use my location',
-                style: _outfit(
+                style: outfit(
                   fontSize: 13,
                   fontWeight: FontWeight.w500,
                   color: ac.textSecondary,
@@ -1266,11 +1249,11 @@ class _SearchScreenState extends State<SearchScreen> {
               ),
               child: TextField(
                 controller: _locationController,
-                style: _outfit(
+                style: outfit(
                     fontSize: 14, color: ac.textPrimary),
                 decoration: InputDecoration(
                   hintText: 'City or address',
-                  hintStyle: _outfit(
+                  hintStyle: outfit(
                       fontSize: 14, color: ac.textTertiary),
                   border: InputBorder.none,
                   enabledBorder: InputBorder.none,
@@ -1303,7 +1286,7 @@ class _SearchScreenState extends State<SearchScreen> {
                     const SizedBox(width: 6),
                     Text(
                       'Locating…',
-                      style: _outfit(
+                      style: outfit(
                         fontSize: 11,
                         color: ac.textTertiary,
                       ),
@@ -1327,7 +1310,7 @@ class _SearchScreenState extends State<SearchScreen> {
           const SizedBox(width: 6),
           Text(
             'Radius: ${_maxDistanceMiles.round()} mi',
-            style: _outfit(
+            style: outfit(
               fontSize: 13,
               fontWeight: FontWeight.w500,
               color: ac.textSecondary,
@@ -1402,7 +1385,7 @@ class _SearchScreenState extends State<SearchScreen> {
                 const SizedBox(width: 4),
                 Text(
                   'On my route',
-                  style: _outfit(
+                  style: outfit(
                     fontSize: 13,
                     fontWeight: FontWeight.w500,
                     color: _onTheWayMode ? ac.accentGreen : ac.textSecondary,
@@ -1421,10 +1404,10 @@ class _SearchScreenState extends State<SearchScreen> {
               ),
               child: TextField(
                 controller: _destinationController,
-                style: _outfit(fontSize: 14, color: ac.textPrimary),
+                style: outfit(fontSize: 14, color: ac.textPrimary),
                 decoration: InputDecoration(
                   hintText: 'Destination (e.g. home address, work)',
-                  hintStyle: _outfit(fontSize: 14, color: ac.textTertiary),
+                  hintStyle: outfit(fontSize: 14, color: ac.textTertiary),
                   border: InputBorder.none,
                   enabledBorder: InputBorder.none,
                   focusedBorder: InputBorder.none,
@@ -1443,7 +1426,7 @@ class _SearchScreenState extends State<SearchScreen> {
               padding: const EdgeInsets.only(top: 6, left: 4),
               child: Text(
                 'Find stores slightly off your path',
-                style: _outfit(fontSize: 11, color: ac.textTertiary),
+                style: outfit(fontSize: 11, color: ac.textTertiary),
               ),
             ),
           ],
@@ -1474,7 +1457,7 @@ class _SearchScreenState extends State<SearchScreen> {
                 const SizedBox(width: 6),
                 Text(
                   hasActive ? 'Filters (active)' : 'Filters',
-                  style: _outfit(
+                  style: outfit(
                     fontSize: 13,
                     fontWeight: FontWeight.w500,
                     color: hasActive ? ac.accentGreen : ac.textSecondary,
@@ -1499,7 +1482,7 @@ class _SearchScreenState extends State<SearchScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text('Store type',
-                      style: _outfit(
+                      style: outfit(
                           fontSize: 12,
                           fontWeight: FontWeight.w600,
                           color: ac.textSecondary)),
@@ -1543,7 +1526,7 @@ class _SearchScreenState extends State<SearchScreen> {
                         ),
                         const SizedBox(width: 8),
                         Text('Membership stores only',
-                            style: _outfit(
+                            style: outfit(
                               fontSize: 13,
                               fontWeight: FontWeight.w500,
                               color: ac.textSecondary,
@@ -1554,7 +1537,7 @@ class _SearchScreenState extends State<SearchScreen> {
                   const SizedBox(height: 14),
                   // Specific stores
                   Text('Specific stores',
-                      style: _outfit(
+                      style: outfit(
                           fontSize: 12,
                           fontWeight: FontWeight.w600,
                           color: ac.textSecondary)),
@@ -1620,7 +1603,7 @@ class _FilterChip extends StatelessWidget {
         ),
         child: Text(
           label,
-          style: _outfit(
+          style: outfit(
             fontSize: 12,
             fontWeight: FontWeight.w500,
             color: selected ? Colors.white : ac.textPrimary,
@@ -1709,7 +1692,7 @@ class _SuggestionPillState extends State<_SuggestionPill> {
             children: [
               Text(
                 widget.label,
-                style: _outfit(
+                style: outfit(
                   fontSize: 14,
                   fontWeight: FontWeight.w500,
                   color: ac.textPrimary,

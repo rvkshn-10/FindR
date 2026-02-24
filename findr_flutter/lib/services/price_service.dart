@@ -117,7 +117,7 @@ PriceData _parsePrices(List<dynamic> results) {
     double? price = (m['extracted_price'] as num?)?.toDouble();
     if (price == null) {
       final priceStr = m['price']?.toString() ?? '';
-      final cleaned = priceStr.replaceAll(RegExp(r'[^\d.]'), '');
+      final cleaned = priceStr.replaceAll(_nonDigitDot, '');
       price = double.tryParse(cleaned);
     }
     if (price == null || price <= 0) continue;
@@ -175,14 +175,18 @@ PriceData _parsePrices(List<dynamic> results) {
 // Store name matching
 // ---------------------------------------------------------------------------
 
+final RegExp _nonAlphaNumSpace = RegExp(r'[^a-z0-9\s]');
+final RegExp _multiSpace = RegExp(r'\s+');
+final RegExp _nonDigitDot = RegExp(r'[^\d.]');
+
 /// Normalize a store name for fuzzy matching.
 String _normalizeStoreName(String name) {
   return name
       .toLowerCase()
       .replaceAll('.com', '')
       .replaceAll('.org', '')
-      .replaceAll(RegExp(r'[^a-z0-9\s]'), '')
-      .replaceAll(RegExp(r'\s+'), ' ')
+      .replaceAll(_nonAlphaNumSpace, '')
+      .replaceAll(_multiSpace, ' ')
       .trim();
 }
 

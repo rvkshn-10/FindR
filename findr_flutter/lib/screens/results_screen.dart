@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_map/flutter_map.dart';
@@ -87,6 +86,11 @@ class _StoreHoursInfo {
   const _StoreHoursInfo(this.status, this.label);
 }
 
+final RegExp _timeRangeRe = RegExp(
+  r'(\d{1,2}):?(\d{2})?\s*(am|pm)?\s*[-–]\s*(\d{1,2}):?(\d{2})?\s*(am|pm)?',
+  caseSensitive: false,
+);
+
 _StoreHoursInfo _parseHoursStatus(String? hours) {
   if (hours == null || hours.isEmpty) {
     return const _StoreHoursInfo(_HoursStatus.unknown, '');
@@ -100,12 +104,7 @@ _StoreHoursInfo _parseHoursStatus(String? hours) {
     return const _StoreHoursInfo(_HoursStatus.closed, 'Closed');
   }
 
-  // Try to parse "HH:MM-HH:MM" or "H:MM AM - H:MM PM" patterns
-  final timeRangeRe = RegExp(
-    r'(\d{1,2}):?(\d{2})?\s*(am|pm)?\s*[-–]\s*(\d{1,2}):?(\d{2})?\s*(am|pm)?',
-    caseSensitive: false,
-  );
-  final match = timeRangeRe.firstMatch(lower);
+  final match = _timeRangeRe.firstMatch(lower);
   if (match == null) {
     if (lower.contains('open')) {
       return const _StoreHoursInfo(_HoursStatus.open, 'Open');
@@ -154,23 +153,6 @@ _StoreHoursInfo _parseHoursStatus(String? hours) {
   } catch (_) {
     return _StoreHoursInfo(_HoursStatus.unknown, hours);
   }
-}
-
-// Shared font helper for Outfit
-TextStyle _outfit({
-  double fontSize = 14,
-  FontWeight fontWeight = FontWeight.w400,
-  Color? color,
-  double? letterSpacing,
-  double? height,
-}) {
-  return GoogleFonts.outfit(
-    fontSize: fontSize,
-    fontWeight: fontWeight,
-    color: color,
-    letterSpacing: letterSpacing,
-    height: height,
-  ).copyWith(shadows: const <Shadow>[]);
 }
 
 // ---------------------------------------------------------------------------
@@ -733,7 +715,7 @@ class _ResultsScreenState extends State<ResultsScreen> {
               children: [
                 Text(
                   'Finding nearby stores…',
-                  style: _outfit(
+                  style: outfit(
                       fontSize: 14, color: ac.textSecondary),
                 ),
                 const SizedBox(height: 20),
@@ -764,7 +746,7 @@ class _ResultsScreenState extends State<ResultsScreen> {
               children: [
                 Text(
                   _error!,
-                  style: _outfit(
+                  style: outfit(
                       color: ac.red, fontSize: 14),
                   textAlign: TextAlign.center,
                 ),
@@ -787,7 +769,7 @@ class _ResultsScreenState extends State<ResultsScreen> {
                           const SizedBox(width: 10),
                           Text(
                             'Show last results for "$cachedQuery"',
-                            style: _outfit(
+                            style: outfit(
                               fontSize: 14,
                               fontWeight: FontWeight.w600,
                               color: ac.accentGreen,
@@ -825,7 +807,7 @@ class _ResultsScreenState extends State<ResultsScreen> {
       return Scaffold(
         backgroundColor: Colors.transparent,
         body: Center(
-          child: Text('Loading…', style: _outfit(color: ac.textSecondary)),
+          child: Text('Loading…', style: outfit(color: ac.textSecondary)),
         ),
       );
     }
@@ -1062,14 +1044,14 @@ class _ResultsScreenState extends State<ResultsScreen> {
                 child: Text.rich(
                   TextSpan(
                     text: 'Results for ',
-                    style: _outfit(
+                    style: outfit(
                       fontSize: 16,
                       color: ac.textSecondary,
                     ),
                     children: [
                       TextSpan(
                         text: _currentItem,
-                        style: _outfit(
+                        style: outfit(
                             fontWeight: FontWeight.w700,
                             color: ac.textPrimary),
                       ),
@@ -1079,7 +1061,7 @@ class _ResultsScreenState extends State<ResultsScreen> {
               ),
               Text(
                 '${stores.length} found',
-                style: _outfit(
+                style: outfit(
                     fontSize: 13, color: ac.textTertiary),
               ),
             ],
@@ -1105,11 +1087,11 @@ class _ResultsScreenState extends State<ResultsScreen> {
                 Expanded(
                   child: TextField(
                     controller: _mobileSearchController,
-                    style: _outfit(
+                    style: outfit(
                         fontSize: 13, color: ac.textPrimary),
                     decoration: InputDecoration(
                       hintText: 'Search for something else…',
-                      hintStyle: _outfit(
+                      hintStyle: outfit(
                           fontSize: 13, color: ac.textTertiary),
                       border: InputBorder.none,
                       enabledBorder: InputBorder.none,
@@ -1162,7 +1144,7 @@ class _ResultsScreenState extends State<ResultsScreen> {
                 const SizedBox(width: 8),
                 Text(
                   'Refining distances…',
-                  style: _outfit(
+                  style: outfit(
                       fontSize: 11, color: ac.textTertiary),
                 ),
               ],
@@ -1183,7 +1165,7 @@ class _ResultsScreenState extends State<ResultsScreen> {
                 ),
                 const SizedBox(width: 8),
                 Text('Fetching prices…',
-                    style: _outfit(
+                    style: outfit(
                         fontSize: 11, color: ac.textTertiary)),
               ],
             ),
@@ -1212,7 +1194,7 @@ class _ResultsScreenState extends State<ResultsScreen> {
                         '${formatPrice(_priceData!.lowPrice, currency)}'
                         ' – ${formatPrice(_priceData!.highPrice, currency)}'
                         '  avg ${formatPrice(_priceData!.avgPrice, currency)}',
-                        style: _outfit(
+                        style: outfit(
                           fontSize: 11,
                           fontWeight: FontWeight.w600,
                           color: ac.textPrimary,
@@ -1231,7 +1213,7 @@ class _ResultsScreenState extends State<ResultsScreen> {
             children: [
               Text(
                 'Sort',
-                style: _outfit(
+                style: outfit(
                   fontSize: 11,
                   fontWeight: FontWeight.w500,
                   color: ac.textTertiary,
@@ -1288,7 +1270,7 @@ class _ResultsScreenState extends State<ResultsScreen> {
             ),
             child: Text(
               'v$appVersion',
-              style: _outfit(
+              style: outfit(
                 fontSize: 11,
                 fontWeight: FontWeight.w500,
                 color: ac.textSecondary,
@@ -1666,7 +1648,7 @@ class _SidebarState extends State<_Sidebar> {
                       children: [
                         Text(
                           'Results',
-                          style: _outfit(
+                          style: outfit(
                             fontSize: 28,
                             fontWeight: FontWeight.w700,
                             color: ac.textPrimary,
@@ -1677,14 +1659,14 @@ class _SidebarState extends State<_Sidebar> {
                         Text.rich(
                           TextSpan(
                             text: 'Searching for ',
-                            style: _outfit(
+                            style: outfit(
                               fontSize: 14,
                               color: ac.textSecondary,
                             ),
                             children: [
                               TextSpan(
                                 text: widget.query,
-                                style: _outfit(
+                                style: outfit(
                                   fontWeight: FontWeight.w700,
                                   color: ac.textPrimary,
                                 ),
@@ -1752,11 +1734,11 @@ class _SidebarState extends State<_Sidebar> {
                     Expanded(
                       child: TextField(
                         controller: _searchController,
-                        style: _outfit(
+                        style: outfit(
                             fontSize: 13, color: ac.textPrimary),
                         decoration: InputDecoration(
                           hintText: 'Search for something else…',
-                          hintStyle: _outfit(
+                          hintStyle: outfit(
                               fontSize: 13, color: ac.textTertiary),
                           border: InputBorder.none,
                           enabledBorder: InputBorder.none,
@@ -1801,7 +1783,7 @@ class _SidebarState extends State<_Sidebar> {
                       const SizedBox(width: 8),
                       Text(
                         'Refining distances…',
-                        style: _outfit(
+                        style: outfit(
                             fontSize: 11,
                             color: ac.textTertiary),
                       ),
@@ -1831,7 +1813,7 @@ class _SidebarState extends State<_Sidebar> {
                       const SizedBox(width: 8),
                       Text(
                         'Fetching prices…',
-                        style: _outfit(
+                        style: outfit(
                             fontSize: 11,
                             color: ac.textTertiary),
                       ),
@@ -1863,7 +1845,7 @@ class _SidebarState extends State<_Sidebar> {
                             'Price range: ${formatPrice(widget.priceData!.lowPrice, widget.settings.currency)}'
                             ' – ${formatPrice(widget.priceData!.highPrice, widget.settings.currency)}'
                             '  (avg ${formatPrice(widget.priceData!.avgPrice, widget.settings.currency)})',
-                            style: _outfit(
+                            style: outfit(
                               fontSize: 12,
                               fontWeight: FontWeight.w600,
                               color: ac.textPrimary,
@@ -1888,7 +1870,7 @@ class _SidebarState extends State<_Sidebar> {
                   children: [
                     Text(
                       'Sort by',
-                      style: _outfit(
+                      style: outfit(
                         fontSize: 12,
                         fontWeight: FontWeight.w500,
                         color: ac.textTertiary,
@@ -2207,7 +2189,7 @@ class _ResultCardState extends State<_ResultCard> {
                     ),
                     child: Text(
                       _badgeLabel(widget.style),
-                      style: _outfit(
+                      style: outfit(
                         fontSize: 11,
                         fontWeight: FontWeight.w700,
                         letterSpacing: 0.5,
@@ -2221,7 +2203,7 @@ class _ResultCardState extends State<_ResultCard> {
                       if (widget.store.durationMinutes != null)
                         Text(
                           '~${widget.store.durationMinutes} min',
-                          style: _outfit(
+                          style: outfit(
                               fontSize: 13, fontWeight: FontWeight.w600, color: fg),
                         ),
                       const SizedBox(width: 8),
@@ -2263,7 +2245,7 @@ class _ResultCardState extends State<_ResultCard> {
                   Expanded(
                     child: Text(
                       widget.store.name,
-                      style: _outfit(
+                      style: outfit(
                         fontSize: isGlass ? 16 : 22,
                         fontWeight: FontWeight.w700,
                         height: 1.1,
@@ -2290,7 +2272,7 @@ class _ResultCardState extends State<_ResultCard> {
                           children: [
                             Text(
                               widget.store.priceLabel!,
-                              style: _outfit(
+                              style: outfit(
                                 fontSize: 13,
                                 fontWeight: FontWeight.w700,
                                 color: ac.accentGreen,
@@ -2301,7 +2283,7 @@ class _ResultCardState extends State<_ResultCard> {
                               const SizedBox(width: 4),
                               Text(
                                 widget.store.priceLevel!,
-                                style: _outfit(
+                                style: outfit(
                                   fontSize: 11,
                                   fontWeight: FontWeight.w600,
                                   color: ac.accentGreen.withValues(alpha: 0.85),
@@ -2338,7 +2320,7 @@ class _ResultCardState extends State<_ResultCard> {
                     const SizedBox(width: 4),
                     Text(
                       widget.store.rating!.toStringAsFixed(1),
-                      style: _outfit(
+                      style: outfit(
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
                         color: fg.withValues(alpha: 0.85),
@@ -2347,7 +2329,7 @@ class _ResultCardState extends State<_ResultCard> {
                     if (widget.store.reviewCount != null) ...[
                       Text(
                         ' (${_formatReviewCount(widget.store.reviewCount!)})',
-                        style: _outfit(
+                        style: outfit(
                           fontSize: 11,
                           color: fg.withValues(alpha: 0.6),
                         ),
@@ -2357,7 +2339,7 @@ class _ResultCardState extends State<_ResultCard> {
                       const SizedBox(width: 8),
                       Text(
                         widget.store.priceLevel!,
-                        style: _outfit(
+                        style: outfit(
                           fontSize: 12,
                           fontWeight: FontWeight.w600,
                           color: fg.withValues(alpha: 0.7),
@@ -2387,7 +2369,7 @@ class _ResultCardState extends State<_ResultCard> {
                       widget.store.confidence == StoreConfidence.high
                           ? 'High confidence'
                           : 'Medium confidence',
-                      style: _outfit(
+                      style: outfit(
                         fontSize: 10,
                         fontWeight: FontWeight.w500,
                         color: fg.withValues(alpha: 0.6),
@@ -2420,7 +2402,7 @@ class _ResultCardState extends State<_ResultCard> {
                       ),
                       child: Text(
                         hoursInfo.label,
-                        style: _outfit(
+                        style: outfit(
                           fontSize: 11,
                           fontWeight: FontWeight.w600,
                           color: hoursInfo.status == _HoursStatus.open
@@ -2447,7 +2429,7 @@ class _ResultCardState extends State<_ResultCard> {
                         children: [
                           Text(
                             widget.store.priceLabel!,
-                            style: _outfit(
+                            style: outfit(
                               fontSize: 13,
                               fontWeight: FontWeight.w700,
                               color: ac.accentGreen,
@@ -2458,7 +2440,7 @@ class _ResultCardState extends State<_ResultCard> {
                             const SizedBox(width: 4),
                             Text(
                               widget.store.priceLevel!,
-                              style: _outfit(
+                              style: outfit(
                                 fontSize: 11,
                                 fontWeight: FontWeight.w600,
                                 color: ac.accentGreen.withValues(alpha: 0.85),
@@ -2481,7 +2463,7 @@ class _ResultCardState extends State<_ResultCard> {
                       ),
                       child: Text(
                         typeLabel,
-                        style: _outfit(
+                        style: outfit(
                           fontSize: 12,
                           fontWeight: FontWeight.w500,
                           color: fg.withValues(alpha: 0.7),
@@ -2501,7 +2483,7 @@ class _ResultCardState extends State<_ResultCard> {
                   Text(
                     formatDistance(widget.store.distanceKm,
                         useKm: widget.settings.useKm),
-                    style: _outfit(
+                    style: outfit(
                       fontSize: 13,
                       fontWeight: FontWeight.w500,
                       color: fg.withValues(alpha: 0.85),
@@ -2511,7 +2493,7 @@ class _ResultCardState extends State<_ResultCard> {
                     _dot(fg),
                     Text(
                       '~${widget.store.durationMinutes} min',
-                      style: _outfit(
+                      style: outfit(
                         fontSize: 13,
                         fontWeight: FontWeight.w500,
                         color: fg.withValues(alpha: 0.85),
@@ -2522,7 +2504,7 @@ class _ResultCardState extends State<_ResultCard> {
                     _dot(fg),
                     Text(
                       widget.store.address.split(',').first.trim(),
-                      style: _outfit(
+                      style: outfit(
                         fontSize: 13,
                         fontWeight: FontWeight.w500,
                         color: fg.withValues(alpha: 0.85),
@@ -2552,7 +2534,7 @@ class _ResultCardState extends State<_ResultCard> {
                           Flexible(
                             child: Text(
                               widget.store.openingHours!,
-                              style: _outfit(
+                              style: outfit(
                                 fontSize: 11,
                                 color: fg.withValues(alpha: 0.7),
                               ),
@@ -2574,7 +2556,7 @@ class _ResultCardState extends State<_ResultCard> {
                             const SizedBox(width: 4),
                             Text(
                               widget.store.phone!,
-                              style: _outfit(
+                              style: outfit(
                                 fontSize: 11,
                                 color: fg.withValues(alpha: 0.7),
                               ),
@@ -2595,7 +2577,7 @@ class _ResultCardState extends State<_ResultCard> {
                             const SizedBox(width: 4),
                             Text(
                               'Website',
-                              style: _outfit(
+                              style: outfit(
                                 fontSize: 11,
                                 color: fg.withValues(alpha: 0.7),
                               ),
@@ -2624,7 +2606,7 @@ class _ResultCardState extends State<_ResultCard> {
                       ),
                       child: Text(
                         opt,
-                        style: _outfit(
+                        style: outfit(
                           fontSize: 10,
                           fontWeight: FontWeight.w500,
                           color: fg.withValues(alpha: 0.6),
@@ -2654,7 +2636,7 @@ class _ResultCardState extends State<_ResultCard> {
                     const SizedBox(width: 4),
                     Text(
                       _note != null ? 'View note' : 'Add note',
-                      style: _outfit(
+                      style: outfit(
                         fontSize: 11,
                         fontWeight: FontWeight.w500,
                         color: _note != null
@@ -2681,13 +2663,13 @@ class _ResultCardState extends State<_ResultCard> {
                       TextField(
                         controller: _noteController,
                         maxLines: 3,
-                        style: _outfit(
+                        style: outfit(
                           fontSize: 12,
                           color: fg,
                         ),
                         decoration: InputDecoration(
                           hintText: 'Your notes about this store...',
-                          hintStyle: _outfit(
+                          hintStyle: outfit(
                             fontSize: 12,
                             color: fg.withValues(alpha: 0.4),
                           ),
@@ -2710,7 +2692,7 @@ class _ResultCardState extends State<_ResultCard> {
                             ),
                             child: Text(
                               'Save',
-                              style: _outfit(
+                              style: outfit(
                                 fontSize: 11,
                                 fontWeight: FontWeight.w600,
                                 color: Colors.white,
@@ -2755,7 +2737,7 @@ class _ResultCardState extends State<_ResultCard> {
                             const SizedBox(width: 4),
                             Text(
                               'Apple Maps',
-                              style: _outfit(
+                              style: outfit(
                                 fontSize: 12,
                                 fontWeight: FontWeight.w600,
                                 color: fg,
@@ -2795,7 +2777,7 @@ class _ResultCardState extends State<_ResultCard> {
                             const SizedBox(width: 4),
                             Text(
                               'Google Maps',
-                              style: _outfit(
+                              style: outfit(
                                 fontSize: 12,
                                 fontWeight: FontWeight.w600,
                                 color: fg,
@@ -2942,7 +2924,7 @@ class _SelectedStorePopup extends StatelessWidget {
                   store.name,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: _outfit(
+                  style: outfit(
                     fontWeight: FontWeight.w700,
                     fontSize: 14,
                     color: ac.textPrimary,
@@ -2962,7 +2944,7 @@ class _SelectedStorePopup extends StatelessWidget {
             '${formatDistance(store.distanceKm, useKm: settings.useKm)} away'
             '${store.durationMinutes != null ? ' · ~${store.durationMinutes} min' : ''}'
             '${typeLabel != null ? ' · $typeLabel' : ''}',
-            style: _outfit(
+            style: outfit(
                 fontSize: 12, color: ac.textSecondary),
           ),
           if (store.rating != null) ...[
@@ -2976,7 +2958,7 @@ class _SelectedStorePopup extends StatelessWidget {
                 Text(
                   '${store.rating!.toStringAsFixed(1)}'
                   '${store.reviewCount != null ? ' (${_formatReviewCount(store.reviewCount!)})' : ''}',
-                  style: _outfit(
+                  style: outfit(
                       fontSize: 11, color: ac.textTertiary),
                 ),
               ],
@@ -2986,7 +2968,7 @@ class _SelectedStorePopup extends StatelessWidget {
             const SizedBox(height: 2),
             Text(
               store.openingHours!,
-              style: _outfit(
+              style: outfit(
                   fontSize: 11, color: ac.textTertiary),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
@@ -3016,7 +2998,7 @@ class _SelectedStorePopup extends StatelessWidget {
                         const SizedBox(width: 4),
                         Text(
                           'Apple',
-                          style: _outfit(
+                          style: outfit(
                             fontSize: 11,
                             fontWeight: FontWeight.w600,
                             color: Colors.white,
@@ -3049,7 +3031,7 @@ class _SelectedStorePopup extends StatelessWidget {
                         const SizedBox(width: 4),
                         Text(
                           'Google',
-                          style: _outfit(
+                          style: outfit(
                             fontSize: 11,
                             fontWeight: FontWeight.w600,
                             color: Colors.white,
@@ -3117,7 +3099,7 @@ class _AiInsightCard extends StatelessWidget {
         const SizedBox(width: 12),
         Text(
           'AI is analyzing your results…',
-          style: _outfit(
+          style: outfit(
             fontSize: 13,
             fontWeight: FontWeight.w500,
             color: ac.textSecondary,
@@ -3147,7 +3129,7 @@ class _AiInsightCard extends StatelessWidget {
             const SizedBox(width: 8),
             Text(
               'AI Recommendation',
-              style: _outfit(
+              style: outfit(
                 fontSize: 12,
                 fontWeight: FontWeight.w700,
                 letterSpacing: 0.5,
@@ -3160,7 +3142,7 @@ class _AiInsightCard extends StatelessWidget {
         // Recommendation
         Text(
           s.recommendation,
-          style: _outfit(
+          style: outfit(
             fontSize: 14,
             fontWeight: FontWeight.w600,
             color: ac.textPrimary,
@@ -3171,7 +3153,7 @@ class _AiInsightCard extends StatelessWidget {
           const SizedBox(height: 6),
           Text(
             s.reasoning,
-            style: _outfit(
+            style: outfit(
               fontSize: 12,
               color: ac.textSecondary,
               height: 1.4,
@@ -3194,7 +3176,7 @@ class _AiInsightCard extends StatelessWidget {
                     Expanded(
                       child: Text(
                         tip,
-                        style: _outfit(
+                        style: outfit(
                           fontSize: 12,
                           color: ac.textSecondary,
                           height: 1.3,
@@ -3434,7 +3416,7 @@ class _SortChip extends StatelessWidget {
             const SizedBox(width: 4),
             Text(
               label,
-              style: _outfit(
+              style: outfit(
                 fontSize: 11,
                 fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
                 color: selected
@@ -3509,7 +3491,7 @@ class _EmptyState extends StatelessWidget {
           const SizedBox(height: 12),
           Text(
             'No stores found nearby',
-            style: _outfit(
+            style: outfit(
               fontSize: 16,
               fontWeight: FontWeight.w600,
               color: ac.textSecondary,
@@ -3519,7 +3501,7 @@ class _EmptyState extends StatelessWidget {
           Text(
             'Try increasing the search radius or\nsearching for a different item.',
             textAlign: TextAlign.center,
-            style: _outfit(
+            style: outfit(
               fontSize: 13,
               color: ac.textTertiary,
             ),
@@ -3598,7 +3580,7 @@ class _NoResultsPage extends StatelessWidget {
                 Text(
                   'No results for "$query"',
                   textAlign: TextAlign.center,
-                  style: _outfit(
+                  style: outfit(
                     fontSize: isNarrow ? 20 : 24,
                     fontWeight: FontWeight.w700,
                     color: ac.textPrimary,
@@ -3610,7 +3592,7 @@ class _NoResultsPage extends StatelessWidget {
                 Text(
                   summary,
                   textAlign: TextAlign.center,
-                  style: _outfit(
+                  style: outfit(
                     fontSize: 14,
                     color: ac.textSecondary,
                     height: 1.5,
@@ -3637,7 +3619,7 @@ class _NoResultsPage extends StatelessWidget {
                           const SizedBox(width: 8),
                           Text(
                             'Tips to get results',
-                            style: _outfit(
+                            style: outfit(
                               fontSize: 15,
                               fontWeight: FontWeight.w700,
                               color: ac.textPrimary,
@@ -3672,7 +3654,7 @@ class _NoResultsPage extends StatelessWidget {
                               Expanded(
                                 child: Text(
                                   alt,
-                                  style: _outfit(
+                                  style: outfit(
                                     fontSize: 13,
                                     color: ac.textSecondary,
                                     height: 1.4,
@@ -3691,7 +3673,7 @@ class _NoResultsPage extends StatelessWidget {
                 // ── Quick search suggestions ──
                 Text(
                   'Try searching for:',
-                  style: _outfit(
+                  style: outfit(
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
                     color: ac.textTertiary,
@@ -3716,7 +3698,7 @@ class _NoResultsPage extends StatelessWidget {
                         ),
                         child: Text(
                           s,
-                          style: _outfit(
+                          style: outfit(
                             fontSize: 13,
                             fontWeight: FontWeight.w500,
                             color: ac.textPrimary,
@@ -3745,7 +3727,7 @@ class _NoResultsPage extends StatelessWidget {
                         ),
                         child: Text(
                           'Retry search',
-                          style: _outfit(
+                          style: outfit(
                             fontSize: 14,
                             fontWeight: FontWeight.w600,
                             color: Colors.white,
@@ -3782,14 +3764,14 @@ class _NoResultsPage extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(title,
-                  style: _outfit(
+                  style: outfit(
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
                     color: ac.textPrimary,
                   )),
               const SizedBox(height: 2),
               Text(subtitle,
-                  style: _outfit(
+                  style: outfit(
                     fontSize: 12,
                     color: ac.textTertiary,
                     height: 1.3,
@@ -3820,7 +3802,7 @@ Widget _pillButton(BuildContext context, String label, {required VoidCallback on
       ),
       child: Text(
         label,
-        style: _outfit(
+        style: outfit(
           fontSize: 14,
           fontWeight: FontWeight.w500,
           color: ac.textPrimary,

@@ -1,26 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../models/search_models.dart';
 import '../services/firestore_service.dart' as db;
 import '../widgets/design_system.dart';
-
-TextStyle _outfit({
-  double fontSize = 14,
-  FontWeight fontWeight = FontWeight.w400,
-  Color? color,
-  double? letterSpacing,
-  double? height,
-}) {
-  return GoogleFonts.outfit(
-    fontSize: fontSize,
-    fontWeight: fontWeight,
-    color: color,
-    letterSpacing: letterSpacing,
-    height: height,
-  ).copyWith(shadows: const <Shadow>[]);
-}
 
 /// Shows a store detail bottom sheet.
 Future<void> showStoreDetailSheet(
@@ -157,7 +140,7 @@ class _StoreDetailSheetState extends State<_StoreDetailSheet> {
               if (store.thumbnail != null) const SizedBox(height: 14),
               Text(
                 store.name,
-                style: _outfit(
+                style: outfit(
                   fontSize: 22, fontWeight: FontWeight.w700,
                   color: ac.textPrimary,
                 ),
@@ -167,7 +150,7 @@ class _StoreDetailSheetState extends State<_StoreDetailSheet> {
                 Padding(
                   padding: const EdgeInsets.only(top: 2),
                   child: Text(store.brand!,
-                      style: _outfit(fontSize: 13, color: ac.textTertiary)),
+                      style: outfit(fontSize: 13, color: ac.textTertiary)),
                 ),
 
               const SizedBox(height: 12),
@@ -186,7 +169,7 @@ class _StoreDetailSheetState extends State<_StoreDetailSheet> {
                       ),
                       child: Text(
                         'Best for $tag',
-                        style: _outfit(
+                        style: outfit(
                           fontSize: 11, fontWeight: FontWeight.w600,
                           color: ac.accentGreen,
                         ),
@@ -233,7 +216,7 @@ class _StoreDetailSheetState extends State<_StoreDetailSheet> {
               // Service options
               if (store.serviceOptions.isNotEmpty) ...[
                 Text('Services',
-                    style: _outfit(fontSize: 13, fontWeight: FontWeight.w600,
+                    style: outfit(fontSize: 13, fontWeight: FontWeight.w600,
                         color: ac.textSecondary)),
                 const SizedBox(height: 6),
                 Wrap(
@@ -248,7 +231,7 @@ class _StoreDetailSheetState extends State<_StoreDetailSheet> {
                         border: Border.all(color: ac.borderSubtle),
                       ),
                       child: Text(s,
-                          style: _outfit(fontSize: 11, color: ac.textPrimary)),
+                          style: outfit(fontSize: 11, color: ac.textPrimary)),
                     );
                   }).toList(),
                 ),
@@ -258,7 +241,7 @@ class _StoreDetailSheetState extends State<_StoreDetailSheet> {
               // Common items
               if (_commonItems.isNotEmpty) ...[
                 Text('Common items people find here',
-                    style: _outfit(fontSize: 13, fontWeight: FontWeight.w600,
+                    style: outfit(fontSize: 13, fontWeight: FontWeight.w600,
                         color: ac.textSecondary)),
                 const SizedBox(height: 6),
                 Wrap(
@@ -272,7 +255,7 @@ class _StoreDetailSheetState extends State<_StoreDetailSheet> {
                         borderRadius: BorderRadius.circular(kRadiusPill),
                       ),
                       child: Text(item,
-                          style: _outfit(fontSize: 11, color: ac.textPrimary)),
+                          style: outfit(fontSize: 11, color: ac.textPrimary)),
                     );
                   }).toList(),
                 ),
@@ -284,7 +267,7 @@ class _StoreDetailSheetState extends State<_StoreDetailSheet> {
 
               // Your rating section
               Text('Your Rating',
-                  style: _outfit(fontSize: 15, fontWeight: FontWeight.w700,
+                  style: outfit(fontSize: 15, fontWeight: FontWeight.w700,
                       color: ac.textPrimary)),
               const SizedBox(height: 10),
               _buildRatingSlider(ac, 'Availability', _availability,
@@ -309,14 +292,14 @@ class _StoreDetailSheetState extends State<_StoreDetailSheet> {
                   Icon(Icons.note_outlined, size: 16, color: ac.textSecondary),
                   const SizedBox(width: 6),
                   Text('Your Note',
-                      style: _outfit(fontSize: 13, fontWeight: FontWeight.w600,
+                      style: outfit(fontSize: 13, fontWeight: FontWeight.w600,
                           color: ac.textSecondary)),
                   const Spacer(),
                   GestureDetector(
                     onTap: () => setState(() => _noteEditing = !_noteEditing),
                     child: Text(
                       _noteEditing ? 'Done' : (_note != null ? 'Edit' : 'Add'),
-                      style: _outfit(
+                      style: outfit(
                         fontSize: 12, fontWeight: FontWeight.w600,
                         color: ac.accentGreen,
                       ),
@@ -331,10 +314,10 @@ class _StoreDetailSheetState extends State<_StoreDetailSheet> {
                     TextField(
                       controller: _noteController,
                       maxLines: 3,
-                      style: _outfit(fontSize: 13, color: ac.textPrimary),
+                      style: outfit(fontSize: 13, color: ac.textPrimary),
                       decoration: InputDecoration(
                         hintText: 'Add a note about this store...',
-                        hintStyle: _outfit(fontSize: 13, color: ac.textTertiary),
+                        hintStyle: outfit(fontSize: 13, color: ac.textTertiary),
                         filled: true,
                         fillColor: ac.inputBg,
                         border: OutlineInputBorder(
@@ -364,7 +347,7 @@ class _StoreDetailSheetState extends State<_StoreDetailSheet> {
                             borderRadius: BorderRadius.circular(kRadiusPill),
                           ),
                           child: Text('Save',
-                              style: _outfit(fontSize: 12,
+                              style: outfit(fontSize: 12,
                                   fontWeight: FontWeight.w600,
                                   color: Colors.white)),
                         ),
@@ -381,12 +364,12 @@ class _StoreDetailSheetState extends State<_StoreDetailSheet> {
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Text(_note!,
-                      style: _outfit(fontSize: 13, color: ac.textPrimary,
+                      style: outfit(fontSize: 13, color: ac.textPrimary,
                           height: 1.4)),
                 )
               else
                 Text('No note yet',
-                    style: _outfit(fontSize: 12, color: ac.textTertiary)),
+                    style: outfit(fontSize: 12, color: ac.textTertiary)),
 
               const SizedBox(height: 24),
 
@@ -436,12 +419,12 @@ class _StoreDetailSheetState extends State<_StoreDetailSheet> {
           }),
           const SizedBox(width: 4),
           Text(store.rating!.toStringAsFixed(1),
-              style: _outfit(fontSize: 13, fontWeight: FontWeight.w600,
+              style: outfit(fontSize: 13, fontWeight: FontWeight.w600,
                   color: ac.textPrimary)),
           if (store.reviewCount != null) ...[
             const SizedBox(width: 4),
             Text('(${_formatCount(store.reviewCount!)})',
-                style: _outfit(fontSize: 12, color: ac.textTertiary)),
+                style: outfit(fontSize: 12, color: ac.textTertiary)),
           ],
         ],
         if (store.priceLevel != null) ...[
@@ -453,7 +436,7 @@ class _StoreDetailSheetState extends State<_StoreDetailSheet> {
               borderRadius: BorderRadius.circular(kRadiusPill),
             ),
             child: Text(store.priceLevel!,
-                style: _outfit(fontSize: 12, fontWeight: FontWeight.w600,
+                style: outfit(fontSize: 12, fontWeight: FontWeight.w600,
                     color: ac.textSecondary)),
           ),
         ],
@@ -487,7 +470,7 @@ class _StoreDetailSheetState extends State<_StoreDetailSheet> {
         ),
         const SizedBox(width: 5),
         Text(label,
-            style: _outfit(fontSize: 11, fontWeight: FontWeight.w500,
+            style: outfit(fontSize: 11, fontWeight: FontWeight.w500,
                 color: color)),
       ],
     );
@@ -506,11 +489,11 @@ class _StoreDetailSheetState extends State<_StoreDetailSheet> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(label,
-                    style: _outfit(fontSize: 11, fontWeight: FontWeight.w600,
+                    style: outfit(fontSize: 11, fontWeight: FontWeight.w600,
                         color: ac.textTertiary)),
                 const SizedBox(height: 1),
                 Text(value,
-                    style: _outfit(fontSize: 13, color: ac.textPrimary,
+                    style: outfit(fontSize: 13, color: ac.textPrimary,
                         height: 1.4)),
               ],
             ),
@@ -537,11 +520,11 @@ class _StoreDetailSheetState extends State<_StoreDetailSheet> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(label,
-                      style: _outfit(fontSize: 11, fontWeight: FontWeight.w600,
+                      style: outfit(fontSize: 11, fontWeight: FontWeight.w600,
                           color: ac.textTertiary)),
                   const SizedBox(height: 1),
                   Text(value,
-                      style: _outfit(fontSize: 13, color: ac.accentGreen,
+                      style: outfit(fontSize: 13, color: ac.accentGreen,
                           height: 1.4)),
                 ],
               ),
@@ -561,7 +544,7 @@ class _StoreDetailSheetState extends State<_StoreDetailSheet> {
           SizedBox(
             width: 85,
             child: Text(label,
-                style: _outfit(fontSize: 12, color: ac.textSecondary)),
+                style: outfit(fontSize: 12, color: ac.textSecondary)),
           ),
           ...List.generate(5, (i) {
             final active = value >= i + 1;
@@ -580,7 +563,7 @@ class _StoreDetailSheetState extends State<_StoreDetailSheet> {
           if (value > 0) ...[
             const SizedBox(width: 6),
             Text('$value/5',
-                style: _outfit(fontSize: 11, color: ac.textTertiary)),
+                style: outfit(fontSize: 11, color: ac.textTertiary)),
           ],
         ],
       ),
@@ -614,7 +597,7 @@ class _StoreDetailSheetState extends State<_StoreDetailSheet> {
           Expanded(
             child: Text(
               'You rated this store high for ${best.key} — ${tips[best.key]}.',
-              style: _outfit(fontSize: 11, color: ac.accentGreen, height: 1.3),
+              style: outfit(fontSize: 11, color: ac.accentGreen, height: 1.3),
             ),
           ),
         ],
@@ -659,7 +642,7 @@ class _ActionButton extends StatelessWidget {
             Icon(icon, size: 16, color: Colors.white),
             const SizedBox(width: 6),
             Text(label,
-                style: _outfit(fontSize: 13, fontWeight: FontWeight.w600,
+                style: outfit(fontSize: 13, fontWeight: FontWeight.w600,
                     color: Colors.white)),
           ],
         ),

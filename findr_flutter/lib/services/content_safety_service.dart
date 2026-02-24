@@ -28,11 +28,13 @@ SafetyCheckResult checkQuerySafety(String query) {
   return const SafetyCheckResult.ok();
 }
 
+final RegExp _whitespace = RegExp(r'\s+');
+
 bool _matches(String query, String term) {
   if (term.startsWith('*') && term.endsWith('*')) {
     return query.contains(term.substring(1, term.length - 1));
   }
-  final words = query.split(RegExp(r'\s+'));
+  final words = query.split(_whitespace);
   if (words.contains(term)) return true;
   if (query.contains(term) && term.contains(' ')) return true;
   return false;
