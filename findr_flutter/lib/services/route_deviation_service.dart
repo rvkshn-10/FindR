@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import '../config.dart';
 import 'distance_util.dart';
@@ -48,7 +49,7 @@ Future<List<RoutePoint>?> fetchRouteWaypoints(
           (pair[1] as num).toDouble(), (pair[0] as num).toDouble());
     }).toList();
   } catch (e) {
-    print('[Wayvio] fetchRouteWaypoints error: $e');
+    debugPrint('[Wayvio] fetchRouteWaypoints error: $e');
     return null;
   }
 }

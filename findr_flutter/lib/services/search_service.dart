@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'distance_util.dart';
 import 'store_filters.dart';
 import 'nearby_stores_service.dart';
@@ -77,7 +78,7 @@ Future<SearchResult> searchFast({
   final serpFuture = fetchStoresFromGoogleMaps(
     item: item, lat: lat, lng: lng, maxDistanceKm: maxDistanceKm,
   ).catchError((e) {
-    print('[Wayvio] Google Maps search failed: $e');
+    debugPrint('[Wayvio] Google Maps search failed: $e');
     return null;
   });
 
@@ -85,7 +86,7 @@ Future<SearchResult> searchFast({
       ? fetchKrogerLocations(
           lat: lat, lng: lng, radiusMiles: (maxDistanceKm * 0.621371).ceil(),
         ).catchError((e) {
-          print('[Wayvio] Kroger Locations failed: $e');
+          debugPrint('[Wayvio] Kroger Locations failed: $e');
           return null;
         })
       : Future<List<KrogerLocation>?>.value(null);
@@ -93,21 +94,21 @@ Future<SearchResult> searchFast({
   final overpassFuture = fetchNearbyStores(
     lat, lng, radiusM: radiusM.toInt(), item: item,
   ).then((stores) {
-    print('[Wayvio] Overpass success: ${stores.length} stores');
+    debugPrint('[Wayvio] Overpass success: ${stores.length} stores');
     return stores;
   }).catchError((e, st) {
-    print('[Wayvio] Overpass FAILED: $e\n$st');
+    debugPrint('[Wayvio] Overpass FAILED: $e\n$st');
     return <OverpassStore>[];
   });
 
-  print('[Wayvio] searchFast: waiting for APIs (Overpass + SerpApi + Kroger)...');
+  debugPrint('[Wayvio] searchFast: waiting for APIs (Overpass + SerpApi + Kroger)...');
   final results = await Future.wait([serpFuture, krogerFuture, overpassFuture]);
-  print('[Wayvio] searchFast: all APIs returned');
+  debugPrint('[Wayvio] searchFast: all APIs returned');
   final gmStores = results[0] as List<OverpassStore>?;
   final krogerLocs = results[1] as List<KrogerLocation>?;
   final overpassStores = results[2] as List<OverpassStore>;
 
-  print('[Wayvio] SerpApi: ${gmStores?.length ?? "skipped"} | '
+  debugPrint('[Wayvio] SerpApi: ${gmStores?.length ?? "skipped"} | '
       'Kroger: ${krogerLocs?.length ?? "skipped"} | '
       'Overpass: ${overpassStores.length}');
 
