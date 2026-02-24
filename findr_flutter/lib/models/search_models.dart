@@ -26,6 +26,10 @@ class Store {
   final String? thumbnail;     // URL to store photo
   final List<String> serviceOptions; // e.g. ["In-store shopping", "Delivery"]
 
+  // Data-source confidence
+  final StoreConfidence confidence;
+  final Set<String> dataSources; // e.g. {"serpapi", "kroger", "overpass"}
+
   const Store({
     required this.id,
     required this.name,
@@ -48,6 +52,8 @@ class Store {
     this.priceLevel,
     this.thumbnail,
     this.serviceOptions = const [],
+    this.confidence = StoreConfidence.low,
+    this.dataSources = const {},
   });
 
   Store copyWith({
@@ -72,6 +78,8 @@ class Store {
     String? priceLevel,
     String? thumbnail,
     List<String>? serviceOptions,
+    StoreConfidence? confidence,
+    Set<String>? dataSources,
   }) {
     return Store(
       id: id ?? this.id,
@@ -95,6 +103,8 @@ class Store {
       priceLevel: priceLevel ?? this.priceLevel,
       thumbnail: thumbnail ?? this.thumbnail,
       serviceOptions: serviceOptions ?? this.serviceOptions,
+      confidence: confidence ?? this.confidence,
+      dataSources: dataSources ?? this.dataSources,
     );
   }
 }
@@ -146,20 +156,43 @@ class SearchResult {
   }
 }
 
+/// Confidence level for a store result based on data-source coverage.
+enum StoreConfidence { high, medium, low }
+
 /// Filters applied to search: quality tier, membership-only, specific store names.
 class SearchFilters {
   final String? qualityTier; // null or '' = All; 'Premium' | 'Standard' | 'Budget'
   final bool membershipsOnly;
   final List<String> storeNames; // empty = any; non-empty = only stores matching any
+  final String? sortHint;   // 'distance' | 'priceLow' | 'rating' — pre-set by scenario chips
+  final bool openNowOnly;
 
   const SearchFilters({
     this.qualityTier,
     this.membershipsOnly = false,
     this.storeNames = const [],
+    this.sortHint,
+    this.openNowOnly = false,
   });
 
   bool get hasFilters =>
       (qualityTier != null && qualityTier!.isNotEmpty) ||
       membershipsOnly ||
       storeNames.isNotEmpty;
+
+  SearchFilters copyWith({
+    String? qualityTier,
+    bool? membershipsOnly,
+    List<String>? storeNames,
+    String? sortHint,
+    bool? openNowOnly,
+  }) {
+    return SearchFilters(
+      qualityTier: qualityTier ?? this.qualityTier,
+      membershipsOnly: membershipsOnly ?? this.membershipsOnly,
+      storeNames: storeNames ?? this.storeNames,
+      sortHint: sortHint ?? this.sortHint,
+      openNowOnly: openNowOnly ?? this.openNowOnly,
+    );
+  }
 }

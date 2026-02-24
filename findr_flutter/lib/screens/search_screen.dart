@@ -49,11 +49,13 @@ const _kPlayStoreUrl = 'https://play.google.com/store/apps/details?id=com.wayvio
 class SearchScreen extends StatefulWidget {
   final void Function(SearchResultParams)? onSearchResult;
   final VoidCallback? onOpenProfile;
+  final VoidCallback? onOpenLists;
 
   const SearchScreen({
     super.key,
     this.onSearchResult,
     this.onOpenProfile,
+    this.onOpenLists,
   });
 
   @override
@@ -161,6 +163,11 @@ class _SearchScreenState extends State<SearchScreen> {
   final Set<String> _selectedStores = {};
   List<String> _recentSearches = [];
   bool _showOnboarding = false;
+  String? _activeScenario;
+  String? _sortHint;
+  bool _openNowOnly = false;
+  bool _onTheWayMode = false;
+  final _destinationController = TextEditingController();
 
   @override
   void initState() {
@@ -326,6 +333,7 @@ class _SearchScreenState extends State<SearchScreen> {
     _itemController.removeListener(_onSearchTextChanged);
     _itemController.dispose();
     _locationController.dispose();
+    _destinationController.dispose();
     super.dispose();
   }
 
@@ -454,6 +462,8 @@ class _SearchScreenState extends State<SearchScreen> {
         qualityTier: _qualityTier,
         membershipsOnly: _membershipsOnly,
         storeNames: _selectedStores.toList(),
+        sortHint: _sortHint,
+        openNowOnly: _openNowOnly,
       );
       if (!mounted) return;
       _saveRecentSearch(item);
@@ -469,6 +479,16 @@ class _SearchScreenState extends State<SearchScreen> {
         locationLabel: locationLabel,
       );
 
+      double? destLat;
+      double? destLng;
+      if (_onTheWayMode && _destinationController.text.trim().isNotEmpty) {
+        final destResult = await geocode(_destinationController.text.trim());
+        if (destResult != null) {
+          destLat = destResult.lat;
+          destLng = destResult.lng;
+        }
+      }
+
       print('[Wayvio] Navigating to results: item="$item", lat=$lat, lng=$lng, radius=$_maxDistanceMiles mi');
       final params = SearchResultParams(
         item: item,
@@ -476,6 +496,8 @@ class _SearchScreenState extends State<SearchScreen> {
         lng: lng,
         maxDistanceMiles: _maxDistanceMiles,
         filters: filters,
+        destLat: destLat,
+        destLng: destLng,
       );
       if (widget.onSearchResult != null) {
         widget.onSearchResult!(params);
@@ -676,6 +698,30 @@ class _SearchScreenState extends State<SearchScreen> {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
+                  // Lists button
+                  Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      color: ac.cardBg,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: ac.borderSubtle),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.04),
+                          blurRadius: 6,
+                          offset: const Offset(0, 1),
+                        ),
+                      ],
+                    ),
+                    child: IconButton(
+                      icon: Icon(Icons.checklist_outlined,
+                          color: ac.textSecondary, size: 20),
+                      tooltip: 'Shopping Lists',
+                      onPressed: widget.onOpenLists,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
                   // Profile button
                   Container(
                     width: 44,
@@ -768,7 +814,12 @@ class _SearchScreenState extends State<SearchScreen> {
                     ),
                   );
                 }),
-                const SizedBox(height: 36),
+                const SizedBox(height: 20),
+
+                // ── Scenario chips ──────────────────────────────────
+                _buildScenarioChips(),
+
+                const SizedBox(height: 20),
 
                 // ── Search bar (pill) ───────────────────────────────
                 _buildSearchBar(),
@@ -780,6 +831,10 @@ class _SearchScreenState extends State<SearchScreen> {
                 // ── Distance slider ──────────────────────────────
                 const SizedBox(height: 12),
                 _buildDistanceSlider(),
+
+                // ── On the way toggle ─────────────────────────────
+                const SizedBox(height: 12),
+                _buildOnTheWaySection(),
 
                 // ── Filters toggle ───────────────────────────────
                 const SizedBox(height: 12),
@@ -982,6 +1037,111 @@ class _SearchScreenState extends State<SearchScreen> {
           ),
         ),
       ],
+    );
+  }
+
+  // ── Scenario chips ─────────────────────────────────────────────────────
+  void _applyScenario(String name) {
+    setState(() {
+      if (_activeScenario == name) {
+        _activeScenario = null;
+        _sortHint = null;
+        _openNowOnly = false;
+        _qualityTier = null;
+        _maxDistanceMiles = 5;
+        return;
+      }
+      _activeScenario = name;
+      switch (name) {
+        case 'I need it now':
+          _maxDistanceMiles = 5;
+          _sortHint = 'distance';
+          _openNowOnly = true;
+          _qualityTier = null;
+          break;
+        case 'Cheapest nearby':
+          _maxDistanceMiles = 10;
+          _sortHint = 'priceLow';
+          _openNowOnly = false;
+          _qualityTier = 'Budget';
+          break;
+        case 'Open late':
+          _maxDistanceMiles = 8;
+          _sortHint = 'distance';
+          _openNowOnly = true;
+          _qualityTier = null;
+          break;
+        case 'Premium picks':
+          _maxDistanceMiles = 10;
+          _sortHint = 'rating';
+          _openNowOnly = false;
+          _qualityTier = 'Premium';
+          break;
+        case 'Quick run':
+          _maxDistanceMiles = 5;
+          _sortHint = 'distance';
+          _openNowOnly = false;
+          _qualityTier = null;
+          break;
+      }
+      _saveRadius(_maxDistanceMiles);
+    });
+  }
+
+  Widget _buildScenarioChips() {
+    final ac = AppColors.of(context);
+    const scenarios = [
+      {'name': 'I need it now', 'icon': Icons.bolt},
+      {'name': 'Cheapest nearby', 'icon': Icons.savings_outlined},
+      {'name': 'Open late', 'icon': Icons.nightlight_round},
+      {'name': 'Premium picks', 'icon': Icons.star_outline},
+      {'name': 'Quick run', 'icon': Icons.directions_run},
+    ];
+    return Container(
+      constraints: const BoxConstraints(maxWidth: 700),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          children: scenarios.map((s) {
+            final name = s['name'] as String;
+            final icon = s['icon'] as IconData;
+            final active = _activeScenario == name;
+            return Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: GestureDetector(
+                onTap: _loading ? null : () => _applyScenario(name),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: active ? ac.accentGreen : ac.glass,
+                    borderRadius: BorderRadius.circular(kRadiusPill),
+                    border: Border.all(
+                      color: active ? ac.accentGreen : ac.borderSubtle,
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(icon, size: 15,
+                          color: active ? Colors.white : ac.textSecondary),
+                      const SizedBox(width: 6),
+                      Text(
+                        name,
+                        style: _outfit(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: active ? Colors.white : ac.textPrimary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          }).toList(),
+        ),
+      ),
     );
   }
 
@@ -1196,6 +1356,96 @@ class _SearchScreenState extends State<SearchScreen> {
               ),
             ),
           ),
+        ],
+      ),
+    );
+  }
+
+  // ── On the way section ──────────────────────────────────────────────────
+  Widget _buildOnTheWaySection() {
+    final ac = AppColors.of(context);
+    return Container(
+      constraints: const BoxConstraints(maxWidth: 700),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          GestureDetector(
+            onTap: _loading
+                ? null
+                : () => setState(() => _onTheWayMode = !_onTheWayMode),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: Checkbox(
+                    value: _onTheWayMode,
+                    onChanged: _loading
+                        ? null
+                        : (v) =>
+                            setState(() => _onTheWayMode = v ?? false),
+                    side: BorderSide(color: ac.borderStrong),
+                    checkColor: Colors.white,
+                    fillColor: WidgetStateProperty.resolveWith((s) =>
+                        s.contains(WidgetState.selected)
+                            ? ac.accentGreen
+                            : Colors.transparent),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(4)),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Icon(Icons.route, size: 14,
+                    color: _onTheWayMode ? ac.accentGreen : ac.textTertiary),
+                const SizedBox(width: 4),
+                Text(
+                  'On my route',
+                  style: _outfit(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                    color: _onTheWayMode ? ac.accentGreen : ac.textSecondary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          if (_onTheWayMode) ...[
+            const SizedBox(height: 8),
+            Container(
+              decoration: BoxDecoration(
+                color: ac.inputBg,
+                borderRadius: BorderRadius.circular(kRadiusMd),
+                border: Border.all(color: ac.borderSubtle),
+              ),
+              child: TextField(
+                controller: _destinationController,
+                style: _outfit(fontSize: 14, color: ac.textPrimary),
+                decoration: InputDecoration(
+                  hintText: 'Destination (e.g. home address, work)',
+                  hintStyle: _outfit(fontSize: 14, color: ac.textTertiary),
+                  border: InputBorder.none,
+                  enabledBorder: InputBorder.none,
+                  focusedBorder: InputBorder.none,
+                  contentPadding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  prefixIcon: Icon(Icons.flag_outlined,
+                      color: ac.textTertiary, size: 18),
+                  filled: false,
+                ),
+                textInputAction: TextInputAction.search,
+                onSubmitted: (_) => _submit(),
+                enabled: !_loading,
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.only(top: 6, left: 4),
+              child: Text(
+                'Find stores slightly off your path',
+                style: _outfit(fontSize: 11, color: ac.textTertiary),
+              ),
+            ),
+          ],
         ],
       ),
     );

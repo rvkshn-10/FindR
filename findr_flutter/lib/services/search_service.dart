@@ -8,6 +8,17 @@ import 'road_distance_service.dart';
 import '../models/search_models.dart';
 import '../config.dart';
 
+StoreConfidence _computeConfidence(Set<String> sources, OverpassStore s) {
+  double score = 0;
+  if (sources.contains('serpapi')) score += 1;
+  if (sources.contains('kroger')) score += 1;
+  if (sources.contains('overpass')) score += 1;
+  if (s.rating != null && s.rating! >= 3.5) score += 0.5;
+  if (score >= 2.5) return StoreConfidence.high;
+  if (score >= 1.5) return StoreConfidence.medium;
+  return StoreConfidence.low;
+}
+
 bool _passesFilters(OverpassStore s, SearchFilters? filters) {
   if (filters == null || !filters.hasFilters) return true;
   if (filters.qualityTier != null && filters.qualityTier!.isNotEmpty) {
@@ -100,8 +111,14 @@ Future<SearchResult> searchFast({
       'Kroger: ${krogerLocs?.length ?? "skipped"} | '
       'Overpass: ${overpassStores.length}');
 
+  // Track which data sources contributed each store.
+  final Map<String, Set<String>> sourceMap = {};
+
   if (gmStores != null && gmStores.isNotEmpty) {
     allStores = gmStores;
+    for (final s in gmStores) {
+      sourceMap.putIfAbsent(s.id, () => {}).add('serpapi');
+    }
   }
 
   if (krogerLocs != null && krogerLocs.isNotEmpty) {
@@ -112,6 +129,7 @@ Future<SearchResult> searchFast({
           n.contains(ks.name.split(' - ').last.toLowerCase().trim()))) {
         allStores.add(ks);
       }
+      sourceMap.putIfAbsent(ks.id, () => {}).add('kroger');
     }
   }
 
@@ -122,9 +140,16 @@ Future<SearchResult> searchFast({
         if (dist > 0.1) return false;
         final eName = existing.name.toLowerCase();
         final oName = os.name.toLowerCase();
-        return eName.contains(oName) || oName.contains(eName);
+        if (eName.contains(oName) || oName.contains(eName)) {
+          sourceMap.putIfAbsent(existing.id, () => {}).add('overpass');
+          return true;
+        }
+        return false;
       });
-      if (!isDuplicate) allStores.add(os);
+      if (!isDuplicate) {
+        allStores.add(os);
+        sourceMap.putIfAbsent(os.id, () => {}).add('overpass');
+      }
     }
   }
 
@@ -150,7 +175,9 @@ Future<SearchResult> searchFast({
   final filtered = allStores.where((s) => _passesFilters(s, filters)).toList();
   final candidates = filtered
       .where((s) => s.distanceKm <= maxDistanceKm)
-      .map((s) => Store(
+      .map((s) {
+        final sources = sourceMap[s.id] ?? {};
+        return Store(
             id: s.id,
             name: s.name,
             lat: s.lat,
@@ -168,7 +195,10 @@ Future<SearchResult> searchFast({
             priceLevel: s.priceLevel,
             thumbnail: s.thumbnail,
             serviceOptions: s.serviceOptions,
-          ))
+            dataSources: sources,
+            confidence: _computeConfidence(sources, s),
+          );
+      })
       .toList()
     ..sort((a, b) => a.distanceKm.compareTo(b.distanceKm));
 

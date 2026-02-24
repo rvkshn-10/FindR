@@ -4,6 +4,7 @@ import '../widgets/design_system.dart';
 import 'profile_screen.dart';
 import 'results_screen.dart';
 import 'search_screen.dart';
+import 'shopping_list_screen.dart';
 
 /// Params for showing the results view (from search submit).
 class SearchResultParams {
@@ -12,6 +13,8 @@ class SearchResultParams {
   final double lng;
   final double maxDistanceMiles;
   final SearchFilters? filters;
+  final double? destLat;
+  final double? destLng;
 
   const SearchResultParams({
     required this.item,
@@ -19,7 +22,11 @@ class SearchResultParams {
     required this.lng,
     required this.maxDistanceMiles,
     this.filters,
+    this.destLat,
+    this.destLng,
   });
+
+  bool get hasDestination => destLat != null && destLng != null;
 }
 
 /// Shell: gradient background stays fixed, search/results/profile animate.
@@ -30,7 +37,7 @@ class SupplyMapShell extends StatefulWidget {
   State<SupplyMapShell> createState() => _SupplyMapShellState();
 }
 
-enum _Page { search, results, profile }
+enum _Page { search, results, profile, lists }
 
 class _SupplyMapShellState extends State<SupplyMapShell> {
   _Page _currentPage = _Page.search;
@@ -52,6 +59,10 @@ class _SupplyMapShellState extends State<SupplyMapShell> {
 
   void _openProfile() {
     setState(() => _currentPage = _Page.profile);
+  }
+
+  void _openLists() {
+    setState(() => _currentPage = _Page.lists);
   }
 
   void _searchAgain(String item) {
@@ -110,6 +121,7 @@ class _SupplyMapShellState extends State<SupplyMapShell> {
           child: SearchScreen(
             onSearchResult: _onSearchResult,
             onOpenProfile: _openProfile,
+            onOpenLists: _openLists,
           ),
         );
       case _Page.results:
@@ -132,6 +144,8 @@ class _SupplyMapShellState extends State<SupplyMapShell> {
             maxDistanceMiles: params.maxDistanceMiles,
             filters: params.filters,
             onNewSearch: _onNewSearch,
+            destLat: params.destLat,
+            destLng: params.destLng,
           ),
         );
       case _Page.profile:
@@ -140,6 +154,18 @@ class _SupplyMapShellState extends State<SupplyMapShell> {
           child: ProfileScreen(
             onBack: _onNewSearch,
             onSearchAgain: _searchAgain,
+          ),
+        );
+      case _Page.lists:
+        return KeyedSubtree(
+          key: const ValueKey<String>('lists'),
+          child: ShoppingListScreen(
+            onBack: _onNewSearch,
+            onSearchItem: (item) {
+              _onSearchResult(SearchResultParams(
+                item: item, lat: 0, lng: 0, maxDistanceMiles: 10,
+              ));
+            },
           ),
         );
     }

@@ -315,3 +315,142 @@ Future<void> saveStoreNote(String storeId, String note) async {
     debugPrint('[Wayvio] LocalStorage: saveStoreNote failed: $e');
   }
 }
+
+// ---------------------------------------------------------------------------
+// Store items tracking (common items people search at each store)
+// ---------------------------------------------------------------------------
+
+const _kStoreItems = 'findr_store_items';
+
+Future<List<String>> getStoreItems(String storeId) async {
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(_kStoreItems);
+    if (raw == null) return [];
+    final map = jsonDecode(raw) as Map<String, dynamic>;
+    return (map[storeId] as List<dynamic>?)?.cast<String>() ?? [];
+  } catch (e) {
+    debugPrint('[Wayvio] getStoreItems failed: $e');
+    return [];
+  }
+}
+
+Future<void> trackStoreItem(String storeId, String item) async {
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(_kStoreItems);
+    final map = raw != null
+        ? (jsonDecode(raw) as Map<String, dynamic>)
+        : <String, dynamic>{};
+    final items = (map[storeId] as List<dynamic>?)?.cast<String>() ?? [];
+    final lower = item.toLowerCase();
+    if (!items.any((i) => i.toLowerCase() == lower)) {
+      items.insert(0, item);
+      if (items.length > 20) items.removeRange(20, items.length);
+    }
+    map[storeId] = items;
+    await prefs.setString(_kStoreItems, jsonEncode(map));
+  } catch (e) {
+    debugPrint('[Wayvio] trackStoreItem failed: $e');
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Micro-reviews (local user ratings per store)
+// ---------------------------------------------------------------------------
+
+const _kReviews = 'findr_store_reviews';
+
+Future<Map<String, dynamic>?> getStoreReview(String storeId) async {
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(_kReviews);
+    if (raw == null) return null;
+    final map = jsonDecode(raw) as Map<String, dynamic>;
+    return map[storeId] as Map<String, dynamic>?;
+  } catch (e) {
+    debugPrint('[Wayvio] getStoreReview failed: $e');
+    return null;
+  }
+}
+
+Future<void> saveStoreReview(
+    String storeId, int availability, int speed, int parking) async {
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(_kReviews);
+    final map = raw != null
+        ? (jsonDecode(raw) as Map<String, dynamic>)
+        : <String, dynamic>{};
+    map[storeId] = {
+      'availability': availability,
+      'speed': speed,
+      'parking': parking,
+      'userId': 'local',
+      'timestamp': DateTime.now().millisecondsSinceEpoch,
+    };
+    await prefs.setString(_kReviews, jsonEncode(map));
+  } catch (e) {
+    debugPrint('[Wayvio] saveStoreReview failed: $e');
+  }
+}
+
+Future<Map<String, Map<String, dynamic>>> getAllStoreReviews() async {
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(_kReviews);
+    if (raw == null) return {};
+    final map = jsonDecode(raw) as Map<String, dynamic>;
+    return map.map((k, v) => MapEntry(k, v as Map<String, dynamic>));
+  } catch (e) {
+    debugPrint('[Wayvio] getAllStoreReviews failed: $e');
+    return {};
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Shopping lists
+// ---------------------------------------------------------------------------
+
+const _kShoppingLists = 'findr_shopping_lists';
+
+Future<List<Map<String, dynamic>>> getShoppingLists() async {
+  return _readList(_kShoppingLists);
+}
+
+Future<void> saveShoppingLists(List<Map<String, dynamic>> lists) async {
+  await _writeList(_kShoppingLists, lists);
+}
+
+// ---------------------------------------------------------------------------
+// Saved locations (home / work for "On the way" routing)
+// ---------------------------------------------------------------------------
+
+const _kSavedLocations = 'findr_saved_locations';
+
+Future<Map<String, dynamic>> getSavedLocations() async {
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(_kSavedLocations);
+    if (raw == null) return {};
+    return jsonDecode(raw) as Map<String, dynamic>;
+  } catch (e) {
+    debugPrint('[Wayvio] getSavedLocations failed: $e');
+    return {};
+  }
+}
+
+Future<void> saveSavedLocation(
+    String key, double lat, double lng, String label) async {
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(_kSavedLocations);
+    final map = raw != null
+        ? (jsonDecode(raw) as Map<String, dynamic>)
+        : <String, dynamic>{};
+    map[key] = {'lat': lat, 'lng': lng, 'label': label};
+    await prefs.setString(_kSavedLocations, jsonEncode(map));
+  } catch (e) {
+    debugPrint('[Wayvio] saveSavedLocation failed: $e');
+  }
+}

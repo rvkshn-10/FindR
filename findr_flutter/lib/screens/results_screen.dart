@@ -19,6 +19,8 @@ import '../widgets/design_system.dart';
 import '../widgets/settings_panel.dart';
 import '../config.dart';
 import '../version.dart';
+import 'store_detail_screen.dart';
+import '../services/route_deviation_service.dart';
 
 // ---------------------------------------------------------------------------
 // Card style enum – matches the HTML design card variants
@@ -270,6 +272,8 @@ Map<String, dynamic> _storeToMap(Store s) {
     'priceLevel': s.priceLevel,
     'thumbnail': s.thumbnail,
     'serviceOptions': s.serviceOptions,
+    'confidence': s.confidence.name,
+    'dataSources': s.dataSources.toList(),
   };
 }
 
@@ -300,6 +304,13 @@ Store _mapToStore(Map<String, dynamic> m) {
             ?.map((e) => e.toString())
             .toList() ??
         [],
+    confidence: StoreConfidence.values.firstWhere(
+        (e) => e.name == (m['confidence'] as String? ?? ''),
+        orElse: () => StoreConfidence.low),
+    dataSources: (m['dataSources'] as List<dynamic>?)
+            ?.map((e) => e.toString())
+            .toSet() ??
+        {},
   );
 }
 
@@ -314,6 +325,8 @@ class ResultsScreen extends StatefulWidget {
   final double maxDistanceMiles;
   final SearchFilters? filters;
   final VoidCallback? onNewSearch;
+  final double? destLat;
+  final double? destLng;
 
   const ResultsScreen({
     super.key,
@@ -323,7 +336,11 @@ class ResultsScreen extends StatefulWidget {
     required this.maxDistanceMiles,
     this.filters,
     this.onNewSearch,
+    this.destLat,
+    this.destLng,
   });
+
+  bool get hasDestination => destLat != null && destLng != null;
 
   @override
   State<ResultsScreen> createState() => _ResultsScreenState();
@@ -357,6 +374,11 @@ class _ResultsScreenState extends State<ResultsScreen> {
   }
 
   Future<void> _loadSavedSortPreference() async {
+    final hint = widget.filters?.sortHint;
+    if (hint != null && hint.isNotEmpty) {
+      if (mounted) setState(() => _sortMode = _sortModeFromString(hint));
+      return;
+    }
     final prefs = await SharedPreferences.getInstance();
     final saved = prefs.getString(_kSortPreferenceKey);
     if (saved != null && mounted) {
@@ -494,6 +516,37 @@ class _ResultsScreenState extends State<ResultsScreen> {
           lat: widget.lat,
           lng: widget.lng,
         );
+
+        // "On the way" route deviation: re-sort by detour if destination given.
+        if (widget.hasDestination && storesWithPrices.isNotEmpty) {
+          final deviations = await evaluateStoresOnRoute(
+            originLat: widget.lat,
+            originLng: widget.lng,
+            destLat: widget.destLat!,
+            destLng: widget.destLng!,
+            stores: storesWithPrices
+                .map((s) => (id: s.id, lat: s.lat, lng: s.lng))
+                .toList(),
+          ).catchError((_) => <DeviationResult>[]);
+          if (mounted && gen == _loadGeneration && deviations.isNotEmpty) {
+            final devMap = {for (final d in deviations) d.storeId: d};
+            final onRoute = storesWithPrices
+                .where((s) => devMap.containsKey(s.id))
+                .toList()
+              ..sort((a, b) =>
+                  (devMap[a.id]!.detourMinutes)
+                      .compareTo(devMap[b.id]!.detourMinutes));
+            if (onRoute.isNotEmpty) {
+              setState(() {
+                _result = _result!.copyWith(
+                  stores: onRoute,
+                  summary:
+                      '${onRoute.length} stores on your route (sorted by detour time)',
+                );
+              });
+            }
+          }
+        }
       }
     } catch (e) {
       if (!mounted) return;
@@ -613,6 +666,8 @@ class _ResultsScreenState extends State<ResultsScreen> {
   void _onSelectStore(Store store) {
     setState(() => _selectedStoreId = store.id);
     _mapController.move(LatLng(store.lat, store.lng), kMapSelectZoom);
+    db.trackStoreItem(store.id, _currentItem);
+    showStoreDetailSheet(context, store: store, searchItem: _currentItem);
   }
 
   void _fitMapToClosestStores(List<Store> stores) {
@@ -2309,6 +2364,35 @@ class _ResultCardState extends State<_ResultCard> {
                         ),
                       ),
                     ],
+                  ],
+                ),
+              ],
+              // Confidence badge
+              if (widget.store.confidence != StoreConfidence.low) ...[
+                const SizedBox(height: 4),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 6, height: 6,
+                      decoration: BoxDecoration(
+                        color: widget.store.confidence == StoreConfidence.high
+                            ? ac.accentGreen
+                            : const Color(0xFFE8B730),
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      widget.store.confidence == StoreConfidence.high
+                          ? 'High confidence'
+                          : 'Medium confidence',
+                      style: _outfit(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w500,
+                        color: fg.withValues(alpha: 0.6),
+                      ),
+                    ),
                   ],
                 ),
               ],
