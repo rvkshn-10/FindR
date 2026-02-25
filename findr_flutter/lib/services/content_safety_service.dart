@@ -205,4 +205,88 @@ const List<_BlockedCategory> _blockedPatterns = [
       'hire a killer', 'assassin for hire',
     ],
   ),
+
+  // ── Body parts / organ trafficking ──
+  _BlockedCategory(
+    'Searches related to organ trafficking are not allowed.',
+    [
+      'buy organ', 'sell organ',
+      'buy kidney', 'sell kidney',
+      'buy liver', 'black market organ',
+      'organ trafficking',
+      'human organs for sale',
+      '*buy body parts*', '*sell body parts*',
+    ],
+  ),
+
+  // ── NSFW / sexually explicit ──
+  _BlockedCategory(
+    'Adult content searches are not allowed.',
+    [
+      'porn', 'pornography', 'xxx',
+      'sex toy', 'sex toys',
+      'dildo', 'vibrator', 'fleshlight',
+      'escort', 'escorts', 'escort service',
+      'prostitute', 'prostitution',
+      'brothel', 'strip club', 'stripper',
+      'call girl', 'hooker',
+      '*buy sex*', '*sexual services*',
+      'onlyfans',
+    ],
+  ),
+
+  // ── Racial slurs / hate speech ──
+  _BlockedCategory(
+    'Hate speech and slurs are not allowed.',
+    [
+      'nigger', 'nigga',
+      'faggot',
+      'kike', 'spic', 'chink',
+      'wetback', 'raghead',
+      'tranny', 'retard',
+      '*white power*', '*white supremacy*',
+      '*heil hitler*', '*nazi*',
+      'kkk', 'ku klux',
+    ],
+  ),
+
+  // ── Child exploitation ──
+  _BlockedCategory(
+    'This type of search is strictly prohibited.',
+    [
+      'child porn', 'child pornography',
+      'cp', 'underage', 'minor sex',
+      'pedo', 'pedophile', 'pedophilia',
+      '*child abuse*', '*underage sex*',
+      'lolicon', 'jailbait',
+    ],
+  ),
+
+  // ── Hacking / cybercrime ──
+  _BlockedCategory(
+    'Searches for hacking tools or cybercrime are not allowed.',
+    [
+      'ransomware', 'malware', 'keylogger',
+      'spyware', 'phishing kit',
+      'ddos service', 'botnet',
+      'zero day exploit',
+      '*how to hack*', '*hack someone*',
+      'dark web', 'darknet market',
+      'tor drugs',
+    ],
+  ),
+
+  // ── Animal cruelty ──
+  _BlockedCategory(
+    'Searches related to animal cruelty are not allowed.',
+    [
+      'dog fighting', 'cockfighting',
+      'animal crush',
+      '*how to poison a dog*',
+      '*how to poison a cat*',
+      '*how to kill a dog*',
+      '*how to kill a cat*',
+      'animal abuse',
+    ],
+  ),
 ];
