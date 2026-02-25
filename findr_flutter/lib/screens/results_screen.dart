@@ -1278,10 +1278,10 @@ class _ResultsScreenState extends State<ResultsScreen> {
             ),
           ),
         ),
-        // Settings gear – pinned top-left (next to back button on narrow)
+        // Settings gear – pinned top-left (snug after back button on narrow)
         Positioned(
           top: MediaQuery.of(context).padding.top + 8,
-          left: 68,
+          left: screenW >= 500 ? 12 : 64,
           child: Container(
             width: 44,
             height: 44,
