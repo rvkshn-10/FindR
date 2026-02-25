@@ -5,16 +5,15 @@ import '../config.dart';
 import '../services/firestore_service.dart' as db;
 import '../widgets/design_system.dart';
 
-final RegExp _jsonFenceStart = RegExp(r'^```json\s*', multiLine: true);
-final RegExp _fenceEnd = RegExp(r'^```\s*', multiLine: true);
+final RegExp _jsonFence = RegExp(r'```(?:json)?\s*', multiLine: true);
 
 GenerativeModel? _recsModel;
-GenerativeModel get _getSummaryModelForRecs => _recsModel ??= GenerativeModel(
-      model: 'gemini-2.0-flash',
+GenerativeModel get _getRecsModel => _recsModel ??= GenerativeModel(
+      model: 'gemini-2.0-flash-lite',
       apiKey: kGeminiApiKey,
       generationConfig: GenerationConfig(
-        temperature: 0.7,
-        maxOutputTokens: 500,
+        temperature: 0.4,
+        maxOutputTokens: 300,
       ),
     );
 
@@ -85,27 +84,19 @@ class _ProfileScreenState extends State<ProfileScreen>
         _favorites.take(5).map((f) => f['storeName'] as String? ?? '').toList();
 
     final prompt =
-        'Based on this user\'s search history and favorite stores, '
-        'generate 3 personalized shopping recommendations.\n\n'
-        'Recent searches: ${searchItems.join(', ')}\n'
-        'Favorite stores: ${favStores.join(', ')}\n\n'
-        'For each recommendation, suggest a product/category they might search '
-        'for next, why it\'s relevant, and a deal tip.\n\n'
-        'Return ONLY valid JSON array:\n'
-        '[{"title":"Search suggestion","content":"Why and what to look for",'
-        '"basedOn":"Based on your searches for X"}]';
+        'Searches: ${searchItems.join(', ')}\n'
+        'Fav stores: ${favStores.join(', ')}\n'
+        'Give 3 product recommendations as JSON array. '
+        'Each: {"title":"item","content":"why","basedOn":"based on X"}';
 
     try {
-      final response = await _getSummaryModelForRecs
+      final response = await _getRecsModel
           .generateContent([Content.text(prompt)])
-          .timeout(const Duration(seconds: 12));
+          .timeout(kAiTimeout);
 
       final text = response.text?.trim();
       if (text != null && text.isNotEmpty) {
-        final cleaned = text
-            .replaceAll(_jsonFenceStart, '')
-            .replaceAll(_fenceEnd, '')
-            .trim();
+        final cleaned = text.replaceAll(_jsonFence, '').trim();
 
         final decoded = jsonDecode(cleaned);
         if (decoded is List) {
@@ -800,8 +791,10 @@ class _RecommendationCard extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            colors: [Color(0xFFF0F7F3), Color(0xFFEDF5F0)],
+          gradient: LinearGradient(
+            colors: ac.isDark
+                ? [const Color(0xFF1A2E22), const Color(0xFF1C2D23)]
+                : [const Color(0xFFF0F7F3), const Color(0xFFEDF5F0)],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),

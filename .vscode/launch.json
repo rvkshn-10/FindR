@@ -1,6 +1,7 @@
 {
   "version": "0.2.0",
   "configurations": [
+    
     {
       "name": "Flutter (Web - localhost:1129)",
       "request": "launch",
