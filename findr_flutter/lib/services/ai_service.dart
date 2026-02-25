@@ -3,34 +3,22 @@ import 'package:flutter/foundation.dart';
 import 'package:google_generative_ai/google_generative_ai.dart';
 import '../config.dart';
 
-final RegExp _jsonFenceStart = RegExp(r'^```json\s*', multiLine: true);
-final RegExp _fenceEnd = RegExp(r'^```\s*', multiLine: true);
+final RegExp _jsonFence = RegExp(r'```(?:json)?\s*', multiLine: true);
 
-/// Singleton-ish Gemini model instance (lazy).
 GenerativeModel? _summaryModel;
 
 GenerativeModel get _getSummaryModel => _summaryModel ??= GenerativeModel(
-      model: 'gemini-2.0-flash',
+      model: 'gemini-2.0-flash-lite',
       apiKey: kGeminiApiKey,
       generationConfig: GenerationConfig(
-        temperature: 0.6,
-        maxOutputTokens: 400,
+        temperature: 0.3,
+        maxOutputTokens: 200,
       ),
     );
 
-// ---------------------------------------------------------------------------
-// AI result summary: analyze stores and generate a recommendation
-// ---------------------------------------------------------------------------
-
-/// AI-generated analysis of search results.
 class AiResultSummary {
-  /// Short 1-2 sentence recommendation.
   final String recommendation;
-
-  /// Why the top pick is recommended.
   final String reasoning;
-
-  /// Optional tips (e.g., "Call ahead to check stock").
   final List<String> tips;
 
   const AiResultSummary({
@@ -40,7 +28,8 @@ class AiResultSummary {
   });
 }
 
-/// Ask Gemini to analyze the search results and give a smart recommendation.
+/// Ask Gemini to pick the best store from search results.
+/// Uses flash-lite with a minimal prompt to keep token usage low.
 Future<AiResultSummary?> generateResultSummary({
   required String query,
   required List<Map<String, dynamic>> storeData,
@@ -48,20 +37,19 @@ Future<AiResultSummary?> generateResultSummary({
   if (storeData.isEmpty) return null;
 
   try {
-    final storesJson = jsonEncode(storeData.take(6).toList());
-    final prompt = '''You are Wayvio's AI assistant. The user searched for "$query" and found these nearby stores:
+    final compact = storeData.take(4).map((s) => {
+      'n': s['name'],
+      'd': s['distanceKm'],
+      'r': s['rating'],
+      'rc': s['reviewCount'],
+      'p': s['priceLevel'],
+      't': s['shopType'],
+    }).toList();
 
-$storesJson
-
-Each store has: name, distanceKm, durationMinutes (drive time, may be null), address, openingHours (may be null), brand, rating (Google rating 1-5, may be null), reviewCount (number of Google reviews, may be null), priceLevel ("\$", "\$\$", "\$\$\$", may be null), shopType (store category), serviceOptions (list like ["In-store shopping", "Delivery", "Curbside pickup"]).
-
-Analyze these results considering distance, ratings, store type relevance, price level, and service options. Provide:
-1. A short (1-2 sentence) recommendation for the user — which store should they go to and why. Factor in ratings, store type, and distance.
-2. Brief reasoning (1 sentence) explaining why this is the best pick
-3. 1-2 practical tips (e.g., "Call ahead to confirm stock", "This store has great reviews")
-
-IMPORTANT: Return ONLY valid JSON, no markdown. Use this exact format:
-{"recommendation":"Go to [Store] — it's [distance] away with [rating] stars and likely has [item].","reasoning":"[Store] is a [type] that typically stocks [category] and has strong reviews.","tips":["Call ahead to confirm availability","Consider [Store2] as a backup"]}''';
+    final prompt = 'User wants "$query". Nearby stores: ${jsonEncode(compact)}\n'
+        'Keys: n=name,d=distanceKm,r=rating(1-5),rc=reviews,p=priceLevel,t=type.\n'
+        'Pick the best store. Return ONLY JSON: '
+        '{"recommendation":"1-2 sentences","reasoning":"1 sentence","tips":["1 tip"]}';
 
     final response = await _getSummaryModel
         .generateContent([Content.text(prompt)])
@@ -70,11 +58,7 @@ IMPORTANT: Return ONLY valid JSON, no markdown. Use this exact format:
     final text = response.text?.trim();
     if (text == null || text.isEmpty) return null;
 
-    final cleaned = text
-        .replaceAll(_jsonFenceStart, '')
-        .replaceAll(_fenceEnd, '')
-        .trim();
-
+    final cleaned = text.replaceAll(_jsonFence, '').trim();
     final json = jsonDecode(cleaned) as Map<String, dynamic>;
     return AiResultSummary(
       recommendation:
@@ -86,7 +70,7 @@ IMPORTANT: Return ONLY valid JSON, no markdown. Use this exact format:
           [],
     );
   } catch (e) {
-    debugPrint('[Wayvio] AI summary generation failed: $e');
+    debugPrint('[Wayvio] AI summary failed: $e');
     return null;
   }
 }

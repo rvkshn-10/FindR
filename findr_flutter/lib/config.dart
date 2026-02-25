@@ -54,7 +54,7 @@ const double kMapSelectZoom = 17.5;
 // ---------------------------------------------------------------------------
 
 const String kGeminiApiKey = 'AIzaSyBtmZKzv2ZSBuXv4PHcVHbKHxxBfGUrZtw';
-const Duration kAiTimeout = Duration(seconds: 10);
+const Duration kAiTimeout = Duration(seconds: 8);
 
 // ---------------------------------------------------------------------------
 // SerpApi (Google Shopping prices)

@@ -433,18 +433,13 @@ class _ResultsScreenState extends State<ResultsScreen> {
 
         final aiFuture = generateResultSummary(
           query: _currentItem,
-          storeData: fastResult.stores.take(6).map((s) => {
+          storeData: fastResult.stores.take(4).map((s) => {
             'name': s.name,
             'distanceKm': s.distanceKm,
-            'durationMinutes': s.durationMinutes,
-            'address': s.address,
-            'openingHours': s.openingHours,
-            'brand': s.brand,
             'rating': s.rating,
             'reviewCount': s.reviewCount,
             'priceLevel': s.priceLevel,
             'shopType': s.shopType,
-            'serviceOptions': s.serviceOptions,
           }).toList(),
         );
 
