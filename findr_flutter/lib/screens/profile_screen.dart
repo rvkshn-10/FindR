@@ -4,6 +4,7 @@ import 'package:google_generative_ai/google_generative_ai.dart';
 import '../config.dart';
 import '../services/firestore_service.dart' as db;
 import '../widgets/design_system.dart';
+import 'app_shell.dart' show SearchResultParams;
 
 final RegExp _jsonFence = RegExp(r'```(?:json)?\s*', multiLine: true);
 
@@ -20,7 +21,7 @@ GenerativeModel get _getRecsModel => _recsModel ??= GenerativeModel(
 /// Profile screen – shows user info, search history, favorites, AI recs.
 class ProfileScreen extends StatefulWidget {
   final VoidCallback? onBack;
-  final void Function(String item)? onSearchAgain;
+  final void Function(SearchResultParams params)? onSearchAgain;
 
   const ProfileScreen({
     super.key,
@@ -371,7 +372,16 @@ class _ProfileScreenState extends State<ProfileScreen>
                 location: location,
                 resultCount: count,
                 timeLabel: timeLabel,
-                onTap: () => widget.onSearchAgain?.call(item),
+                onTap: () {
+                  final lat = (search['lat'] as num?)?.toDouble() ?? 0.0;
+                  final lng = (search['lng'] as num?)?.toDouble() ?? 0.0;
+                  widget.onSearchAgain?.call(SearchResultParams(
+                    item: item,
+                    lat: lat,
+                    lng: lng,
+                    maxDistanceMiles: 10,
+                  ));
+                },
                 onDelete: () async {
                   final id = search['id'] as String?;
                   if (id != null) {
@@ -423,8 +433,17 @@ class _ProfileScreenState extends State<ProfileScreen>
           rating: (fav['rating'] as num?)?.toDouble(),
           shopType: fav['shopType'] as String?,
           thumbnail: fav['thumbnail'] as String?,
-          onTap: () =>
-              widget.onSearchAgain?.call(fav['searchItem'] as String? ?? ''),
+          onTap: () {
+              final favLat = (fav['lat'] as num?)?.toDouble() ?? 0.0;
+              final favLng = (fav['lng'] as num?)?.toDouble() ?? 0.0;
+              final favItem = fav['searchItem'] as String? ?? '';
+              widget.onSearchAgain?.call(SearchResultParams(
+                item: favItem,
+                lat: favLat,
+                lng: favLng,
+                maxDistanceMiles: 10,
+              ));
+            },
           onRemove: () async {
             final storeId = fav['storeId'] as String? ?? '';
             await db.removeFavorite(storeId);
@@ -528,7 +547,12 @@ class _ProfileScreenState extends State<ProfileScreen>
                       onTap: () {
                         final title = rec['title'] as String? ?? '';
                         if (title.isNotEmpty) {
-                          widget.onSearchAgain?.call(title);
+                          widget.onSearchAgain?.call(SearchResultParams(
+                            item: title,
+                            lat: 0,
+                            lng: 0,
+                            maxDistanceMiles: 10,
+                          ));
                         }
                       },
                     );

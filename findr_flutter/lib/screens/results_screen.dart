@@ -406,6 +406,7 @@ class _ResultsScreenState extends State<ResultsScreen> {
         _result = fastResult;
         _loading = false;
       });
+      db.updateSearchResultCount(_currentItem, fastResult.stores.length);
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
         _fitMapToClosestStores(fastResult.stores);

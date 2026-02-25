@@ -65,11 +65,8 @@ class _SupplyMapShellState extends State<SupplyMapShell> {
     setState(() => _currentPage = _Page.lists);
   }
 
-  void _searchAgain(String item) {
-    setState(() {
-      _resultParams = null;
-      _currentPage = _Page.search;
-    });
+  void _searchAgain(SearchResultParams params) {
+    _onSearchResult(params);
   }
 
   @override

@@ -107,6 +107,20 @@ Future<void> deleteSearch(String docId) async {
   }
 }
 
+/// Update the result count for the most recent search matching [item].
+Future<void> updateSearchResultCount(String item, int count) async {
+  try {
+    final list = await _readList(_kSearches);
+    final idx = list.indexWhere((e) => e['item'] == item);
+    if (idx == -1) return;
+    list[idx]['resultCount'] = count;
+    await _writeList(_kSearches, list);
+    debugPrint('LocalStorage: updated resultCount for "$item" to $count');
+  } catch (e) {
+    debugPrint('[Wayvio] LocalStorage: updateSearchResultCount failed: $e');
+  }
+}
+
 /// Clear all search history.
 Future<void> clearSearchHistory() async {
   try {
