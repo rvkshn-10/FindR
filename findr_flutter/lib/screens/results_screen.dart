@@ -1067,9 +1067,9 @@ class _ResultsScreenState extends State<ResultsScreen> {
                               ),
                             // Feature 1: Price comparison banner
                             if (_sortMode == SortMode.priceLow)
-                              SliverToBoxAdapter(
+                              const SliverToBoxAdapter(
                                 child: Padding(
-                                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+                                  padding: EdgeInsets.fromLTRB(16, 0, 16, 10),
                                   child: _PriceComparisonBanner(),
                                 ),
                               ),
@@ -2082,8 +2082,8 @@ class _SidebarState extends State<_Sidebar> {
                 ),
               // Feature 1: Price comparison banner (sidebar)
               if (widget.sortMode == SortMode.priceLow)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 10),
+                const Padding(
+                  padding: EdgeInsets.only(bottom: 10),
                   child: _PriceComparisonBanner(),
                 ),
               // Results list
