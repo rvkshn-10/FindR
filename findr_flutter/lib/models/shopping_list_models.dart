@@ -47,6 +47,7 @@ class ShoppingList {
   List<ShoppingItem> items;
   final DateTime createdAt;
   DateTime updatedAt;
+  bool repeatWeekly;
 
   ShoppingList({
     String? id,
@@ -54,6 +55,7 @@ class ShoppingList {
     List<ShoppingItem>? items,
     DateTime? createdAt,
     DateTime? updatedAt,
+    this.repeatWeekly = false,
   })  : id = id ?? _randomId(),
         items = items ?? [],
         createdAt = createdAt ?? DateTime.now(),
@@ -65,6 +67,7 @@ class ShoppingList {
         'items': items.map((i) => i.toJson()).toList(),
         'createdAt': createdAt.millisecondsSinceEpoch,
         'updatedAt': updatedAt.millisecondsSinceEpoch,
+        'repeatWeekly': repeatWeekly,
       };
 
   factory ShoppingList.fromJson(Map<String, dynamic> m) => ShoppingList(
@@ -78,6 +81,7 @@ class ShoppingList {
             m['createdAt'] as int? ?? DateTime.now().millisecondsSinceEpoch),
         updatedAt: DateTime.fromMillisecondsSinceEpoch(
             m['updatedAt'] as int? ?? DateTime.now().millisecondsSinceEpoch),
+        repeatWeekly: m['repeatWeekly'] as bool? ?? false,
       );
 
   double get totalEstimate => items.fold<double>(

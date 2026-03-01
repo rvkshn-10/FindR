@@ -345,6 +345,14 @@ class _ResultsScreenState extends State<ResultsScreen> {
   SortMode _sortMode = SortMode.distance;
   int _loadGeneration = 0;
   late TextEditingController _mobileSearchController;
+  List<String> _relatedSuggestions = [];
+
+  // Feature 2: Store comparison
+  final Set<String> _compareIds = {};
+
+  // Feature 4: Route visualization
+  List<RoutePoint>? _routePoints;
+  Map<String, DeviationResult> _deviationMap = {};
 
   @override
   void initState() {
@@ -488,6 +496,13 @@ class _ResultsScreenState extends State<ResultsScreen> {
           _priceData = prices;
           _pricesLoading = false;
         });
+        _loadRelatedSuggestions();
+        // Save price snapshots for price history tracking
+        for (final s in storesWithPrices) {
+          if (s.price != null) {
+            db.savePriceSnapshot(s.id, _currentItem, s.price!);
+          }
+        }
         db.cacheSearchResults(
           query: _currentItem,
           stores: storesWithPrices.map(_storeToMap).toList(),
@@ -495,8 +510,15 @@ class _ResultsScreenState extends State<ResultsScreen> {
           lng: widget.lng,
         );
 
-        // "On the way" route deviation: re-sort by detour if destination given.
+        // Feature 4: Fetch route waypoints for polyline + deviation badges
         if (widget.hasDestination && storesWithPrices.isNotEmpty) {
+          final routePts = await fetchRouteWaypoints(
+            widget.lat, widget.lng, widget.destLat!, widget.destLng!,
+          ).catchError((_) => null);
+          if (mounted && gen == _loadGeneration && routePts != null) {
+            setState(() => _routePoints = routePts);
+          }
+
           final deviations = await evaluateStoresOnRoute(
             originLat: widget.lat,
             originLng: widget.lng,
@@ -508,6 +530,7 @@ class _ResultsScreenState extends State<ResultsScreen> {
           ).catchError((_) => <DeviationResult>[]);
           if (mounted && gen == _loadGeneration && deviations.isNotEmpty) {
             final devMap = {for (final d in deviations) d.storeId: d};
+            setState(() => _deviationMap = devMap);
             final onRoute = storesWithPrices
                 .where((s) => devMap.containsKey(s.id))
                 .toList()
@@ -563,6 +586,15 @@ class _ResultsScreenState extends State<ResultsScreen> {
     });
   }
 
+  Future<void> _loadRelatedSuggestions() async {
+    try {
+      final suggestions = await generateRelatedSuggestions(_currentItem);
+      if (mounted) {
+        setState(() => _relatedSuggestions = suggestions);
+      }
+    } catch (_) {}
+  }
+
   void _reSearch(String newItem) {
     if (newItem.trim().isEmpty) return;
     final safety = checkQuerySafety(newItem);
@@ -586,6 +618,10 @@ class _ResultsScreenState extends State<ResultsScreen> {
       _aiLoading = false;
       _priceData = null;
       _pricesLoading = false;
+      _compareIds.clear();
+      _routePoints = null;
+      _deviationMap = {};
+      _relatedSuggestions = [];
     });
     _load();
   }
@@ -689,6 +725,22 @@ class _ResultsScreenState extends State<ResultsScreen> {
     }
     return sorted;
   }
+
+  // -----------------------------------------------------------------------
+  // Feature 2: Comparison toggle
+  // -----------------------------------------------------------------------
+
+  void _toggleCompare(String storeId) {
+    setState(() {
+      if (_compareIds.contains(storeId)) {
+        _compareIds.remove(storeId);
+      } else if (_compareIds.length < 3) {
+        _compareIds.add(storeId);
+      }
+    });
+  }
+
+  void _clearCompare() => setState(() => _compareIds.clear());
 
   // -----------------------------------------------------------------------
   // Build
@@ -872,6 +924,11 @@ class _ResultsScreenState extends State<ResultsScreen> {
                 pricesLoading: _pricesLoading,
                 sortMode: _sortMode,
                 onSortChanged: _onSortChanged,
+                compareIds: _compareIds,
+                onToggleCompare: _toggleCompare,
+                onClearCompare: _clearCompare,
+                deviationMap: _deviationMap,
+                relatedSuggestions: _relatedSuggestions,
                 onNewSearch: () {
                   if (widget.onNewSearch != null) {
                     widget.onNewSearch!();
@@ -967,6 +1024,55 @@ class _ResultsScreenState extends State<ResultsScreen> {
                                       : _AiInsightCard(summary: _aiSummary!),
                                 ),
                               ),
+                            // Related suggestions (AI)
+                            if (_relatedSuggestions.isNotEmpty)
+                              SliverToBoxAdapter(
+                                child: Padding(
+                                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+                                  child: Wrap(
+                                    spacing: 6,
+                                    runSpacing: 6,
+                                    children: _relatedSuggestions.map((s) {
+                                      return GestureDetector(
+                                        onTap: () => _reSearch(s),
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 10, vertical: 5),
+                                          decoration: BoxDecoration(
+                                            color: ac.glass,
+                                            borderRadius: BorderRadius.circular(kRadiusPill),
+                                            border: Border.all(color: ac.borderSubtle),
+                                          ),
+                                          child: Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Icon(Icons.auto_awesome,
+                                                  size: 12, color: ac.textPrimary),
+                                              const SizedBox(width: 5),
+                                              Text(
+                                                s,
+                                                style: outfit(
+                                                  fontSize: 12,
+                                                  fontWeight: FontWeight.w500,
+                                                  color: ac.textPrimary,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      );
+                                    }).toList(),
+                                  ),
+                                ),
+                              ),
+                            // Feature 1: Price comparison banner
+                            if (_sortMode == SortMode.priceLow)
+                              SliverToBoxAdapter(
+                                child: Padding(
+                                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+                                  child: _PriceComparisonBanner(),
+                                ),
+                              ),
                             SliverPadding(
                               padding: EdgeInsets.fromLTRB(
                                   16,
@@ -991,6 +1097,10 @@ class _ResultsScreenState extends State<ResultsScreen> {
                                           isSelected: s.id == _selectedStoreId,
                                           onTap: () => _onSelectStore(s),
                                           searchItem: _currentItem,
+                                          isPriceSortMode: _sortMode == SortMode.priceLow,
+                                          isCompareSelected: _compareIds.contains(s.id),
+                                          onToggleCompare: () => _toggleCompare(s.id),
+                                          deviation: _deviationMap[s.id],
                                         ),
                                       ),
                                     );
@@ -1005,6 +1115,18 @@ class _ResultsScreenState extends State<ResultsScreen> {
               );
             },
           ),
+          // Feature 2: Floating comparison panel (mobile)
+          if (_compareIds.length >= 2)
+            Positioned(
+              left: 12,
+              right: 12,
+              bottom: MediaQuery.of(context).padding.bottom + 12,
+              child: _ComparisonPanel(
+                stores: stores.where((s) => _compareIds.contains(s.id)).toList(),
+                settings: settings,
+                onClear: _clearCompare,
+              ),
+            ),
           ],
         ),
       ),
@@ -1452,6 +1574,19 @@ class _ResultsScreenState extends State<ResultsScreen> {
                       urlTemplate: kTileUrl,
                       userAgentPackageName: kTileUserAgent,
                     ),
+                    // Feature 4: Route polyline
+                    if (_routePoints != null && _routePoints!.length >= 2)
+                      PolylineLayer(
+                        polylines: [
+                          Polyline(
+                            points: _routePoints!
+                                .map((p) => LatLng(p.lat, p.lng))
+                                .toList(),
+                            color: ac.accentGreen.withValues(alpha: 0.5),
+                            strokeWidth: 4,
+                          ),
+                        ],
+                      ),
                     CircleLayer(
                       circles: [
                         CircleMarker(
@@ -1540,6 +1675,11 @@ class _Sidebar extends StatefulWidget {
     this.pricesLoading = false,
     required this.sortMode,
     required this.onSortChanged,
+    this.compareIds = const {},
+    this.onToggleCompare,
+    this.onClearCompare,
+    this.deviationMap = const {},
+    this.relatedSuggestions = const [],
   });
 
   final String query;
@@ -1559,6 +1699,11 @@ class _Sidebar extends StatefulWidget {
   final bool pricesLoading;
   final SortMode sortMode;
   final ValueChanged<SortMode> onSortChanged;
+  final Set<String> compareIds;
+  final void Function(String)? onToggleCompare;
+  final VoidCallback? onClearCompare;
+  final Map<String, DeviationResult> deviationMap;
+  final List<String> relatedSuggestions;
 
   @override
   State<_Sidebar> createState() => _SidebarState();
@@ -1896,6 +2041,51 @@ class _SidebarState extends State<_Sidebar> {
                   ],
                 ),
               ),
+              // Related suggestions (AI)
+              if (widget.relatedSuggestions.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: widget.relatedSuggestions.map((s) {
+                      return GestureDetector(
+                        onTap: () => widget.onReSearch(s),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 5),
+                          decoration: BoxDecoration(
+                            color: ac.glass,
+                            borderRadius: BorderRadius.circular(kRadiusPill),
+                            border: Border.all(color: ac.borderSubtle),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.auto_awesome,
+                                  size: 12, color: ac.textPrimary),
+                              const SizedBox(width: 5),
+                              Text(
+                                s,
+                                style: outfit(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w500,
+                                  color: ac.textPrimary,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ),
+              // Feature 1: Price comparison banner (sidebar)
+              if (widget.sortMode == SortMode.priceLow)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: _PriceComparisonBanner(),
+                ),
               // Results list
               Expanded(
                 child: widget.stores.isEmpty
@@ -1909,32 +2099,59 @@ class _SidebarState extends State<_Sidebar> {
                           ),
                         ),
                       )
-                    : RefreshIndicator(
-                        onRefresh: widget.onRefresh,
-                        child: ListView.separated(
-                          itemCount: widget.stores.length,
-                          separatorBuilder: (_, __) =>
-                              const SizedBox(height: 14),
-                          padding: const EdgeInsets.only(right: 8),
-                          itemBuilder: (context, i) {
-                            final s = widget.stores[i];
-                            final style =
-                                _styleForStore(i, s, widget.stores);
-                            return _StaggeredFadeIn(
-                              index: i,
-                              child: _SafeResultCard(
-                                key: ValueKey(s.id),
-                                store: s,
-                                style: style,
-                                settings: widget.settings,
-                                isSelected:
-                                    s.id == widget.selectedStoreId,
-                                onTap: () => widget.onSelectStore(s),
-                                searchItem: widget.query,
+                    : Stack(
+                        children: [
+                          RefreshIndicator(
+                            onRefresh: widget.onRefresh,
+                            child: ListView.separated(
+                              itemCount: widget.stores.length,
+                              separatorBuilder: (_, __) =>
+                                  const SizedBox(height: 14),
+                              padding: EdgeInsets.only(
+                                right: 8,
+                                bottom: widget.compareIds.length >= 2 ? 120 : 0,
                               ),
-                            );
-                          },
-                        ),
+                              itemBuilder: (context, i) {
+                                final s = widget.stores[i];
+                                final style =
+                                    _styleForStore(i, s, widget.stores);
+                                return _StaggeredFadeIn(
+                                  index: i,
+                                  child: _SafeResultCard(
+                                    key: ValueKey(s.id),
+                                    store: s,
+                                    style: style,
+                                    settings: widget.settings,
+                                    isSelected:
+                                        s.id == widget.selectedStoreId,
+                                    onTap: () => widget.onSelectStore(s),
+                                    searchItem: widget.query,
+                                    isPriceSortMode: widget.sortMode == SortMode.priceLow,
+                                    isCompareSelected: widget.compareIds.contains(s.id),
+                                    onToggleCompare: widget.onToggleCompare != null
+                                        ? () => widget.onToggleCompare!(s.id)
+                                        : null,
+                                    deviation: widget.deviationMap[s.id],
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+                          // Feature 2: Floating comparison panel (sidebar)
+                          if (widget.compareIds.length >= 2)
+                            Positioned(
+                              left: 0,
+                              right: 8,
+                              bottom: 0,
+                              child: _ComparisonPanel(
+                                stores: widget.stores
+                                    .where((s) => widget.compareIds.contains(s.id))
+                                    .toList(),
+                                settings: widget.settings,
+                                onClear: widget.onClearCompare,
+                              ),
+                            ),
+                        ],
                       ),
               ),
             ],
@@ -1956,6 +2173,10 @@ class _SafeResultCard extends StatelessWidget {
     required this.isSelected,
     required this.onTap,
     this.searchItem = '',
+    this.isPriceSortMode = false,
+    this.isCompareSelected = false,
+    this.onToggleCompare,
+    this.deviation,
   });
 
   final Store store;
@@ -1964,6 +2185,10 @@ class _SafeResultCard extends StatelessWidget {
   final bool isSelected;
   final VoidCallback onTap;
   final String searchItem;
+  final bool isPriceSortMode;
+  final bool isCompareSelected;
+  final VoidCallback? onToggleCompare;
+  final DeviationResult? deviation;
 
   @override
   Widget build(BuildContext context) {
@@ -1979,6 +2204,10 @@ class _SafeResultCard extends StatelessWidget {
         isSelected: isSelected,
         onTap: onTap,
         searchItem: searchItem,
+        isPriceSortMode: isPriceSortMode,
+        isCompareSelected: isCompareSelected,
+        onToggleCompare: onToggleCompare,
+        deviation: deviation,
       ),
     );
   }
@@ -1996,6 +2225,10 @@ class _ResultCard extends StatefulWidget {
     required this.isSelected,
     required this.onTap,
     this.searchItem = '',
+    this.isPriceSortMode = false,
+    this.isCompareSelected = false,
+    this.onToggleCompare,
+    this.deviation,
   });
 
   final Store store;
@@ -2004,6 +2237,10 @@ class _ResultCard extends StatefulWidget {
   final bool isSelected;
   final VoidCallback onTap;
   final String searchItem;
+  final bool isPriceSortMode;
+  final bool isCompareSelected;
+  final VoidCallback? onToggleCompare;
+  final DeviationResult? deviation;
 
   @override
   State<_ResultCard> createState() => _ResultCardState();
@@ -2016,12 +2253,26 @@ class _ResultCardState extends State<_ResultCard> {
   String? _note;
   bool _noteExpanded = false;
   final _noteController = TextEditingController();
+  final _repaintKey = GlobalKey();
+  int _visitCount = 0;
+  double? _previousPrice;
+
+  static const _favCategories = [
+    'General',
+    'Grocery',
+    'Hardware',
+    'Pharmacy',
+    'Electronics',
+    'Restaurants',
+  ];
 
   @override
   void initState() {
     super.initState();
     _checkFavorite();
     _loadNote();
+    _loadVisitCount();
+    _loadPreviousPrice();
   }
 
   @override
@@ -2036,6 +2287,11 @@ class _ResultCardState extends State<_ResultCard> {
     if (oldWidget.store.id != widget.store.id) {
       _checkFavorite();
       _loadNote();
+      _loadVisitCount();
+      _loadPreviousPrice();
+    }
+    if (oldWidget.store.price != widget.store.price) {
+      _savePriceAndLoadPrevious();
     }
   }
 
@@ -2063,38 +2319,166 @@ class _ResultCardState extends State<_ResultCard> {
     if (mounted) setState(() => _isFavorite = fav);
   }
 
+  Future<void> _loadVisitCount() async {
+    final count = await db.getVisitCount(widget.store.id);
+    if (mounted) setState(() => _visitCount = count);
+  }
+
+  Future<void> _markVisited() async {
+    HapticFeedback.lightImpact();
+    await db.markVisited(widget.store.id);
+    if (mounted) setState(() => _visitCount++);
+  }
+
+  Future<void> _loadPreviousPrice() async {
+    if (widget.store.price == null || widget.searchItem.isEmpty) return;
+    final prev =
+        await db.getPreviousPrice(widget.store.id, widget.searchItem);
+    if (mounted) setState(() => _previousPrice = prev);
+  }
+
+  Future<void> _savePriceAndLoadPrevious() async {
+    final price = widget.store.price;
+    if (price == null || widget.searchItem.isEmpty) return;
+    await db.savePriceSnapshot(widget.store.id, widget.searchItem, price);
+    final prev =
+        await db.getPreviousPrice(widget.store.id, widget.searchItem);
+    if (mounted) setState(() => _previousPrice = prev);
+  }
+
   Future<void> _toggleFavorite() async {
     HapticFeedback.lightImpact();
     if (_favLoading) return;
-    setState(() => _favLoading = true);
 
     if (_isFavorite) {
+      setState(() => _favLoading = true);
       await db.removeFavorite(widget.store.id);
-    } else {
-      await db.addFavorite(
-        storeId: widget.store.id,
-        storeName: widget.store.name,
-        address: widget.store.address,
-        lat: widget.store.lat,
-        lng: widget.store.lng,
-        searchItem: widget.searchItem,
-        phone: widget.store.phone,
-        website: widget.store.website,
-        openingHours: widget.store.openingHours,
-        brand: widget.store.brand,
-        shopType: widget.store.shopType,
-        rating: widget.store.rating,
-        reviewCount: widget.store.reviewCount,
-        priceLevel: widget.store.priceLevel,
-        thumbnail: widget.store.thumbnail,
-      );
+      if (mounted) {
+        setState(() {
+          _isFavorite = false;
+          _favLoading = false;
+        });
+      }
+      return;
     }
+
+    // Show category picker bottom sheet
+    final category = await showModalBottomSheet<String>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        final sheetAc = AppColors.of(ctx);
+        return Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: sheetAc.cardBg,
+            borderRadius:
+                const BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'Save to category',
+                style: outfit(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                  color: sheetAc.textPrimary,
+                ),
+              ),
+              const SizedBox(height: 16),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: _favCategories.map((c) {
+                  return GestureDetector(
+                    onTap: () => Navigator.pop(ctx, c),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: sheetAc.glass,
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: sheetAc.borderSubtle),
+                      ),
+                      child: Text(
+                        c,
+                        style: outfit(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                          color: sheetAc.textPrimary,
+                        ),
+                      ),
+                    ),
+                  );
+                }).toList(),
+              ),
+              const SizedBox(height: 12),
+            ],
+          ),
+        );
+      },
+    );
+
+    if (category == null || !mounted) return;
+
+    setState(() => _favLoading = true);
+    await db.addFavorite(
+      storeId: widget.store.id,
+      storeName: widget.store.name,
+      address: widget.store.address,
+      lat: widget.store.lat,
+      lng: widget.store.lng,
+      searchItem: widget.searchItem,
+      phone: widget.store.phone,
+      website: widget.store.website,
+      openingHours: widget.store.openingHours,
+      brand: widget.store.brand,
+      shopType: widget.store.shopType,
+      rating: widget.store.rating,
+      reviewCount: widget.store.reviewCount,
+      priceLevel: widget.store.priceLevel,
+      thumbnail: widget.store.thumbnail,
+      category: category,
+    );
 
     if (mounted) {
       setState(() {
-        _isFavorite = !_isFavorite;
+        _isFavorite = true;
         _favLoading = false;
       });
+    }
+  }
+
+  void _shareCard() {
+    HapticFeedback.lightImpact();
+    final s = widget.store;
+    final buf = StringBuffer();
+    buf.writeln(s.name);
+    if (s.address.isNotEmpty) buf.writeln('\u{1F4CD} ${s.address}');
+    final parts = <String>[];
+    if (s.distanceKm > 0) {
+      parts.add(formatDistance(s.distanceKm, useKm: widget.settings.useKm));
+    }
+    if (s.durationMinutes != null) parts.add('~${s.durationMinutes} min');
+    if (parts.isNotEmpty) buf.writeln('\u{23F1}\uFE0F ${parts.join(' \u00B7 ')}');
+    if (s.priceLabel != null) buf.writeln('\u{1F4B0} ${s.priceLabel}');
+    if (s.rating != null) {
+      final ratingStr = '\u2B50 ${s.rating!.toStringAsFixed(1)}';
+      final reviews = s.reviewCount != null ? ' (${s.reviewCount} reviews)' : '';
+      buf.writeln('$ratingStr$reviews');
+    }
+    buf.writeln('\u{1F5FA}\uFE0F Directions: https://www.google.com/maps/dir/?api=1&destination=${s.lat},${s.lng}');
+    buf.writeln('\u2014 Shared via Wayvio');
+
+    Clipboard.setData(ClipboardData(text: buf.toString()));
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Card copied to clipboard!'),
+          duration: Duration(seconds: 2),
+        ),
+      );
     }
   }
 
@@ -2120,6 +2504,8 @@ class _ResultCardState extends State<_ResultCard> {
         },
         child: DefaultTextStyle(
           style: noShadowStyle,
+          child: RepaintBoundary(
+          key: _repaintKey,
           child: AnimatedContainer(
           duration: const Duration(milliseconds: 200),
           curve: Curves.easeOutCubic,
@@ -2203,6 +2589,52 @@ class _ResultCardState extends State<_ResultCard> {
                               fontSize: 13, fontWeight: FontWeight.w600, color: fg),
                         ),
                       const SizedBox(width: 8),
+                      // Feature 2: Compare checkbox
+                      if (widget.onToggleCompare != null)
+                        GestureDetector(
+                          onTap: widget.onToggleCompare,
+                          child: Container(
+                            width: 22,
+                            height: 22,
+                            margin: const EdgeInsets.only(right: 6),
+                            decoration: BoxDecoration(
+                              color: widget.isCompareSelected
+                                  ? ac.accentGreen
+                                  : Colors.transparent,
+                              borderRadius: BorderRadius.circular(5),
+                              border: Border.all(
+                                color: widget.isCompareSelected
+                                    ? ac.accentGreen
+                                    : fg.withValues(alpha: 0.4),
+                                width: 1.5,
+                              ),
+                            ),
+                            child: widget.isCompareSelected
+                                ? const Icon(Icons.check, size: 14, color: Colors.white)
+                                : null,
+                          ),
+                        ),
+                      GestureDetector(
+                        onTap: _shareCard,
+                        child: Icon(
+                          Icons.share_outlined,
+                          size: 18,
+                          color: fg.withValues(alpha: 0.6),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      // Mark visited button
+                      GestureDetector(
+                        onTap: _markVisited,
+                        child: Icon(
+                          Icons.check_circle_outline,
+                          size: 20,
+                          color: _visitCount > 0
+                              ? ac.blue
+                              : fg.withValues(alpha: 0.6),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
                       // Favorite button
                       GestureDetector(
                         onTap: _toggleFavorite,
@@ -2233,6 +2665,30 @@ class _ResultCardState extends State<_ResultCard> {
                   ),
                 ],
               ),
+              // Visited badge
+              if (_visitCount > 0)
+                Padding(
+                  padding: const EdgeInsets.only(top: 6),
+                  child: Align(
+                    alignment: Alignment.centerRight,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: ac.blue,
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        'Visited $_visitCount time${_visitCount == 1 ? '' : 's'}',
+                        style: outfit(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
               const SizedBox(height: 12),
               // Title + prominent price badge
               Row(
@@ -2255,13 +2711,22 @@ class _ResultCardState extends State<_ResultCard> {
                     Padding(
                       padding: const EdgeInsets.only(left: 8),
                       child: Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 8, vertical: 4),
+                        padding: EdgeInsets.symmetric(
+                          horizontal: widget.isPriceSortMode ? 10 : 8,
+                          vertical: widget.isPriceSortMode ? 6 : 4,
+                        ),
                         decoration: BoxDecoration(
-                          color: dark
-                              ? ac.accentGreen.withValues(alpha: 0.12)
-                              : Colors.white,
-                          borderRadius: BorderRadius.circular(6),
+                          color: widget.isPriceSortMode
+                              ? (dark
+                                  ? ac.accentGreen.withValues(alpha: 0.22)
+                                  : ac.accentGreen.withValues(alpha: 0.12))
+                              : (dark
+                                  ? ac.accentGreen.withValues(alpha: 0.12)
+                                  : Colors.white),
+                          borderRadius: BorderRadius.circular(widget.isPriceSortMode ? 8 : 6),
+                          border: widget.isPriceSortMode
+                              ? Border.all(color: ac.accentGreen.withValues(alpha: 0.4))
+                              : null,
                         ),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
@@ -2269,11 +2734,26 @@ class _ResultCardState extends State<_ResultCard> {
                             Text(
                               widget.store.priceLabel!,
                               style: outfit(
-                                fontSize: 13,
+                                fontSize: widget.isPriceSortMode ? 16 : 13,
                                 fontWeight: FontWeight.w700,
                                 color: ac.accentGreen,
                               ),
                             ),
+                            if (_previousPrice != null &&
+                                widget.store.price != null &&
+                                _previousPrice != widget.store.price)
+                              Padding(
+                                padding: const EdgeInsets.only(left: 2),
+                                child: Icon(
+                                  widget.store.price! < _previousPrice!
+                                      ? Icons.arrow_downward
+                                      : Icons.arrow_upward,
+                                  size: 12,
+                                  color: widget.store.price! < _previousPrice!
+                                      ? ac.accentGreen
+                                      : ac.red,
+                                ),
+                              ),
                             if (widget.store.priceLevel != null &&
                                 widget.store.priceLevel!.isNotEmpty) ...[
                               const SizedBox(width: 4),
@@ -2287,6 +2767,28 @@ class _ResultCardState extends State<_ResultCard> {
                               ),
                             ],
                           ],
+                        ),
+                      ),
+                    )
+                  // Feature 1: Show "Price N/A" when in price sort mode with no price
+                  else if (widget.isPriceSortMode)
+                    Padding(
+                      padding: const EdgeInsets.only(left: 8),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: dark
+                              ? Colors.white.withValues(alpha: 0.06)
+                              : Colors.black.withValues(alpha: 0.04),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          'Price N/A',
+                          style: outfit(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w500,
+                            color: fg.withValues(alpha: 0.4),
+                          ),
                         ),
                       ),
                     ),
@@ -2431,6 +2933,21 @@ class _ResultCardState extends State<_ResultCard> {
                               color: ac.accentGreen,
                             ),
                           ),
+                          if (_previousPrice != null &&
+                              widget.store.price != null &&
+                              _previousPrice != widget.store.price)
+                            Padding(
+                              padding: const EdgeInsets.only(left: 2),
+                              child: Icon(
+                                widget.store.price! < _previousPrice!
+                                    ? Icons.arrow_downward
+                                    : Icons.arrow_upward,
+                                size: 12,
+                                color: widget.store.price! < _previousPrice!
+                                    ? ac.accentGreen
+                                    : ac.red,
+                              ),
+                            ),
                           if (widget.store.priceLevel != null &&
                               widget.store.priceLevel!.isNotEmpty) ...[
                             const SizedBox(width: 4),
@@ -2701,6 +3218,64 @@ class _ResultCardState extends State<_ResultCard> {
                   ),
                 ),
               ],
+              // Feature 4: Deviation badge
+              if (widget.deviation != null) ...[
+                const SizedBox(height: 6),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: widget.deviation!.detourMinutes <= 1
+                        ? ac.accentGreen.withValues(alpha: dark ? 0.18 : 0.12)
+                        : const Color(0xFFFFA726).withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        widget.deviation!.detourMinutes <= 1
+                            ? Icons.route
+                            : Icons.alt_route,
+                        size: 12,
+                        color: widget.deviation!.detourMinutes <= 1
+                            ? ac.accentGreen
+                            : const Color(0xFFE65100),
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        widget.deviation!.detourMinutes <= 1
+                            ? 'On route'
+                            : '${widget.deviation!.detourMinutes.round()} min detour',
+                        style: outfit(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: widget.deviation!.detourMinutes <= 1
+                              ? ac.accentGreen
+                              : const Color(0xFFE65100),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+              // Feature 3: Drive time/distance info line
+              if (widget.store.durationMinutes != null) ...[
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Icon(Icons.directions_car_outlined,
+                        size: 12, color: fg.withValues(alpha: 0.45)),
+                    const SizedBox(width: 4),
+                    Text(
+                      '~${widget.store.durationMinutes} min · ${formatDistance(widget.store.distanceKm, useKm: widget.settings.useKm)}',
+                      style: outfit(
+                        fontSize: 11,
+                        color: fg.withValues(alpha: 0.45),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
               // Directions buttons
               const SizedBox(height: 12),
               Row(
@@ -2792,6 +3367,7 @@ class _ResultCardState extends State<_ResultCard> {
             ], // outer Column children
           ), // outer Column
         ), // AnimatedContainer
+        ), // RepaintBoundary
         ), // DefaultTextStyle
       ), // GestureDetector
     ); // MouseRegion
@@ -3776,6 +4352,201 @@ class _NoResultsPage extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Feature 1: Price comparison banner
+// ---------------------------------------------------------------------------
+
+class _PriceComparisonBanner extends StatelessWidget {
+  const _PriceComparisonBanner();
+
+  @override
+  Widget build(BuildContext context) {
+    final ac = AppColors.of(context);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: ac.accentGreen.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: ac.accentGreen.withValues(alpha: 0.2)),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.sort, size: 14, color: ac.accentGreen),
+          const SizedBox(width: 8),
+          Text(
+            'Sorted by price — lowest first',
+            style: outfit(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: ac.accentGreen,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Feature 2: Floating comparison panel
+// ---------------------------------------------------------------------------
+
+class _ComparisonPanel extends StatelessWidget {
+  const _ComparisonPanel({
+    required this.stores,
+    required this.settings,
+    this.onClear,
+  });
+
+  final List<Store> stores;
+  final SettingsProvider settings;
+  final VoidCallback? onClear;
+
+  @override
+  Widget build(BuildContext context) {
+    final ac = AppColors.of(context);
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: ac.cardBg,
+        borderRadius: BorderRadius.circular(kRadiusMd),
+        border: Border.all(color: ac.borderSubtle),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.12),
+            blurRadius: 16,
+            offset: const Offset(0, -4),
+          ),
+        ],
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.compare_arrows, size: 16, color: ac.accentGreen),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  'Comparing ${stores.length} stores',
+                  style: outfit(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: ac.textPrimary,
+                  ),
+                ),
+              ),
+              GestureDetector(
+                onTap: onClear,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: ac.glass,
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(color: ac.borderSubtle),
+                  ),
+                  child: Text(
+                    'Clear',
+                    style: outfit(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: ac.textSecondary,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          SizedBox(
+            height: 90,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              itemCount: stores.length,
+              separatorBuilder: (_, __) => const SizedBox(width: 10),
+              itemBuilder: (context, i) {
+                final s = stores[i];
+                final hoursInfo = _parseHoursStatus(s.openingHours);
+                return Container(
+                  width: 150,
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: ac.accentGreen.withValues(alpha: 0.06),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: ac.accentGreen.withValues(alpha: 0.2)),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        s.name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: outfit(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: ac.textPrimary,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        formatDistance(s.distanceKm, useKm: settings.useKm),
+                        style: outfit(fontSize: 11, color: ac.textSecondary),
+                      ),
+                      if (s.priceLabel != null)
+                        Text(
+                          s.priceLabel!,
+                          style: outfit(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            color: ac.accentGreen,
+                          ),
+                        )
+                      else
+                        Text('—', style: outfit(fontSize: 11, color: ac.textTertiary)),
+                      Row(
+                        children: [
+                          if (s.rating != null) ...[
+                            const Icon(Icons.star_rounded,
+                                size: 11, color: Color(0xFFFFD54F)),
+                            const SizedBox(width: 2),
+                            Text(
+                              s.rating!.toStringAsFixed(1),
+                              style: outfit(fontSize: 10, color: ac.textSecondary),
+                            ),
+                            const SizedBox(width: 6),
+                          ],
+                          if (hoursInfo.status != _HoursStatus.unknown)
+                            Flexible(
+                              child: Text(
+                                hoursInfo.label,
+                                overflow: TextOverflow.ellipsis,
+                                style: outfit(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w500,
+                                  color: hoursInfo.status == _HoursStatus.open
+                                      ? ac.accentGreen
+                                      : hoursInfo.status == _HoursStatus.closingSoon
+                                          ? const Color(0xFFE65100)
+                                          : ac.red,
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -22,11 +23,27 @@ const _kDefaultSuggestions = <String>[
   'Batteries',
 ];
 
+const _seasonalTrends = <int, List<String>>{
+  1: ['Hand warmers', 'Hot chocolate', 'Space heater', 'Vitamins'],
+  2: ['Valentine chocolate', 'Flowers', 'Cold medicine', 'Humidifier'],
+  3: ['Allergy medicine', 'Garden seeds', 'Rain jacket', 'Umbrella'],
+  4: ['Easter candy', 'Sunscreen', 'Spring cleaning supplies', 'Air filter'],
+  5: ['Bug spray', 'Grill', 'Lawn mower', 'Sunglasses'],
+  6: ['Sunscreen', 'Beach towel', 'Cooler', 'Water bottles'],
+  7: ['Ice', 'Fireworks', 'Portable fan', 'Camping gear'],
+  8: ['School supplies', 'Backpack', 'Lunchbox', 'Notebooks'],
+  9: ['Fall jacket', 'Pumpkin spice', 'Halloween costume', 'Cough drops'],
+  10: ['Halloween candy', 'Pumpkin', 'Flashlight', 'Batteries'],
+  11: ['Turkey', 'Pie supplies', 'Thanksgiving decor', 'Black Friday deals'],
+  12: ['Wrapping paper', 'Gift cards', 'Batteries', 'Hot cocoa'],
+};
+
 const _kRecentSearchesKey = 'recent_searches';
 const _kRadiusKey = 'search_radius_miles';
 const _kMaxRecent = 8;
 const _kSearchCountKey = 'wayvio_search_count';
 const _kRateDismissedKey = 'wayvio_rate_dismissed';
+const _kFilterPresetsKey = 'wayvio_filter_presets';
 const _kPlayStoreUrl = 'https://play.google.com/store/apps/details?id=com.wayvio.app';
 
 class SearchScreen extends StatefulWidget {
@@ -151,12 +168,14 @@ class _SearchScreenState extends State<SearchScreen> {
   bool _openNowOnly = false;
   bool _onTheWayMode = false;
   final _destinationController = TextEditingController();
+  List<Map<String, dynamic>> _filterPresets = [];
 
   @override
   void initState() {
     super.initState();
     _loadRecentSearches();
     _loadRadius();
+    _loadFilterPresets();
     _checkOnboarding();
     _itemController.addListener(_onSearchTextChanged);
   }
@@ -310,6 +329,124 @@ class _SearchScreenState extends State<SearchScreen> {
     await prefs.setStringList(_kRecentSearchesKey, _recentSearches);
   }
 
+  Future<void> _loadFilterPresets() async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(_kFilterPresetsKey);
+    if (raw != null && mounted) {
+      try {
+        final list = (jsonDecode(raw) as List).cast<Map<String, dynamic>>();
+        setState(() => _filterPresets = list);
+      } catch (_) {}
+    }
+  }
+
+  Future<void> _saveFilterPresets() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_kFilterPresetsKey, jsonEncode(_filterPresets));
+  }
+
+  void _saveCurrentPreset() {
+    if (_filterPresets.length >= 5) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Max 5 presets. Delete one first.')),
+      );
+      return;
+    }
+    final nameController = TextEditingController();
+    final ac = AppColors.of(context);
+    showDialog(
+      context: context,
+      builder: (ctx) => Dialog(
+        backgroundColor: ac.cardBg,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text('Save preset',
+                  style: outfit(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                      color: ac.textPrimary)),
+              const SizedBox(height: 16),
+              TextField(
+                controller: nameController,
+                autofocus: true,
+                style: outfit(fontSize: 14, color: ac.textPrimary),
+                decoration: InputDecoration(
+                  hintText: 'Preset name',
+                  hintStyle: outfit(fontSize: 14, color: ac.textTertiary),
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10)),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton(
+                    onPressed: () => Navigator.of(ctx).pop(),
+                    child: Text('Cancel',
+                        style: outfit(color: ac.textSecondary)),
+                  ),
+                  const SizedBox(width: 8),
+                  ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: ac.accentGreen,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10)),
+                    ),
+                    onPressed: () {
+                      final name = nameController.text.trim();
+                      if (name.isEmpty) return;
+                      Navigator.of(ctx).pop();
+                      setState(() {
+                        _filterPresets.add({
+                          'name': name,
+                          'qualityTier': _qualityTier,
+                          'membershipsOnly': _membershipsOnly,
+                          'stores': _selectedStores.toList(),
+                          'radius': _maxDistanceMiles,
+                        });
+                      });
+                      _saveFilterPresets();
+                    },
+                    child: const Text('Save'),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _applyPreset(Map<String, dynamic> preset) {
+    setState(() {
+      _qualityTier = preset['qualityTier'] as String?;
+      _membershipsOnly = preset['membershipsOnly'] as bool? ?? false;
+      final stores = preset['stores'] as List<dynamic>?;
+      _selectedStores.clear();
+      if (stores != null) {
+        _selectedStores.addAll(stores.cast<String>());
+      }
+      final radius = preset['radius'];
+      if (radius is num) {
+        _maxDistanceMiles = radius.toDouble().clamp(5, 25);
+        _saveRadius(_maxDistanceMiles);
+      }
+      _filtersExpanded = true;
+    });
+  }
+
+  void _deletePreset(int index) {
+    setState(() => _filterPresets.removeAt(index));
+    _saveFilterPresets();
+  }
+
   @override
   void dispose() {
     _hideAutocomplete();
@@ -324,8 +461,8 @@ class _SearchScreenState extends State<SearchScreen> {
     debugPrint('[Wayvio] _submit called');
     setState(() => _loading = true);
     try {
-      final item = _itemController.text.trim();
-      if (item.isEmpty) {
+      final rawInput = _itemController.text.trim();
+      if (rawInput.isEmpty) {
         setState(() => _loading = false);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -334,6 +471,25 @@ class _SearchScreenState extends State<SearchScreen> {
         }
         return;
       }
+
+      List<String>? multiItems;
+      String item;
+      if (rawInput.contains(',')) {
+        final parsed = rawInput
+            .split(',')
+            .map((e) => e.trim())
+            .where((e) => e.isNotEmpty)
+            .toList();
+        if (parsed.length > 1) {
+          multiItems = parsed;
+          item = parsed.first;
+        } else {
+          item = parsed.isNotEmpty ? parsed.first : rawInput;
+        }
+      } else {
+        item = rawInput;
+      }
+
       final safety = checkQuerySafety(item);
       if (safety.blocked) {
         setState(() => _loading = false);
@@ -481,6 +637,7 @@ class _SearchScreenState extends State<SearchScreen> {
         filters: filters,
         destLat: destLat,
         destLng: destLng,
+        multiItems: multiItems,
       );
       if (!mounted) return;
       if (widget.onSearchResult != null) {
@@ -808,6 +965,9 @@ class _SearchScreenState extends State<SearchScreen> {
                 // ── Search bar (pill) ───────────────────────────────
                 _buildSearchBar(),
 
+                // ── Multi-item indicator ────────────────────────────
+                _buildMultiItemChip(),
+
                 // ── Location toggle (below search bar) ──────────────
                 const SizedBox(height: 12),
                 _buildLocationToggle(),
@@ -824,8 +984,12 @@ class _SearchScreenState extends State<SearchScreen> {
                 const SizedBox(height: 12),
                 _buildFiltersSection(),
 
-                // ── Suggestion pills (recent searches or defaults) ──
+                // ── Trending this month ────────────────────────────
                 const SizedBox(height: 24),
+                _buildSeasonalTrends(),
+
+                // ── Suggestion pills (recent searches or defaults) ──
+                const SizedBox(height: 16),
                 if (_recentSearches.isNotEmpty) ...[
                   Text(
                     'Recent searches',
@@ -1024,6 +1188,71 @@ class _SearchScreenState extends State<SearchScreen> {
     );
   }
 
+  // ── Seasonal trends ────────────────────────────────────────────────────
+  Widget _buildSeasonalTrends() {
+    final ac = AppColors.of(context);
+    final month = DateTime.now().month;
+    final trends = _seasonalTrends[month] ?? [];
+    if (trends.isEmpty) return const SizedBox.shrink();
+    return Container(
+      constraints: const BoxConstraints(maxWidth: 700),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.local_fire_department,
+                  size: 14, color: ac.accentGreen),
+              const SizedBox(width: 4),
+              Text(
+                'Trending this month',
+                style: outfit(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                  color: ac.textTertiary,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: trends.map((term) {
+                return Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: GestureDetector(
+                    onTap: _loading ? null : () => _searchFor(term),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: ac.accentGreen.withValues(alpha: 0.08),
+                        borderRadius: BorderRadius.circular(kRadiusPill),
+                        border: Border.all(
+                          color: ac.accentGreen.withValues(alpha: 0.3),
+                        ),
+                      ),
+                      child: Text(
+                        term,
+                        style: outfit(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                          color: ac.accentGreen,
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   // ── Scenario chips ─────────────────────────────────────────────────────
   void _applyScenario(String name) {
     setState(() {
@@ -1197,6 +1426,47 @@ class _SearchScreenState extends State<SearchScreen> {
         ],
       ),
     ),
+    );
+  }
+
+  // ── Multi-item chip ──────────────────────────────────────────────────────
+  Widget _buildMultiItemChip() {
+    final text = _itemController.text;
+    if (!text.contains(',')) return const SizedBox.shrink();
+    final items = text.split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
+    if (items.length <= 1) return const SizedBox.shrink();
+    final ac = AppColors.of(context);
+    return Padding(
+      padding: const EdgeInsets.only(top: 8),
+      child: Container(
+        constraints: const BoxConstraints(maxWidth: 700),
+        child: Align(
+          alignment: Alignment.centerLeft,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+            decoration: BoxDecoration(
+              color: ac.accentGreen.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(kRadiusPill),
+              border: Border.all(color: ac.accentGreen.withValues(alpha: 0.3)),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.list_alt, size: 14, color: ac.accentGreen),
+                const SizedBox(width: 6),
+                Text(
+                  'Searching for ${items.length} items',
+                  style: outfit(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: ac.accentGreen,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 

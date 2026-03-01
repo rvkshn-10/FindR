@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../models/shopping_list_models.dart';
 import '../services/shopping_list_service.dart';
 import '../widgets/design_system.dart';
@@ -37,6 +38,7 @@ class _ShoppingListScreenState extends State<ShoppingListScreen> {
   final _listNameController = TextEditingController();
   List<StoreCombo>? _combos;
   bool _findingAll = false;
+  List<ShoppingList> _dueLists = [];
 
   @override
   void initState() {
@@ -53,7 +55,47 @@ class _ShoppingListScreenState extends State<ShoppingListScreen> {
 
   Future<void> _load() async {
     final lists = await loadShoppingLists();
-    if (mounted) setState(() { _lists = lists; _loading = false; });
+    if (mounted) {
+      setState(() { _lists = lists; _loading = false; });
+      _checkWeeklyReminders();
+    }
+  }
+
+  Future<void> _checkWeeklyReminders() async {
+    final prefs = await SharedPreferences.getInstance();
+    final now = DateTime.now();
+    final due = <ShoppingList>[];
+    for (final list in _lists) {
+      if (!list.repeatWeekly) continue;
+      final key = 'wayvio_list_completion_${list.id}';
+      final ms = prefs.getInt(key);
+      if (ms == null) {
+        due.add(list);
+      } else {
+        final last = DateTime.fromMillisecondsSinceEpoch(ms);
+        if (now.difference(last).inDays >= 7) due.add(list);
+      }
+    }
+    if (mounted) setState(() => _dueLists = due);
+  }
+
+  Future<void> _markListCompleted(ShoppingList list) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt(
+      'wayvio_list_completion_${list.id}',
+      DateTime.now().millisecondsSinceEpoch,
+    );
+    if (mounted) {
+      setState(() => _dueLists.remove(list));
+    }
+  }
+
+  void _toggleRepeatWeekly(int index) {
+    setState(() {
+      _lists[index].repeatWeekly = !_lists[index].repeatWeekly;
+    });
+    _save();
+    _checkWeeklyReminders();
   }
 
   Future<void> _save() async {
@@ -313,6 +355,55 @@ class _ShoppingListScreenState extends State<ShoppingListScreen> {
 
           const SizedBox(height: 24),
 
+          // Weekly reminder banners
+          ..._dueLists.map((dueList) {
+            final listIdx = _lists.indexOf(dueList);
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: GestureDetector(
+                onTap: listIdx >= 0
+                    ? () => setState(() { _activeIndex = listIdx; _combos = null; })
+                    : null,
+                child: Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: ac.accentGreen.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                        color: ac.accentGreen.withValues(alpha: 0.3)),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.replay, size: 20, color: ac.accentGreen),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              "Your weekly list '${dueList.name}' is due!",
+                              style: outfit(fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                  color: ac.textPrimary),
+                            ),
+                            Text('Tap to view',
+                                style: outfit(fontSize: 11,
+                                    color: ac.textTertiary)),
+                          ],
+                        ),
+                      ),
+                      GestureDetector(
+                        onTap: () => _markListCompleted(dueList),
+                        child: Icon(Icons.close,
+                            size: 16, color: ac.textTertiary),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          }),
+
           // My lists
           Text('My Lists',
               style: outfit(fontSize: 14, fontWeight: FontWeight.w600,
@@ -372,6 +463,29 @@ class _ShoppingListScreenState extends State<ShoppingListScreen> {
                             ],
                           ),
                         ),
+                        GestureDetector(
+                          onTap: () => _toggleRepeatWeekly(i),
+                          child: Tooltip(
+                            message: 'Repeat weekly',
+                            child: Container(
+                              padding: const EdgeInsets.all(6),
+                              decoration: BoxDecoration(
+                                color: list.repeatWeekly
+                                    ? ac.accentGreen.withValues(alpha: 0.12)
+                                    : Colors.transparent,
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Icon(
+                                Icons.replay,
+                                size: 18,
+                                color: list.repeatWeekly
+                                    ? ac.accentGreen
+                                    : ac.textTertiary,
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
                         GestureDetector(
                           onTap: () => _deleteList(i),
                           child: Icon(Icons.delete_outline,
