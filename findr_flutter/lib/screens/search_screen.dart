@@ -46,6 +46,27 @@ const _kRateDismissedKey = 'wayvio_rate_dismissed';
 const _kFilterPresetsKey = 'wayvio_filter_presets';
 const _kPlayStoreUrl = 'https://play.google.com/store/apps/details?id=com.wayvio.app';
 
+const _kSeasonalItems = <int, List<String>>{
+  1:  ['Hand warmers', 'Snow shovel', 'Hot chocolate', 'Winter jacket', 'Thermal socks', 'Ice melt'],
+  2:  ['Hand warmers', 'Snow shovel', 'Hot chocolate', 'Winter jacket', 'Lip balm', 'Space heater'],
+  3:  ['Allergy medicine', 'Garden seeds', 'Rain boots', 'Sunscreen', 'Umbrella', 'Potting soil'],
+  4:  ['Allergy medicine', 'Garden seeds', 'Rain boots', 'Sunscreen', 'Fertilizer', 'Spring wreath'],
+  5:  ['Sunscreen', 'Bug spray', 'Picnic supplies', 'Beach towel', 'Flip flops', 'Cooler'],
+  6:  ['Sunscreen', 'Bug spray', 'Picnic supplies', 'Beach towel', 'Pool float', 'Water gun'],
+  7:  ['Ice', 'Charcoal', 'Water bottles', 'Portable fan', 'Popsicles', 'Shade canopy'],
+  8:  ['Ice', 'Charcoal', 'Water bottles', 'Portable fan', 'Grill brush', 'Citronella candles'],
+  9:  ['School supplies', 'Backpack', 'Halloween candy', 'Pumpkin', 'Lunchbox', 'Pencils'],
+  10: ['School supplies', 'Backpack', 'Halloween candy', 'Pumpkin', 'Costume', 'Flashlight'],
+  11: ['Turkey', 'Wrapping paper', 'Batteries', 'Gift cards', 'Pie crust', 'Gravy'],
+  12: ['Turkey', 'Wrapping paper', 'Batteries', 'Gift cards', 'String lights', 'Candy canes'],
+};
+
+String _getDailyFeaturedItem() {
+  final now = DateTime.now();
+  final items = _kSeasonalItems[now.month] ?? _kSeasonalItems[1]!;
+  return items[now.day % items.length];
+}
+
 class SearchScreen extends StatefulWidget {
   final void Function(SearchResultParams)? onSearchResult;
   final VoidCallback? onOpenProfile;
@@ -984,8 +1005,12 @@ class _SearchScreenState extends State<SearchScreen> {
                 const SizedBox(height: 12),
                 _buildFiltersSection(),
 
+                // ── Featured today ─────────────────────────────────
+                const SizedBox(height: 20),
+                _buildFeaturedToday(),
+
                 // ── Trending this month ────────────────────────────
-                const SizedBox(height: 24),
+                const SizedBox(height: 16),
                 _buildSeasonalTrends(),
 
                 // ── Suggestion pills (recent searches or defaults) ──
@@ -1185,6 +1210,67 @@ class _SearchScreenState extends State<SearchScreen> {
           ),
         ),
       ],
+    );
+  }
+
+  // ── Featured today ──────────────────────────────────────────────────────
+  Widget _buildFeaturedToday() {
+    final ac = AppColors.of(context);
+    final item = _getDailyFeaturedItem();
+    return Container(
+      constraints: const BoxConstraints(maxWidth: 700),
+      child: GestureDetector(
+        onTap: _loading ? null : () => _searchFor(item),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          decoration: BoxDecoration(
+            color: ac.accentGreen.withValues(alpha: 0.08),
+            borderRadius: BorderRadius.circular(kRadiusMd),
+            border: Border.all(
+              color: ac.accentGreen.withValues(alpha: 0.3),
+            ),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 34,
+                height: 34,
+                decoration: BoxDecoration(
+                  color: ac.accentGreen.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(Icons.auto_awesome,
+                    size: 18, color: ac.accentGreen),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Featured today',
+                      style: outfit(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: ac.accentGreen,
+                      ),
+                    ),
+                    Text(
+                      item,
+                      style: outfit(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                        color: ac.accentGreen,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(Icons.search, size: 20, color: ac.accentGreen),
+            ],
+          ),
+        ),
+      ),
     );
   }
 
@@ -1751,6 +1837,54 @@ class _SearchScreenState extends State<SearchScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // Preset chips (load)
+                  if (_filterPresets.isNotEmpty) ...[
+                    Text('Presets',
+                        style: outfit(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: ac.textSecondary)),
+                    const SizedBox(height: 6),
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 6,
+                      children: List.generate(_filterPresets.length, (i) {
+                        final p = _filterPresets[i];
+                        return GestureDetector(
+                          onTap: () => _applyPreset(p),
+                          onLongPress: () => _deletePreset(i),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 10, vertical: 5),
+                            decoration: BoxDecoration(
+                              color: ac.glass,
+                              borderRadius:
+                                  BorderRadius.circular(kRadiusPill),
+                              border:
+                                  Border.all(color: ac.borderSubtle),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.bookmark_outline,
+                                    size: 12, color: ac.textSecondary),
+                                const SizedBox(width: 4),
+                                Text(
+                                  p['name'] as String? ?? 'Preset',
+                                  style: outfit(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w500,
+                                    color: ac.textPrimary,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      }),
+                    ),
+                    const SizedBox(height: 12),
+                  ],
                   Text('Store type',
                       style: outfit(
                           fontSize: 12,
@@ -1829,6 +1963,36 @@ class _SearchScreenState extends State<SearchScreen> {
                         }),
                       );
                     }).toList(),
+                  ),
+                  // Save preset button
+                  const SizedBox(height: 14),
+                  GestureDetector(
+                    onTap: _saveCurrentPreset,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 7),
+                      decoration: BoxDecoration(
+                        color: ac.glass,
+                        borderRadius: BorderRadius.circular(kRadiusPill),
+                        border: Border.all(color: ac.borderSubtle),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.save_outlined,
+                              size: 14, color: ac.textSecondary),
+                          const SizedBox(width: 6),
+                          Text(
+                            'Save as preset',
+                            style: outfit(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                              color: ac.textSecondary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
                 ],
               ),

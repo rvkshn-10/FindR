@@ -15,6 +15,7 @@ class SearchResultParams {
   final SearchFilters? filters;
   final double? destLat;
   final double? destLng;
+  final List<String>? multiItems;
 
   const SearchResultParams({
     required this.item,
@@ -24,6 +25,7 @@ class SearchResultParams {
     this.filters,
     this.destLat,
     this.destLng,
+    this.multiItems,
   });
 
   bool get hasDestination => destLat != null && destLng != null;

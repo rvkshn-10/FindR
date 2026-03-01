@@ -28,6 +28,29 @@ class AiResultSummary {
   });
 }
 
+/// Ask Gemini for related item suggestions based on a search query.
+Future<List<String>> generateRelatedSuggestions(String searchItem) async {
+  try {
+    final prompt =
+        "The user searched for '$searchItem'. Suggest 3-4 related items they "
+        "might also need. Return ONLY a JSON array of strings, nothing else.";
+    final response = await _getSummaryModel
+        .generateContent([Content.text(prompt)])
+        .timeout(kAiTimeout);
+    final text = response.text?.trim();
+    if (text == null || text.isEmpty) return [];
+    final cleaned = text.replaceAll(_jsonFence, '').trim();
+    final decoded = jsonDecode(cleaned);
+    if (decoded is List) {
+      return decoded.map((e) => e.toString()).toList();
+    }
+    return [];
+  } catch (e) {
+    debugPrint('[Wayvio] AI related suggestions failed: $e');
+    return [];
+  }
+}
+
 /// Ask Gemini to pick the best store from search results.
 /// Uses flash-lite with a minimal prompt to keep token usage low.
 Future<AiResultSummary?> generateResultSummary({
