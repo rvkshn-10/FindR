@@ -152,11 +152,11 @@ Future<void> addFavorite({
   int? reviewCount,
   String? priceLevel,
   String? thumbnail,
+  String? category,
 }) async {
   try {
     final list = await _readList(_kFavorites);
     final safeId = storeId.replaceAll('/', '_');
-    // Remove existing entry to prevent duplicates.
     list.removeWhere((e) => (e['storeId'] as String?)?.replaceAll('/', '_') == safeId);
     list.insert(0, {
       'id': safeId,
@@ -175,12 +175,29 @@ Future<void> addFavorite({
       'reviewCount': reviewCount,
       'priceLevel': priceLevel,
       'thumbnail': thumbnail,
+      'category': category ?? 'General',
       'timestamp': DateTime.now().millisecondsSinceEpoch,
     });
     await _writeList(_kFavorites, list);
     debugPrint('LocalStorage: added favorite "$storeName"');
   } catch (e) {
     debugPrint('[Wayvio] LocalStorage: addFavorite failed: $e');
+  }
+}
+
+/// Update the category of an existing favorite.
+Future<void> updateFavoriteCategory(String storeId, String category) async {
+  try {
+    final list = await _readList(_kFavorites);
+    final safeId = storeId.replaceAll('/', '_');
+    final idx = list.indexWhere(
+        (e) => (e['storeId'] as String?)?.replaceAll('/', '_') == safeId);
+    if (idx != -1) {
+      list[idx]['category'] = category;
+      await _writeList(_kFavorites, list);
+    }
+  } catch (e) {
+    debugPrint('[Wayvio] LocalStorage: updateFavoriteCategory failed: $e');
   }
 }
 
@@ -466,5 +483,100 @@ Future<void> saveSavedLocation(
     await prefs.setString(_kSavedLocations, jsonEncode(map));
   } catch (e) {
     debugPrint('[Wayvio] saveSavedLocation failed: $e');
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Store visit tracker
+// ---------------------------------------------------------------------------
+
+const _kVisits = 'findr_store_visits';
+
+Future<void> markVisited(String storeId) async {
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(_kVisits);
+    final map = raw != null
+        ? (jsonDecode(raw) as Map<String, dynamic>)
+        : <String, dynamic>{};
+    final visits = (map[storeId] as List<dynamic>?)?.cast<int>() ?? [];
+    visits.insert(0, DateTime.now().millisecondsSinceEpoch);
+    map[storeId] = visits;
+    await prefs.setString(_kVisits, jsonEncode(map));
+  } catch (e) {
+    debugPrint('[Wayvio] markVisited failed: $e');
+  }
+}
+
+Future<int> getVisitCount(String storeId) async {
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(_kVisits);
+    if (raw == null) return 0;
+    final map = jsonDecode(raw) as Map<String, dynamic>;
+    final visits = map[storeId] as List<dynamic>?;
+    return visits?.length ?? 0;
+  } catch (e) {
+    debugPrint('[Wayvio] getVisitCount failed: $e');
+    return 0;
+  }
+}
+
+Future<List<Map<String, dynamic>>> getVisitHistory(String storeId) async {
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(_kVisits);
+    if (raw == null) return [];
+    final map = jsonDecode(raw) as Map<String, dynamic>;
+    final visits = (map[storeId] as List<dynamic>?)?.cast<int>() ?? [];
+    return visits.map((ts) => <String, dynamic>{'timestamp': ts}).toList();
+  } catch (e) {
+    debugPrint('[Wayvio] getVisitHistory failed: $e');
+    return [];
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Price history tracking
+// ---------------------------------------------------------------------------
+
+const _kPriceHistory = 'findr_price_history';
+
+Future<void> savePriceSnapshot(
+    String storeId, String item, double price) async {
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(_kPriceHistory);
+    final map = raw != null
+        ? (jsonDecode(raw) as Map<String, dynamic>)
+        : <String, dynamic>{};
+    final key = '${storeId}_$item';
+    final entries =
+        (map[key] as List<dynamic>?)?.cast<Map<String, dynamic>>() ?? [];
+    entries.insert(
+        0, {'price': price, 'ts': DateTime.now().millisecondsSinceEpoch});
+    if (entries.length > 10) entries.removeRange(10, entries.length);
+    map[key] = entries;
+    await prefs.setString(_kPriceHistory, jsonEncode(map));
+  } catch (e) {
+    debugPrint('[Wayvio] savePriceSnapshot failed: $e');
+  }
+}
+
+Future<double?> getPreviousPrice(String storeId, String item) async {
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(_kPriceHistory);
+    if (raw == null) return null;
+    final map = jsonDecode(raw) as Map<String, dynamic>;
+    final key = '${storeId}_$item';
+    final entries =
+        (map[key] as List<dynamic>?)?.cast<Map<String, dynamic>>() ?? [];
+    // Return the second entry (previous price, not the one we just saved)
+    if (entries.length < 2) return null;
+    return (entries[1]['price'] as num?)?.toDouble();
+  } catch (e) {
+    debugPrint('[Wayvio] getPreviousPrice failed: $e');
+    return null;
   }
 }

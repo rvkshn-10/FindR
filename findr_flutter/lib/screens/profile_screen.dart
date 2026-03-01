@@ -159,7 +159,9 @@ class _ProfileScreenState extends State<ProfileScreen>
                 ],
               ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 12),
+            _buildSearchStats(),
+            const SizedBox(height: 12),
             Container(
               margin: const EdgeInsets.symmetric(horizontal: 16),
               decoration: BoxDecoration(
@@ -241,6 +243,63 @@ class _ProfileScreenState extends State<ProfileScreen>
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildSearchStats() {
+    if (_loadingSearches || _searches.isEmpty) return const SizedBox.shrink();
+
+    final totalSearches = _searches.length;
+
+    // Most searched item
+    final freq = <String, int>{};
+    for (final s in _searches) {
+      final item = s['item'] as String? ?? '';
+      if (item.isNotEmpty) freq[item] = (freq[item] ?? 0) + 1;
+    }
+    String mostSearched = '-';
+    if (freq.isNotEmpty) {
+      mostSearched = freq.entries.reduce((a, b) => a.value >= b.value ? a : b).key;
+    }
+
+    int totalStores = 0;
+    for (final s in _searches) {
+      totalStores += (s['resultCount'] as int?) ?? 0;
+    }
+
+    final avgResults =
+        totalSearches > 0 ? (totalStores / totalSearches).toStringAsFixed(1) : '0';
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Wrap(
+        spacing: 8,
+        runSpacing: 8,
+        children: [
+          _StatCard(
+            icon: Icons.search,
+            value: '$totalSearches',
+            label: 'Searches',
+          ),
+          _StatCard(
+            icon: Icons.trending_up,
+            value: mostSearched.length > 12
+                ? '${mostSearched.substring(0, 12)}…'
+                : mostSearched,
+            label: 'Top Item',
+          ),
+          _StatCard(
+            icon: Icons.store,
+            value: '$totalStores',
+            label: 'Stores Found',
+          ),
+          _StatCard(
+            icon: Icons.analytics_outlined,
+            value: avgResults,
+            label: 'Avg Results',
+          ),
+        ],
       ),
     );
   }
@@ -420,38 +479,89 @@ class _ProfileScreenState extends State<ProfileScreen>
       );
     }
 
-    return ListView.separated(
+    final grouped = <String, List<Map<String, dynamic>>>{};
+    for (final fav in _favorites) {
+      final cat = fav['category'] as String? ?? 'General';
+      grouped.putIfAbsent(cat, () => []).add(fav);
+    }
+    final categories = grouped.keys.toList()..sort();
+
+    return ListView.builder(
       padding: const EdgeInsets.all(16),
-      itemCount: _favorites.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 10),
-      itemBuilder: (context, i) {
-        final fav = _favorites[i];
-        return _FavoriteCard(
-          storeName: fav['storeName'] as String? ?? '',
-          address: fav['address'] as String? ?? '',
-          searchItem: fav['searchItem'] as String? ?? '',
-          rating: (fav['rating'] as num?)?.toDouble(),
-          shopType: fav['shopType'] as String?,
-          thumbnail: fav['thumbnail'] as String?,
-          onTap: () {
-              final favLat = (fav['lat'] as num?)?.toDouble() ?? 0.0;
-              final favLng = (fav['lng'] as num?)?.toDouble() ?? 0.0;
-              final favItem = fav['searchItem'] as String? ?? '';
-              widget.onSearchAgain?.call(SearchResultParams(
-                item: favItem,
-                lat: favLat,
-                lng: favLng,
-                maxDistanceMiles: 10,
-              ));
-            },
-          onRemove: () async {
-            final storeId = fav['storeId'] as String? ?? '';
-            await db.removeFavorite(storeId);
-            if (mounted) {
-              setState(() => _favorites.removeWhere(
-                  (f) => f['storeId'] == storeId));
-            }
-          },
+      itemCount: categories.length,
+      itemBuilder: (context, ci) {
+        final cat = categories[ci];
+        final items = grouped[cat]!;
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (ci > 0) const SizedBox(height: 16),
+            Row(
+              children: [
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: ac.accentGreen.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text(
+                    cat,
+                    style: outfit(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: ac.accentGreen,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  '${items.length}',
+                  style: outfit(fontSize: 11, color: ac.textTertiary),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            ...items.map((fav) => Padding(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: _FavoriteCard(
+                    storeName: fav['storeName'] as String? ?? '',
+                    address: fav['address'] as String? ?? '',
+                    searchItem: fav['searchItem'] as String? ?? '',
+                    rating: (fav['rating'] as num?)?.toDouble(),
+                    shopType: fav['shopType'] as String?,
+                    thumbnail: fav['thumbnail'] as String?,
+                    category: fav['category'] as String? ?? 'General',
+                    onCategoryChanged: (newCat) async {
+                      final storeId = fav['storeId'] as String? ?? '';
+                      await db.updateFavoriteCategory(storeId, newCat);
+                      final updated = await db.getFavorites();
+                      if (mounted) setState(() => _favorites = updated);
+                    },
+                    onTap: () {
+                      final favLat =
+                          (fav['lat'] as num?)?.toDouble() ?? 0.0;
+                      final favLng =
+                          (fav['lng'] as num?)?.toDouble() ?? 0.0;
+                      final favItem = fav['searchItem'] as String? ?? '';
+                      widget.onSearchAgain?.call(SearchResultParams(
+                        item: favItem,
+                        lat: favLat,
+                        lng: favLng,
+                        maxDistanceMiles: 10,
+                      ));
+                    },
+                    onRemove: () async {
+                      final storeId = fav['storeId'] as String? ?? '';
+                      await db.removeFavorite(storeId);
+                      if (mounted) {
+                        setState(() => _favorites.removeWhere(
+                            (f) => f['storeId'] == storeId));
+                      }
+                    },
+                  ),
+                )),
+          ],
         );
       },
     );
@@ -568,6 +678,68 @@ class _ProfileScreenState extends State<ProfileScreen>
 // Sub-widgets
 // ---------------------------------------------------------------------------
 
+const kFavoriteCategories = [
+  'General',
+  'Grocery',
+  'Hardware',
+  'Pharmacy',
+  'Electronics',
+  'Restaurants',
+];
+
+class _StatCard extends StatelessWidget {
+  const _StatCard({
+    required this.icon,
+    required this.value,
+    required this.label,
+  });
+
+  final IconData icon;
+  final String value;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final ac = AppColors.of(context);
+    return Container(
+      width: 150,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: ac.glass,
+        borderRadius: BorderRadius.circular(kRadiusMd),
+        border: Border.all(color: ac.borderSubtle),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, size: 18, color: ac.accentGreen),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  value,
+                  style: outfit(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: ac.textPrimary,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                Text(
+                  label,
+                  style: outfit(fontSize: 10, color: ac.textTertiary),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _CountBadge extends StatelessWidget {
   const _CountBadge({required this.count});
   final int count;
@@ -675,6 +847,8 @@ class _FavoriteCard extends StatelessWidget {
     this.rating,
     this.shopType,
     this.thumbnail,
+    this.category = 'General',
+    this.onCategoryChanged,
     required this.onTap,
     required this.onRemove,
   });
@@ -682,6 +856,8 @@ class _FavoriteCard extends StatelessWidget {
   final String storeName, address, searchItem;
   final double? rating;
   final String? shopType, thumbnail;
+  final String category;
+  final ValueChanged<String>? onCategoryChanged;
   final VoidCallback onTap, onRemove;
 
   @override
@@ -770,6 +946,33 @@ class _FavoriteCard extends StatelessWidget {
                                     fontSize: 10,
                                     color: ac.textTertiary)),
                           ],
+                        ),
+                        const SizedBox(height: 6),
+                        SizedBox(
+                          height: 24,
+                          child: DropdownButtonHideUnderline(
+                            child: DropdownButton<String>(
+                              value: kFavoriteCategories.contains(category)
+                                  ? category
+                                  : 'General',
+                              isDense: true,
+                              style: outfit(
+                                  fontSize: 11, color: ac.textSecondary),
+                              icon: Icon(Icons.arrow_drop_down,
+                                  size: 16, color: ac.textTertiary),
+                              items: kFavoriteCategories
+                                  .map((c) => DropdownMenuItem(
+                                        value: c,
+                                        child: Text(c),
+                                      ))
+                                  .toList(),
+                              onChanged: (val) {
+                                if (val != null && onCategoryChanged != null) {
+                                  onCategoryChanged!(val);
+                                }
+                              },
+                            ),
+                          ),
                         ),
                       ],
                     ),
