@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:google_generative_ai/google_generative_ai.dart';
 import '../config.dart';
-import '../services/firestore_service.dart' as db;
+import '../services/local_storage_service.dart' as db;
 import '../widgets/design_system.dart';
 import 'app_shell.dart' show SearchResultParams;
 

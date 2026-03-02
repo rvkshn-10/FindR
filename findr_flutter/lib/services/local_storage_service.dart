@@ -1,3 +1,9 @@
+import 'dart:convert';
+import 'dart:math';
+import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../utils/schema_validator.dart';
+
 /// Local storage service for persisting user data on-device.
 ///
 /// Uses shared_preferences with JSON-encoded lists.
@@ -5,12 +11,19 @@
 ///   findr_searches        — search history
 ///   findr_favorites       — favorited stores
 ///   findr_recommendations — AI-generated personalized recommendations
-library;
 
-import 'dart:convert';
-import 'dart:math';
-import 'package:flutter/foundation.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+// Cache the SharedPreferences instance to avoid repeated initialization
+SharedPreferences? _cachedPrefs;
+
+Future<SharedPreferences> _getPrefs() async {
+  _cachedPrefs ??= await SharedPreferences.getInstance();
+  return _cachedPrefs!;
+}
+
+/// Clear cached SharedPreferences (for testing)
+void clearPrefsCache() {
+  _cachedPrefs = null;
+}
 
 const _kSearches = 'findr_searches';
 const _kFavorites = 'findr_favorites';
@@ -20,13 +33,12 @@ const _kRecommendations = 'findr_recommendations';
 // Helpers
 // ---------------------------------------------------------------------------
 
-Future<List<Map<String, dynamic>>> _readList(String key) async {
+Future<List<Map<String, dynamic>>> _readList(String key, bool Function(Map<String, dynamic>) validator) async {
   try {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = await _getPrefs();
     final raw = prefs.getString(key);
     if (raw == null) return [];
-    final decoded = jsonDecode(raw) as List;
-    return decoded.cast<Map<String, dynamic>>();
+    return SchemaValidator.safeDecodeList(raw, validator);
   } catch (e) {
     debugPrint('[Wayvio] LocalStorage: _readList($key) failed: $e');
     return [];
@@ -35,8 +47,8 @@ Future<List<Map<String, dynamic>>> _readList(String key) async {
 
 Future<void> _writeList(String key, List<Map<String, dynamic>> list) async {
   try {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(key, jsonEncode(list));
+    final prefs = await _getPrefs();
+    await prefs.setString(key, SchemaValidator.safeEncodeList(list));
   } catch (e) {
     debugPrint('[Wayvio] LocalStorage: _writeList($key) failed: $e');
   }
@@ -66,7 +78,7 @@ Future<void> saveSearch({
   int resultCount = 0,
 }) async {
   try {
-    final list = await _readList(_kSearches);
+    final list = await _readList(_kSearches, SchemaValidator.isValidSearchEntry);
     list.insert(0, {
       'id': _generateId(),
       'item': item,
@@ -87,7 +99,7 @@ Future<void> saveSearch({
 
 /// Get recent searches (newest first), limited to [limit].
 Future<List<Map<String, dynamic>>> getRecentSearches({int limit = 20}) async {
-  final list = await _readList(_kSearches);
+  final list = await _readList(_kSearches, SchemaValidator.isValidSearchEntry);
   return list.take(limit.clamp(0, list.length)).toList();
 }
 
@@ -99,7 +111,7 @@ Stream<List<Map<String, dynamic>>> watchRecentSearches({int limit = 20}) async* 
 /// Delete a search from history.
 Future<void> deleteSearch(String docId) async {
   try {
-    final list = await _readList(_kSearches);
+    final list = await _readList(_kSearches, SchemaValidator.isValidSearchEntry);
     list.removeWhere((e) => e['id'] == docId);
     await _writeList(_kSearches, list);
   } catch (e) {
@@ -110,7 +122,7 @@ Future<void> deleteSearch(String docId) async {
 /// Update the result count for the most recent search matching [item].
 Future<void> updateSearchResultCount(String item, int count) async {
   try {
-    final list = await _readList(_kSearches);
+    final list = await _readList(_kSearches, SchemaValidator.isValidSearchEntry);
     final idx = list.indexWhere((e) => e['item'] == item);
     if (idx == -1) return;
     list[idx]['resultCount'] = count;
@@ -155,7 +167,7 @@ Future<void> addFavorite({
   String? category,
 }) async {
   try {
-    final list = await _readList(_kFavorites);
+    final list = await _readList(_kFavorites, SchemaValidator.isValidFavoriteEntry);
     final safeId = storeId.replaceAll('/', '_');
     list.removeWhere((e) => (e['storeId'] as String?)?.replaceAll('/', '_') == safeId);
     list.insert(0, {
@@ -188,7 +200,7 @@ Future<void> addFavorite({
 /// Update the category of an existing favorite.
 Future<void> updateFavoriteCategory(String storeId, String category) async {
   try {
-    final list = await _readList(_kFavorites);
+    final list = await _readList(_kFavorites, SchemaValidator.isValidFavoriteEntry);
     final safeId = storeId.replaceAll('/', '_');
     final idx = list.indexWhere(
         (e) => (e['storeId'] as String?)?.replaceAll('/', '_') == safeId);
@@ -204,7 +216,7 @@ Future<void> updateFavoriteCategory(String storeId, String category) async {
 /// Remove a store from favorites.
 Future<void> removeFavorite(String storeId) async {
   try {
-    final list = await _readList(_kFavorites);
+    final list = await _readList(_kFavorites, SchemaValidator.isValidFavoriteEntry);
     final safeId = storeId.replaceAll('/', '_');
     list.removeWhere((e) => (e['storeId'] as String?)?.replaceAll('/', '_') == safeId);
     await _writeList(_kFavorites, list);
@@ -217,7 +229,7 @@ Future<void> removeFavorite(String storeId) async {
 /// Check if a store is favorited.
 Future<bool> isFavorite(String storeId) async {
   try {
-    final list = await _readList(_kFavorites);
+    final list = await _readList(_kFavorites, SchemaValidator.isValidFavoriteEntry);
     final safeId = storeId.replaceAll('/', '_');
     return list.any((e) => (e['storeId'] as String?)?.replaceAll('/', '_') == safeId);
   } catch (e) {
@@ -228,7 +240,7 @@ Future<bool> isFavorite(String storeId) async {
 
 /// Get all favorites.
 Future<List<Map<String, dynamic>>> getFavorites() async {
-  return _readList(_kFavorites);
+  return _readList(_kFavorites, SchemaValidator.isValidFavoriteEntry);
 }
 
 /// Stream of favorites (emits once — local storage has no live updates).
@@ -247,7 +259,7 @@ Future<void> saveRecommendation({
   required String basedOn,
 }) async {
   try {
-    final list = await _readList(_kRecommendations);
+    final list = await _readList(_kRecommendations, SchemaValidator.isValidRecommendationEntry);
     list.insert(0, {
       'id': _generateId(),
       'title': title,
@@ -264,7 +276,7 @@ Future<void> saveRecommendation({
 
 /// Get recent recommendations.
 Future<List<Map<String, dynamic>>> getRecommendations({int limit = 10}) async {
-  final list = await _readList(_kRecommendations);
+  final list = await _readList(_kRecommendations, SchemaValidator.isValidRecommendationEntry);
   return list.take(limit.clamp(0, list.length)).toList();
 }
 
@@ -282,7 +294,7 @@ Future<void> cacheSearchResults({
   required double lng,
 }) async {
   try {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = await _getPrefs();
     await prefs.setString(_kCachedResults, jsonEncode({
       'query': query,
       'stores': stores,
@@ -298,7 +310,7 @@ Future<void> cacheSearchResults({
 /// Get cached search results, if any.
 Future<Map<String, dynamic>?> getCachedResults() async {
   try {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = await _getPrefs();
     final raw = prefs.getString(_kCachedResults);
     if (raw == null) return null;
     return jsonDecode(raw) as Map<String, dynamic>;
@@ -317,7 +329,7 @@ const _kNotes = 'findr_store_notes';
 /// Get the user's note for a store.
 Future<String?> getStoreNote(String storeId) async {
   try {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = await _getPrefs();
     final raw = prefs.getString(_kNotes);
     if (raw == null) return null;
     final notes = jsonDecode(raw) as Map<String, dynamic>;
@@ -331,7 +343,7 @@ Future<String?> getStoreNote(String storeId) async {
 /// Save a note for a store.
 Future<void> saveStoreNote(String storeId, String note) async {
   try {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = await _getPrefs();
     final raw = prefs.getString(_kNotes);
     final notes = raw != null
         ? (jsonDecode(raw) as Map<String, dynamic>)
@@ -355,7 +367,7 @@ const _kStoreItems = 'findr_store_items';
 
 Future<List<String>> getStoreItems(String storeId) async {
   try {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = await _getPrefs();
     final raw = prefs.getString(_kStoreItems);
     if (raw == null) return [];
     final map = jsonDecode(raw) as Map<String, dynamic>;
@@ -368,7 +380,7 @@ Future<List<String>> getStoreItems(String storeId) async {
 
 Future<void> trackStoreItem(String storeId, String item) async {
   try {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = await _getPrefs();
     final raw = prefs.getString(_kStoreItems);
     final map = raw != null
         ? (jsonDecode(raw) as Map<String, dynamic>)
@@ -394,7 +406,7 @@ const _kReviews = 'findr_store_reviews';
 
 Future<Map<String, dynamic>?> getStoreReview(String storeId) async {
   try {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = await _getPrefs();
     final raw = prefs.getString(_kReviews);
     if (raw == null) return null;
     final map = jsonDecode(raw) as Map<String, dynamic>;
@@ -408,7 +420,7 @@ Future<Map<String, dynamic>?> getStoreReview(String storeId) async {
 Future<void> saveStoreReview(
     String storeId, int availability, int speed, int parking) async {
   try {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = await _getPrefs();
     final raw = prefs.getString(_kReviews);
     final map = raw != null
         ? (jsonDecode(raw) as Map<String, dynamic>)
@@ -428,7 +440,7 @@ Future<void> saveStoreReview(
 
 Future<Map<String, Map<String, dynamic>>> getAllStoreReviews() async {
   try {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = await _getPrefs();
     final raw = prefs.getString(_kReviews);
     if (raw == null) return {};
     final map = jsonDecode(raw) as Map<String, dynamic>;
@@ -446,7 +458,7 @@ Future<Map<String, Map<String, dynamic>>> getAllStoreReviews() async {
 const _kShoppingLists = 'findr_shopping_lists';
 
 Future<List<Map<String, dynamic>>> getShoppingLists() async {
-  return _readList(_kShoppingLists);
+  return _readList(_kShoppingLists, (entry) => SchemaValidator.isValidMap(entry));
 }
 
 Future<void> saveShoppingLists(List<Map<String, dynamic>> lists) async {
@@ -461,7 +473,7 @@ const _kSavedLocations = 'findr_saved_locations';
 
 Future<Map<String, dynamic>> getSavedLocations() async {
   try {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = await _getPrefs();
     final raw = prefs.getString(_kSavedLocations);
     if (raw == null) return {};
     return jsonDecode(raw) as Map<String, dynamic>;
@@ -474,7 +486,7 @@ Future<Map<String, dynamic>> getSavedLocations() async {
 Future<void> saveSavedLocation(
     String key, double lat, double lng, String label) async {
   try {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = await _getPrefs();
     final raw = prefs.getString(_kSavedLocations);
     final map = raw != null
         ? (jsonDecode(raw) as Map<String, dynamic>)
@@ -494,7 +506,7 @@ const _kVisits = 'findr_store_visits';
 
 Future<void> markVisited(String storeId) async {
   try {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = await _getPrefs();
     final raw = prefs.getString(_kVisits);
     final map = raw != null
         ? (jsonDecode(raw) as Map<String, dynamic>)
@@ -510,7 +522,7 @@ Future<void> markVisited(String storeId) async {
 
 Future<int> getVisitCount(String storeId) async {
   try {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = await _getPrefs();
     final raw = prefs.getString(_kVisits);
     if (raw == null) return 0;
     final map = jsonDecode(raw) as Map<String, dynamic>;
@@ -524,7 +536,7 @@ Future<int> getVisitCount(String storeId) async {
 
 Future<List<Map<String, dynamic>>> getVisitHistory(String storeId) async {
   try {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = await _getPrefs();
     final raw = prefs.getString(_kVisits);
     if (raw == null) return [];
     final map = jsonDecode(raw) as Map<String, dynamic>;
@@ -545,7 +557,7 @@ const _kPriceHistory = 'findr_price_history';
 Future<void> savePriceSnapshot(
     String storeId, String item, double price) async {
   try {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = await _getPrefs();
     final raw = prefs.getString(_kPriceHistory);
     final map = raw != null
         ? (jsonDecode(raw) as Map<String, dynamic>)
@@ -565,7 +577,7 @@ Future<void> savePriceSnapshot(
 
 Future<double?> getPreviousPrice(String storeId, String item) async {
   try {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = await _getPrefs();
     final raw = prefs.getString(_kPriceHistory);
     if (raw == null) return null;
     final map = jsonDecode(raw) as Map<String, dynamic>;

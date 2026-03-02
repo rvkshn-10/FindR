@@ -7,7 +7,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../models/search_models.dart';
 import '../services/content_safety_service.dart';
 import '../services/geocode_service.dart';
-import '../services/firestore_service.dart' as db;
+import '../services/local_storage_service.dart' as db;
 import '../services/store_filters.dart';
 import '../widgets/design_system.dart';
 import '../widgets/settings_panel.dart';

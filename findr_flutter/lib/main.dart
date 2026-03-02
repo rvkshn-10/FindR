@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'providers/settings_provider.dart';
 import 'screens/app_shell.dart';
 import 'widgets/design_system.dart';
+import 'utils/error_handler.dart';
 
 void main() {
+  setupGlobalErrorHandler();
   WidgetsFlutterBinding.ensureInitialized();
   runApp(const WayvioApp());
 }
@@ -164,12 +167,18 @@ class WayvioApp extends StatelessWidget {
             theme: _supplyMapTheme,
             darkTheme: _supplyMapDarkTheme,
             themeMode: themeMode,
-            builder: (context, child) {
+            builder: (context, widget) {
+              // Only set custom error widget in release mode, not in tests
+              if (!kDebugMode) {
+                ErrorWidget.builder = (FlutterErrorDetails errorDetails) {
+                  return WayvioErrorWidget(errorDetails: errorDetails);
+                };
+              }
               final theme = Theme.of(context);
               return DefaultTextStyle(
                 style: _noTextShadow(
                     theme.textTheme.bodyLarge ?? const TextStyle()),
-                child: child ?? const SizedBox.shrink(),
+                child: widget ?? const SizedBox.shrink(),
               );
             },
             home: const SupplyMapShell(),

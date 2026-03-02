@@ -53,7 +53,11 @@ const double kMapSelectZoom = 17.5;
 // AI (Gemini)
 // ---------------------------------------------------------------------------
 
-const String kGeminiApiKey = 'AIzaSyBtmZKzv2ZSBuXv4PHcVHbKHxxBfGUrZtw';
+/// Get Gemini API key from environment variables or fallback to hardcoded value
+/// In production, set GEMINI_API_KEY environment variable
+String get kGeminiApiKey => 
+    const String.fromEnvironment('GEMINI_API_KEY', 
+    defaultValue: 'AIzaSyBtmZKzv2ZSBuXv4PHcVHbKHxxBfGUrZtw');
 const Duration kAiTimeout = Duration(seconds: 8);
 
 // ---------------------------------------------------------------------------
@@ -62,7 +66,10 @@ const Duration kAiTimeout = Duration(seconds: 8);
 
 /// Your SerpApi API key.  Sign up free at https://serpapi.com (100 searches/mo).
 /// Leave empty to disable price lookups and Google Maps store search.
-const String kSerpApiKey = '3c98c1ad2a12891b404f04b5183fc31781b0fd08aed9da9a2d5a21cb296426c0';
+/// In production, set SERPAPI_KEY environment variable
+String get kSerpApiKey => 
+    const String.fromEnvironment('SERPAPI_KEY', 
+    defaultValue: '3c98c1ad2a12891b404f04b5183fc31781b0fd08aed9da9a2d5a21cb296426c0');
 
 const Duration kSerpApiTimeout = Duration(seconds: 15);
 
@@ -71,10 +78,16 @@ const Duration kSerpApiTimeout = Duration(seconds: 15);
 // ---------------------------------------------------------------------------
 
 /// Kroger API Client ID.  Register at https://developer.kroger.com
-const String kKrogerClientId = 'findr-bbccpcdg';
+/// In production, set KROGER_CLIENT_ID environment variable
+String get kKrogerClientId => 
+    const String.fromEnvironment('KROGER_CLIENT_ID', 
+    defaultValue: 'findr-bbccpcdg');
 
 /// Kroger API Client Secret.
-const String kKrogerClientSecret = '61jjPy8_xnYsa8jQWb-FqGIBW9KI-fJVeiNzXBoY';
+/// In production, set KROGER_CLIENT_SECRET environment variable
+String get kKrogerClientSecret => 
+    const String.fromEnvironment('KROGER_CLIENT_SECRET', 
+    defaultValue: '61jjPy8_xnYsa8jQWb-FqGIBW9KI-fJVeiNzXBoY');
 
 const String kKrogerBaseUrl = 'https://api.kroger.com/v1';
 const Duration kKrogerTimeout = Duration(seconds: 12);

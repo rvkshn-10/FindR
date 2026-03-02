@@ -1,5 +1,5 @@
 import '../models/shopping_list_models.dart';
-import '../services/firestore_service.dart' as db;
+import '../services/local_storage_service.dart' as db;
 
 /// Load all shopping lists from local storage.
 Future<List<ShoppingList>> loadShoppingLists() async {

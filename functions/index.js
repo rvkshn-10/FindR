@@ -1,11 +1,14 @@
 const functions = require("firebase-functions");
 const fetch = require("node-fetch");
 
-const SERPAPI_KEY =
+// Get API keys from Firebase Secrets or environment variables
+const SERPAPI_KEY = functions.config().serpapi?.key || process.env.SERPAPI_KEY || 
   "3c98c1ad2a12891b404f04b5183fc31781b0fd08aed9da9a2d5a21cb296426c0";
 
-const KROGER_CLIENT_ID = "findr-bbccpcdg";
-const KROGER_CLIENT_SECRET = "61jjPy8_xnYsa8jQWb-FqGIBW9KI-fJVeiNzXBoY";
+const KROGER_CLIENT_ID = functions.config().kroger?.client_id || process.env.KROGER_CLIENT_ID || 
+  "findr-bbccpcdg";
+const KROGER_CLIENT_SECRET = functions.config().kroger?.client_secret || process.env.KROGER_CLIENT_SECRET || 
+  "61jjPy8_xnYsa8jQWb-FqGIBW9KI-fJVeiNzXBoY";
 
 function setCorsHeaders(res) {
   res.set("Access-Control-Allow-Origin", "*");

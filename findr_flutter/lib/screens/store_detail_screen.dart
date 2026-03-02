@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../models/search_models.dart';
-import '../services/firestore_service.dart' as db;
+import '../services/local_storage_service.dart' as db;
 import '../widgets/design_system.dart';
 
 /// Shows a store detail bottom sheet.
