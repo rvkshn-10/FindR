@@ -15,14 +15,6 @@ import '../version.dart';
 import 'app_shell.dart';
 import 'results_screen.dart';
 
-// Default suggestions when the user has no search history yet.
-const _kDefaultSuggestions = <String>[
-  'N95 Masks',
-  'Baby Formula',
-  'Water',
-  'Batteries',
-];
-
 const _seasonalTrends = <int, List<String>>{
   1: ['Hand warmers', 'Hot chocolate', 'Space heater', 'Vitamins'],
   2: ['Valentine chocolate', 'Flowers', 'Cold medicine', 'Humidifier'],
@@ -338,13 +330,6 @@ class _SearchScreenState extends State<SearchScreen> {
     if (_recentSearches.length > _kMaxRecent) {
       _recentSearches = _recentSearches.sublist(0, _kMaxRecent);
     }
-    setState(() {});
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setStringList(_kRecentSearchesKey, _recentSearches);
-  }
-
-  Future<void> _removeRecentSearch(String term) async {
-    _recentSearches.remove(term);
     setState(() {});
     final prefs = await SharedPreferences.getInstance();
     await prefs.setStringList(_kRecentSearchesKey, _recentSearches);
@@ -1012,36 +997,6 @@ class _SearchScreenState extends State<SearchScreen> {
                 // ── Trending this month ────────────────────────────
                 const SizedBox(height: 16),
                 _buildSeasonalTrends(),
-
-                // ── Suggestion pills (recent searches or defaults) ──
-                const SizedBox(height: 16),
-                if (_recentSearches.isNotEmpty) ...[
-                  Text(
-                    'Recent searches',
-                    style: outfit(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w500,
-                      color: ac.textTertiary,
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                ],
-                Wrap(
-                  spacing: 12,
-                  runSpacing: 12,
-                  alignment: WrapAlignment.center,
-                  children: (_recentSearches.isNotEmpty
-                          ? _recentSearches
-                          : _kDefaultSuggestions)
-                      .map((term) {
-                    final isRecent = _recentSearches.contains(term);
-                    return _SuggestionPill(
-                      label: term,
-                      onTap: () => _searchFor(term),
-                      onRemove: isRecent ? () => _removeRecentSearch(term) : null,
-                    );
-                  }).toList(),
-                ),
               ],
             ),
           ),
@@ -2071,83 +2026,6 @@ class _SearchButton extends StatelessWidget {
           height: 48,
           child: Center(
             child: Icon(Icons.arrow_forward, color: Colors.white, size: 20),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-// ── Suggestion pill ───────────────────────────────────────────────────────
-
-class _SuggestionPill extends StatefulWidget {
-  const _SuggestionPill({
-    required this.label,
-    required this.onTap,
-    this.onRemove,
-  });
-
-  final String label;
-  final VoidCallback onTap;
-  final VoidCallback? onRemove;
-
-  @override
-  State<_SuggestionPill> createState() => _SuggestionPillState();
-}
-
-class _SuggestionPillState extends State<_SuggestionPill> {
-  bool _hovered = false;
-
-  @override
-  Widget build(BuildContext context) {
-    final ac = AppColors.of(context);
-    return MouseRegion(
-      onEnter: (_) => setState(() => _hovered = true),
-      onExit: (_) => setState(() => _hovered = false),
-      cursor: SystemMouseCursors.click,
-      child: GestureDetector(
-        onTap: widget.onTap,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          transform: Matrix4.translationValues(0, _hovered ? -2 : 0, 0),
-          padding: EdgeInsets.only(
-            left: 20,
-            right: widget.onRemove != null ? 8 : 20,
-            top: 10,
-            bottom: 10,
-          ),
-          decoration: BoxDecoration(
-            color: _hovered ? ac.borderSubtle : ac.glass,
-            borderRadius: BorderRadius.circular(kRadiusPill),
-            border: Border.all(color: ac.borderSubtle),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                widget.label,
-                style: outfit(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                  color: ac.textPrimary,
-                ),
-              ),
-              if (widget.onRemove != null) ...[
-                const SizedBox(width: 6),
-                GestureDetector(
-                  onTap: widget.onRemove,
-                  behavior: HitTestBehavior.opaque,
-                  child: Padding(
-                    padding: const EdgeInsets.all(2),
-                    child: Icon(
-                      Icons.close,
-                      size: 14,
-                      color: ac.textTertiary,
-                    ),
-                  ),
-                ),
-              ],
-            ],
           ),
         ),
       ),
